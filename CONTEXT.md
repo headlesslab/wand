@@ -27,7 +27,7 @@ _Avoid_: v2, rewrite, new API
 ### Platforms
 
 **Domestic platform**:
-A Chinese-market OS and CPU combination wand targets: Kylin, UOS, or openEuler on x86-64 (Hygon, Zhaoxin), ARM64 (Phytium, Kunpeng), or LoongArch new-world (Loongson 3A5000 / 3A6000, `linux/loong64`). Users both build on it with the distro's own Go and deploy cross-compiled binaries to it.
+A Chinese-market OS and CPU combination wand targets: Kylin, UOS, or openEuler on x86-64 (Hygon, Zhaoxin), ARM64 (Phytium, Kunpeng), or LoongArch new-world (Loongson 3A5000 / 3A6000, `linux/loong64`). On loong64 only new-world (ABI 2.0) distributions qualify, which today means openEuler 22.03 LTS and later; Kylin V10 and UOS 20 loong64 builds are old-world and out. Users both build on it with the distro's own Go and deploy cross-compiled binaries to it.
 _Avoid_: Chinese platform, localized platform, xinchuang, 国产化 left untranslated in English docs
 
 **Go floor**:
