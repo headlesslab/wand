@@ -1,4 +1,4 @@
-package rod
+package wand
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -24,7 +24,7 @@ func (b *Browser) HijackRequests() *HijackRouter {
 // but such as 304 Not Modified will still work as expected.
 // The entire process of hijacking one request:
 //
-//	browser --req-> rod ---> server ---> rod --res-> browser
+//	browser --req-> wand ---> server ---> wand --res-> browser
 //
 // The --req-> and --res-> are the parts that can be modified.
 func (p *Page) HijackRequests() *HijackRouter {

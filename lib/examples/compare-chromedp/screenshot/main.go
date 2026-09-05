@@ -4,8 +4,8 @@ package main
 import (
 	"os"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/proto"
 	"github.com/ysmood/gson"
 )
 
@@ -13,7 +13,7 @@ import (
 // of the entire browser viewport, as well as using `kit`
 // to store it into a file.
 func main() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	// capture screenshot of an element
 	browser.MustPage("https://google.com").MustElement("body div").MustScreenshot("elementScreenshot.png")

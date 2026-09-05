@@ -8,21 +8,21 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
 // For example, when you log into your github account, and you want to reuse the login session for automation task.
-// You can use this example to achieve such functionality. Rod will be just like your browser extension.
+// You can use this example to achieve such functionality. wand will be just like your browser extension.
 func main() {
 	// Make sure you have closed your browser completely, UserMode can't control a browser that is not launched by it.
 	// Launches a new browser with the "new user mode" option, and returns the URL to control that browser.
 	wsURL := launcher.NewUserMode().MustLaunch()
 
-	browser := rod.New().ControlURL(wsURL).MustConnect().NoDefaultDevice()
+	browser := wand.New().ControlURL(wsURL).MustConnect().NoDefaultDevice()
 
 	// Run a extension. Here we created a link previewer extension as an example.
 	// With this extension, whenever you hover on a link a preview of the linked page will popup.
@@ -33,12 +33,12 @@ func main() {
 	waitExit()
 }
 
-func linkPreviewer(browser *rod.Browser) {
+func linkPreviewer(browser *wand.Browser) {
 	// Create a headless browser to generate preview of links on background.
-	previewer := rod.New().MustConnect()
+	previewer := wand.New().MustConnect()
 	previewer.MustSetCookies(browser.MustGetCookies()...) // share cookies
-	pool := rod.NewPagePool(5)
-	create := func() *rod.Page { return previewer.MustPage() }
+	pool := wand.NewPagePool(5)
+	create := func() *wand.Page { return previewer.MustPage() }
 
 	go browser.EachEvent(func(e *proto.TargetTargetCreated) {
 		if e.TargetInfo.Type != proto.TargetTargetInfoTypePage {

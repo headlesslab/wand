@@ -5,7 +5,7 @@ import (
 	"flag"
 	"log"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 var flagDevToolWsURL = flag.String("devtools-ws-url", "", "DevTools WebSocket URL")
@@ -18,7 +18,7 @@ func main() {
 		log.Fatal("must specify -devtools-ws-url")
 	}
 
-	page := rod.New().ControlURL(*flagDevToolWsURL).MustConnect().MustPage("https://duckduckgo.com")
+	page := wand.New().ControlURL(*flagDevToolWsURL).MustConnect().MustPage("https://duckduckgo.com")
 
 	page.MustElement("#logo_homepage_link").MustWaitVisible()
 

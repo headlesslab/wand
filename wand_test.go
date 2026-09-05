@@ -1,11 +1,11 @@
-package rod_test
+package wand_test
 
 import (
 	"testing"
 )
 
-// This is the template to demonstrate how to test Rod.
-func TestRod(t *testing.T) {
+// This is the template to demonstrate how to test wand.
+func TestWand(t *testing.T) {
 	g := setup(t)
 	g.cancelTimeout() // Cancel timeout protection
 

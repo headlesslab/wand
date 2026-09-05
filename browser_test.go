@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"errors"
@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 	"github.com/ysmood/gson"
 )
@@ -25,7 +25,7 @@ func TestIncognito(t *testing.T) {
 
 	k := g.RandStr(16)
 
-	b := g.browser.MustIncognito().Sleeper(rod.DefaultSleeper)
+	b := g.browser.MustIncognito().Sleeper(wand.DefaultSleeper)
 	defer b.MustClose()
 
 	page := b.MustPage(g.blank())
@@ -42,7 +42,7 @@ func TestIncognito(t *testing.T) {
 }
 
 func TestBrowserResetControlURL(_ *testing.T) {
-	rod.New().ControlURL("test").ControlURL("")
+	wand.New().ControlURL("test").ControlURL("")
 }
 
 func TestDefaultDevice(t *testing.T) {
@@ -164,7 +164,7 @@ func TestBrowserWaitEvent(t *testing.T) {
 func TestBrowserCrash(t *testing.T) {
 	g := setup(t)
 
-	browser := rod.New().Context(g.Context()).MustConnect()
+	browser := wand.New().Context(g.Context()).MustConnect()
 	page := browser.MustPage()
 	js := `() => new Promise(r => setTimeout(r, 10000))`
 
@@ -246,17 +246,17 @@ func TestResolveBlocking(t *testing.T) {
 func TestTestTry(t *testing.T) {
 	g := setup(t)
 
-	g.Nil(rod.Try(func() {}))
+	g.Nil(wand.Try(func() {}))
 
-	err := rod.Try(func() { panic(1) })
-	var errVal *rod.TryError
+	err := wand.Try(func() { panic(1) })
+	var errVal *wand.TryError
 	g.True(errors.As(err, &errVal))
-	g.Is(err, &rod.TryError{})
+	g.Is(err, &wand.TryError{})
 	g.Eq(errVal.Unwrap().Error(), "1")
 	g.Eq(1, errVal.Value)
 	g.Has(errVal.Error(), "error value: 1\ngoroutine")
 
-	errVal = rod.Try(func() { panic(errors.New("t")) }).(*rod.TryError)
+	errVal = wand.Try(func() { panic(errors.New("t")) }).(*wand.TryError)
 	g.Eq(errVal.Unwrap().Error(), "t")
 }
 
@@ -397,14 +397,14 @@ func TestBrowserConnectErr(t *testing.T) {
 	g := setup(t)
 
 	g.Panic(func() {
-		rod.New().ControlURL(g.RandStr(16)).MustConnect()
+		wand.New().ControlURL(g.RandStr(16)).MustConnect()
 	})
 }
 
 func TestStreamReader(t *testing.T) {
 	g := setup(t)
 
-	r := rod.NewStreamReader(g.page, "")
+	r := wand.NewStreamReader(g.page, "")
 
 	g.mc.stub(1, proto.IORead{}, func(_ StubSend) (gson.JSON, error) {
 		return gson.New(proto.IOReadResult{
@@ -434,7 +434,7 @@ func TestBrowserConnectFailure(t *testing.T) {
 
 	c := g.Context()
 	c.Cancel()
-	err := rod.New().Context(c).Connect()
+	err := wand.New().Context(c).Connect()
 	if err == nil {
 		g.Fatal("expected an error on connect failure")
 	}
@@ -443,19 +443,19 @@ func TestBrowserConnectFailure(t *testing.T) {
 func TestBrowserPool(t *testing.T) {
 	g := got.T(t)
 
-	pool := rod.NewBrowserPool(3)
+	pool := wand.NewBrowserPool(3)
 
-	b, err := pool.Get(func() (*rod.Browser, error) {
-		browser := rod.New()
+	b, err := pool.Get(func() (*wand.Browser, error) {
+		browser := wand.New()
 		return browser, browser.Connect()
 	})
 	g.E(err)
 	pool.Put(b)
 
-	b = pool.MustGet(func() *rod.Browser { return rod.New().MustConnect() })
+	b = pool.MustGet(func() *wand.Browser { return wand.New().MustConnect() })
 	pool.Put(b)
 
-	pool.Cleanup(func(p *rod.Browser) {
+	pool.Cleanup(func(p *wand.Browser) {
 		p.MustClose()
 	})
 }
@@ -465,7 +465,7 @@ func TestOldBrowser(t *testing.T) {
 
 	g := setup(t)
 	u := launcher.New().Revision(686378).MustLaunch()
-	b := rod.New().ControlURL(u).MustConnect()
+	b := wand.New().ControlURL(u).MustConnect()
 	g.Cleanup(b.MustClose)
 	res, err := proto.BrowserGetVersion{}.Call(b)
 	g.E(err)
@@ -476,7 +476,7 @@ func TestBrowserLostConnection(t *testing.T) {
 	g := setup(t)
 
 	l := launcher.New()
-	p := rod.New().ControlURL(l.MustLaunch()).MustConnect().MustPage(g.blank())
+	p := wand.New().ControlURL(l.MustLaunch()).MustConnect().MustPage(g.blank())
 
 	go func() {
 		utils.Sleep(1)
@@ -490,6 +490,6 @@ func TestBrowserLostConnection(t *testing.T) {
 func TestBrowserConnectConflict(t *testing.T) {
 	g := setup(t)
 	g.Panic(func() {
-		rod.New().Client(&cdp.Client{}).ControlURL("test").MustConnect()
+		wand.New().Client(&cdp.Client{}).ControlURL("test").MustConnect()
 	})
 }

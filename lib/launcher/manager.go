@@ -9,14 +9,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/launcher/flags"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/launcher/flags"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 const (
 	// HeaderName for remote launch.
-	HeaderName = "Rod-Launcher"
+	HeaderName = "Wand-Launcher"
 )
 
 // MustNewManaged is similar to NewManaged.

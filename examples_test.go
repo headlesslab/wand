@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"context"
@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/input"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/input"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -23,9 +23,9 @@ import (
 // and then gets the header element which gives the description for Git.
 func Example_basic() {
 	// Launch a new browser with default options, and connect to it.
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
-	// Even you forget to close, rod will close it after main process ends.
+	// Even you forget to close, wand will close it after main process ends.
 	defer browser.MustClose()
 
 	// Create a new page
@@ -42,7 +42,7 @@ func Example_basic() {
 
 	fmt.Println(text)
 
-	// Get all input elements. Rod supports query elements by css selector, xpath, and regex.
+	// Get all input elements. wand supports query elements by css selector, xpath, and regex.
 	// For more detailed usage, check the query_test.go file.
 	fmt.Println("Found", len(page.MustElements("input")), "input elements")
 
@@ -63,10 +63,10 @@ func Example_basic() {
 }
 
 // Shows how to disable headless mode and debug.
-// Rod provides a lot of debug options, you can set them with setter methods or use environment variables.
-// Doc for environment variables: https://pkg.go.dev/github.com/go-rod/rod/lib/defaults
+// wand provides a lot of debug options, you can set them with setter methods or use environment variables.
+// Doc for environment variables: https://pkg.go.dev/github.com/headlesslab/wand/lib/defaults
 func Example_disable_headless_to_debug() {
-	// Headless runs the browser on foreground, you can also use flag "-rod=show"
+	// Headless runs the browser on foreground, you can also use flag "-wand=show"
 	// Devtools opens the tab in each new tab opened automatically
 	l := launcher.New().
 		Headless(false).
@@ -79,7 +79,7 @@ func Example_disable_headless_to_debug() {
 	// Trace shows verbose debug information for each action executed
 	// SlowMotion is a debug related function that waits 2 seconds between
 	// each action, making it easier to inspect what your code is doing.
-	browser := rod.New().
+	browser := wand.New().
 		ControlURL(url).
 		Trace(true).
 		SlowMotion(2 * time.Second).
@@ -87,7 +87,7 @@ func Example_disable_headless_to_debug() {
 
 	// ServeMonitor plays screenshots of each tab. This feature is extremely
 	// useful when debugging with headless mode.
-	// You can also enable it with flag "-rod=monitor"
+	// You can also enable it with flag "-wand=monitor"
 	launcher.Open(browser.ServeMonitor(""))
 
 	defer browser.MustClose()
@@ -103,14 +103,14 @@ func Example_disable_headless_to_debug() {
 	utils.Pause() // pause goroutine
 }
 
-// Rod use https://golang.org/pkg/context to handle cancellations for IO blocking operations, most times it's timeout.
+// wand use https://golang.org/pkg/context to handle cancellations for IO blocking operations, most times it's timeout.
 // Context will be recursively passed to all sub-methods.
 // For example, methods like Page.Context(ctx) will return a clone of the page with the ctx,
 // all the methods of the returned page will use the ctx if they have IO blocking operations.
 // [Page.Timeout] or [Page.WithCancel] is just a shortcut for Page.Context.
 // Of course, Browser or Element works the same way.
 func Example_context_and_timeout() {
-	page := rod.New().MustConnect().MustPage("https://github.com")
+	page := wand.New().MustConnect().MustPage("https://github.com")
 
 	page.
 		// Set a 5-second timeout for all chained methods
@@ -145,7 +145,7 @@ func Example_context_and_timeout() {
 }
 
 func Example_context_and_EachEvent() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage("https://github.com").MustWaitLoad()
@@ -169,11 +169,11 @@ func Example_context_and_EachEvent() {
 // the no-prefix version of them.
 // About why we use "Must" as the prefix, it's similar to https://golang.org/pkg/regexp/#MustCompile
 func Example_error_handling() {
-	page := rod.New().MustConnect().MustPage("https://mdn.dev")
+	page := wand.New().MustConnect().MustPage("https://mdn.dev")
 
 	// We use Go's standard way to check error types, no magic.
 	check := func(err error) {
-		var evalErr *rod.EvalError
+		var evalErr *wand.EvalError
 		if errors.Is(err, context.DeadlineExceeded) { // timeout error
 			fmt.Println("timeout err")
 		} else if errors.As(err, &evalErr) { // eval error
@@ -190,7 +190,7 @@ func Example_error_handling() {
 	// and fail-fast (https://en.wikipedia.org/wiki/Fail-fast).
 	// This style will reduce code, but it may also catch extra errors (less consistent and precise).
 	{
-		err := rod.Try(func() {
+		err := wand.Try(func() {
 			fmt.Println(page.MustElement("a").MustHTML()) // use "Must" prefixed functions
 		})
 		check(err)
@@ -216,7 +216,7 @@ func Example_error_handling() {
 // Example_search shows how to use Search to get element inside nested iframes or shadow DOMs.
 // It works the same as https://developers.google.com/web/tools/chrome-devtools/dom#search
 func Example_search() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage("https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe")
@@ -230,7 +230,7 @@ func Example_search() {
 }
 
 func Example_page_screenshot() {
-	page := rod.New().MustConnect().MustPage("https://github.com").MustWaitLoad()
+	page := wand.New().MustConnect().MustPage("https://github.com").MustWaitLoad()
 
 	// simple version
 	page.MustScreenshot("my.png")
@@ -252,10 +252,10 @@ func Example_page_screenshot() {
 }
 
 func Example_page_scroll_screenshot() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	// capture entire browser viewport, returning jpg with quality=90
-	img, err := browser.MustPage("https://desktop.github.com/").MustWaitStable().ScrollScreenshot(&rod.ScrollScreenshotOptions{
+	img, err := browser.MustPage("https://desktop.github.com/").MustWaitStable().ScrollScreenshot(&wand.ScrollScreenshotOptions{
 		Format:  proto.PageCaptureScreenshotFormatJpeg,
 		Quality: gson.Int(90),
 	})
@@ -267,7 +267,7 @@ func Example_page_scroll_screenshot() {
 }
 
 func Example_page_pdf() {
-	page := rod.New().MustConnect().MustPage("https://github.com").MustWaitLoad()
+	page := wand.New().MustConnect().MustPage("https://github.com").MustWaitLoad()
 
 	// simple version
 	page.MustPDF("my.pdf")
@@ -287,7 +287,7 @@ func Example_race_selectors() {
 	const username = ""
 	const password = ""
 
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	page := browser.MustPage("https://leetcode.com/accounts/login/")
 
@@ -295,7 +295,7 @@ func Example_race_selectors() {
 	page.MustElement("#id_password").MustInput(password).MustType(input.Enter)
 
 	// It will keep retrying until one selector has found a match
-	elm := page.Race().Element(".nav-user-icon-base").MustHandle(func(e *rod.Element) {
+	elm := page.Race().Element(".nav-user-icon-base").MustHandle(func(e *wand.Element) {
 		// print the username after successful login
 		fmt.Println(*e.MustAttribute("title"))
 	}).Element("[data-cy=sign-in-error]").MustDo()
@@ -306,10 +306,10 @@ func Example_race_selectors() {
 	}
 }
 
-// Rod uses mouse cursor to simulate clicks, so if a button is moving because of animation, the click may not work as expected.
+// wand uses mouse cursor to simulate clicks, so if a button is moving because of animation, the click may not work as expected.
 // We usually use WaitStable to make sure the target isn't changing anymore.
 func Example_wait_for_animation() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage("https://getbootstrap.com/docs/4.0/components/modal/")
@@ -328,7 +328,7 @@ func Example_wait_for_animation() {
 
 // When you want to wait for an ajax request to complete, this example will be useful.
 func Example_wait_for_request() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage("https://www.wikipedia.org/").MustWaitLoad()
@@ -352,7 +352,7 @@ func Example_wait_for_request() {
 // Shows how to change the retry/polling options that is used to query elements.
 // This is useful when you want to customize the element query retry logic.
 func Example_customize_retry_strategy() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage("https://github.com")
@@ -369,8 +369,8 @@ func Example_customize_retry_strategy() {
 
 	// If sleeper is nil page.ElementE will query without retrying.
 	// If nothing found it will return an error.
-	el, err := page.Sleeper(rod.NotFoundSleeper).Element("input")
-	if errors.Is(err, &rod.ElementNotFoundError{}) {
+	el, err := page.Sleeper(wand.NotFoundSleeper).Element("input")
+	if errors.Is(err, &wand.ElementNotFoundError{}) {
 		fmt.Println("element not found")
 	} else if err != nil {
 		panic(err)
@@ -392,7 +392,7 @@ func Example_customize_browser_launch() {
 		Delete("use-mock-keychain"). // delete flag "--use-mock-keychain"
 		MustLaunch()
 
-	browser := rod.New().ControlURL(url).MustConnect()
+	browser := wand.New().ControlURL(url).MustConnect()
 	defer browser.MustClose()
 
 	// So that we don't have to self issue certs for MITM
@@ -407,12 +407,12 @@ func Example_customize_browser_launch() {
 	fmt.Println(browser.MustPage("https://mdn.dev/").MustElement("title").MustText())
 }
 
-// When rod doesn't have a feature that you need. You can easily call the cdp to achieve it.
-// List of cdp API: https://github.com/go-rod/rod/tree/main/lib/proto
+// When wand doesn't have a feature that you need. You can easily call the cdp to achieve it.
+// List of cdp API: https://github.com/headlesslab/wand/tree/main/lib/proto
 func Example_direct_cdp() {
-	page := rod.New().MustConnect().MustPage()
+	page := wand.New().MustConnect().MustPage()
 
-	// Rod doesn't have a method to enable AD blocking,
+	// wand doesn't have a method to enable AD blocking,
 	// but you can call cdp interface directly to achieve it.
 
 	// The two code blocks below are equal to enable AD blocking
@@ -433,7 +433,7 @@ func Example_direct_cdp() {
 
 // Shows how to listen for events.
 func Example_handle_events() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage()
@@ -484,7 +484,7 @@ func Example_handle_events() {
 }
 
 func Example_download_file() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	page := browser.MustPage("https://file-examples.com/index.php/sample-documents-download/sample-pdf-download/")
 
 	wait := browser.MustWaitDownload()
@@ -498,18 +498,18 @@ func Example_download_file() {
 // both the request and the response.
 // The entire process of hijacking one request:
 //
-//	browser --req-> rod ---> server ---> rod --res-> browser
+//	browser --req-> wand ---> server ---> wand --res-> browser
 //
 // The --req-> and --res-> are the parts that can be modified.
 func Example_hijack_requests() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	router := browser.HijackRequests()
 	defer router.MustStop()
 
-	router.MustAdd("*.js", func(ctx *rod.Hijack) {
-		// Here we update the request's header. Rod gives functionality to
+	router.MustAdd("*.js", func(ctx *wand.Hijack) {
+		// Here we update the request's header. wand gives functionality to
 		// change or update all parts of the request. Refer to the documentation
 		// for more information.
 		ctx.Request.Req().Header.Set("My-Header", "test")
@@ -536,9 +536,9 @@ func Example_hijack_requests() {
 
 // Shows how to share a remote object reference between two Eval.
 func Example_eval_reuse_remote_object() {
-	page := rod.New().MustConnect().MustPage()
+	page := wand.New().MustConnect().MustPage()
 
-	fn := page.MustEvaluate(rod.Eval(`() => Math.random`).ByObject())
+	fn := page.MustEvaluate(wand.Eval(`() => Math.random`).ByObject())
 
 	res := page.MustEval(`f => f()`, fn)
 
@@ -549,7 +549,7 @@ func Example_eval_reuse_remote_object() {
 // Shows how to update the state of the current page.
 // In this example we enable the network domain.
 func Example_states() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage()
@@ -567,16 +567,16 @@ func Example_states() {
 	// true
 }
 
-// We can use [rod.PagePool] to concurrently control and reuse pages.
+// We can use [wand.PagePool] to concurrently control and reuse pages.
 func ExamplePage_pool() {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	// We create a pool that will hold at most 3 pages which means the max concurrency is 3
-	pool := rod.NewPagePool(3)
+	pool := wand.NewPagePool(3)
 
 	// Create a page if needed
-	create := func() *rod.Page {
+	create := func() *wand.Page {
 		// We use MustIncognito to isolate pages with each other
 		return browser.MustIncognito().MustPage()
 	}
@@ -604,7 +604,7 @@ func ExamplePage_pool() {
 	wg.Wait()
 
 	// cleanup pool
-	pool.Cleanup(func(p *rod.Page) { p.MustClose() })
+	pool.Cleanup(func(p *wand.Page) { p.MustClose() })
 
 	// Output:
 	// MDN Web Docs
@@ -613,14 +613,14 @@ func ExamplePage_pool() {
 	// MDN Web Docs
 }
 
-// We can use [rod.BrowserPool] to concurrently control and reuse browsers.
+// We can use [wand.BrowserPool] to concurrently control and reuse browsers.
 func ExampleBrowser_pool() {
 	// Create a new browser pool with a limit of 3
-	pool := rod.NewBrowserPool(3)
+	pool := wand.NewBrowserPool(3)
 
 	// Create a function that returns a new browser instance
-	create := func() *rod.Browser {
-		browser := rod.New().MustConnect()
+	create := func() *wand.Browser {
+		browser := wand.New().MustConnect()
 		return browser
 	}
 
@@ -648,7 +648,7 @@ func ExampleBrowser_pool() {
 	wg.Wait()
 
 	// Cleanup the pool by closing all the browser instances
-	pool.Cleanup(func(p *rod.Browser) {
+	pool.Cleanup(func(p *wand.Browser) {
 		p.MustClose()
 	})
 }
@@ -661,11 +661,11 @@ func Example_load_extension() {
 		Set("load-extension", extPath).
 		// Headless mode doesn't support extension yet.
 		// Reason: https://bugs.chromium.org/p/chromium/issues/detail?id=706008#c5
-		// You can use XVFB to get rid of it: https://github.com/go-rod/rod/blob/main/lib/examples/launch-managed/main.go
+		// You can use XVFB to get rid of it: https://github.com/headlesslab/wand/blob/main/lib/examples/launch-managed/main.go
 		Headless(false).
 		MustLaunch()
 
-	page := rod.New().ControlURL(u).MustConnect().MustPage("http://mdn.dev")
+	page := wand.New().ControlURL(u).MustConnect().MustPage("http://mdn.dev")
 
 	page.MustWait(`() => document.title === 'test-extension'`)
 
@@ -677,7 +677,7 @@ func Example_load_extension() {
 
 func Example_log_cdp_traffic() {
 	cdp := cdp.New().
-		// Here we can customize how to log the requests, responses, and events transferred between Rod and the browser.
+		// Here we can customize how to log the requests, responses, and events transferred between wand and the browser.
 		Logger(utils.Log(func(args ...interface{}) {
 			switch v := args[0].(type) {
 			case *cdp.Request:
@@ -686,5 +686,5 @@ func Example_log_cdp_traffic() {
 		})).
 		Start(cdp.MustConnectWS(launcher.New().MustLaunch()))
 
-	rod.New().Client(cdp).MustConnect().MustPage("http://mdn.dev")
+	wand.New().Client(cdp).MustConnect().MustPage("http://mdn.dev")
 }

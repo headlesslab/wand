@@ -1,11 +1,11 @@
-package rod
+package wand
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 // TryError error.

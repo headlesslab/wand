@@ -2,12 +2,12 @@
 package main
 
 import (
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/devices"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/devices"
 )
 
 func main() {
-	page := rod.New().MustConnect().MustPage()
+	page := wand.New().MustConnect().MustPage()
 
 	// emulate iPhone 7 landscape
 	err := page.Emulate(devices.IPhone6or7or8.Landscape())

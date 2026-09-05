@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"bytes"
@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/input"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/input"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -119,10 +119,10 @@ func TestNotInteractable(t *testing.T) {
 	}`)
 	_, err := el.Interactable()
 	g.Has(err.Error(), "element covered by: <div>")
-	g.Is(err, &rod.NotInteractableError{})
-	g.Is(err, &rod.CoveredError{})
+	g.Is(err, &wand.NotInteractableError{})
+	g.Is(err, &wand.CoveredError{})
 	g.False(el.MustInteractable())
-	var ee *rod.NotInteractableError
+	var ee *wand.NotInteractableError
 	g.True(errors.As(err, &ee))
 	g.Eq(ee.Error(), "element is not cursor interactable")
 
@@ -149,17 +149,17 @@ func TestInteractableWithNoShape(t *testing.T) {
 
 	el := p.MustElement("#no-shape")
 	_, err := el.Interactable()
-	g.Is(err, &rod.InvisibleShapeError{})
-	g.Is(err, &rod.NotInteractableError{})
+	g.Is(err, &wand.InvisibleShapeError{})
+	g.Is(err, &wand.NotInteractableError{})
 	g.Eq(err.Error(), "element has no visible shape or outside the viewport: <div#no-shape>")
 
 	el = p.MustElement("#outside")
 	_, err = el.Interactable()
-	g.Is(err, &rod.InvisibleShapeError{})
+	g.Is(err, &wand.InvisibleShapeError{})
 
 	el = p.MustElement("#invisible")
 	_, err = el.Interactable()
-	g.Is(err, &rod.InvisibleShapeError{})
+	g.Is(err, &wand.InvisibleShapeError{})
 }
 
 func TestNotInteractableWithNoPointerEvents(t *testing.T) {
@@ -167,8 +167,8 @@ func TestNotInteractableWithNoPointerEvents(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/interactable.html"))
 	_, err := p.MustElementR("#no-pointer-events", "click me").Interactable()
-	g.Is(err, &rod.NoPointerEventsError{})
-	g.Is(err, &rod.NotInteractableError{})
+	g.Is(err, &wand.NoPointerEventsError{})
+	g.Is(err, &wand.NotInteractableError{})
 	g.Eq(err.Error(), "element's pointer-events is none: <span#no-pointer-events>")
 }
 
@@ -237,7 +237,7 @@ func TestElementContext(t *testing.T) {
 	el := p.MustElement("button").Timeout(time.Hour).CancelTimeout()
 	el, cancel := el.WithCancel()
 	defer cancel()
-	el.Sleeper(rod.DefaultSleeper).MustClick()
+	el.Sleeper(wand.DefaultSleeper).MustClick()
 }
 
 func TestElementCancelContext(t *testing.T) {
@@ -288,7 +288,7 @@ func TestIframeCrossDomains(t *testing.T) {
 	</html>`)
 
 	u := launcher.New().HeadlessNew(true).NoSandbox(true).MustLaunch()
-	browser := rod.New().ControlURL(u).NoDefaultDevice().MustConnect()
+	browser := wand.New().ControlURL(u).NoDefaultDevice().MustConnect()
 	defer browser.MustClose()
 
 	page := browser.MustPage(u2)
@@ -331,7 +331,7 @@ func TestShadowDOM(t *testing.T) {
 
 	elNoShadow := p.MustElement("script")
 	_, err := elNoShadow.ShadowRoot()
-	g.True((&rod.NoShadowRootError{}).Is(err))
+	g.True((&wand.NoShadowRootError{}).Is(err))
 	g.Has(err.Error(), "element has no shadow root:")
 }
 
@@ -342,7 +342,7 @@ func TestInputTime(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/input.html"))
 
-	var el *rod.Element
+	var el *wand.Element
 	{
 		el = p.MustElement("[type=date]")
 		el.MustInputTime(now)
@@ -398,7 +398,7 @@ func TestInputColor(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/input.html"))
 
-	var el *rod.Element
+	var el *wand.Element
 	{
 		el = p.MustElement("[type=color]")
 		el.MustInputColor("#ff6f00")
@@ -484,7 +484,7 @@ func TestSelectQuery(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/input.html"))
 	el := p.MustElement("select")
-	err := el.Select([]string{`[value="c"]`}, true, rod.SelectorTypeCSSSector)
+	err := el.Select([]string{`[value="c"]`}, true, wand.SelectorTypeCSSSector)
 	g.E(err)
 
 	g.Eq(2, el.MustEval("() => this.selectedIndex").Int())
@@ -500,21 +500,21 @@ func TestSelectOptions(t *testing.T) {
 	g.Eq(1, el.MustProperty("selectedIndex").Int())
 
 	// unselect with regex
-	err := el.Select([]string{`^B$`}, false, rod.SelectorTypeRegex)
+	err := el.Select([]string{`^B$`}, false, wand.SelectorTypeRegex)
 	g.E(err)
 	g.Eq("C", el.MustText())
 
 	// unselect with css selector
-	err = el.Select([]string{`[value="c"]`}, false, rod.SelectorTypeCSSSector)
+	err = el.Select([]string{`[value="c"]`}, false, wand.SelectorTypeCSSSector)
 	g.E(err)
 	g.Eq("", el.MustText())
 
 	// option not found error
-	g.Is(el.Select([]string{"not-exists"}, true, rod.SelectorTypeCSSSector), &rod.ElementNotFoundError{})
+	g.Is(el.Select([]string{"not-exists"}, true, wand.SelectorTypeCSSSector), &wand.ElementNotFoundError{})
 
 	{
 		g.mc.stubErr(5, proto.RuntimeCallFunctionOn{})
-		g.Err(el.Select([]string{"B"}, true, rod.SelectorTypeText))
+		g.Err(el.Select([]string{"B"}, true, wand.SelectorTypeText))
 	}
 }
 
@@ -838,14 +838,14 @@ func TestFnErr(t *testing.T) {
 	_, err := el.Eval("foo()")
 	g.Err(err)
 	g.Has(err.Error(), "ReferenceError: foo is not defined")
-	var e *rod.EvalError
+	var e *wand.EvalError
 	g.True(errors.As(err, &e))
 	g.Eq(proto.RuntimeRemoteObjectSubtypeError, e.Exception.Subtype)
 
-	_, err = el.ElementByJS(rod.Eval("() => foo()"))
+	_, err = el.ElementByJS(wand.Eval("() => foo()"))
 	g.Err(err)
 	g.Has(err.Error(), "ReferenceError: foo is not defined")
-	g.True(errors.Is(err, &rod.EvalError{}))
+	g.True(errors.Is(err, &wand.EvalError{}))
 }
 
 func TestElementEWithDepth(t *testing.T) {
@@ -956,7 +956,7 @@ func TestElementErrors(t *testing.T) {
 	err = el.Context(ctx).Input("a")
 	g.Err(err)
 
-	err = el.Context(ctx).Select([]string{"a"}, true, rod.SelectorTypeText)
+	err = el.Context(ctx).Select([]string{"a"}, true, wand.SelectorTypeText)
 	g.Err(err)
 
 	err = el.Context(ctx).WaitStable(0)

@@ -1,13 +1,13 @@
-package rod_test
+package wand_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -47,14 +47,14 @@ func TestPageEval(t *testing.T) {
 	g.Eq(page.MustEval(`	 ; () => 1; `).Int(), 1)
 
 	// reuse obj
-	obj := page.MustEvaluate(rod.Eval(`() => () => 'ok'`).ByObject())
+	obj := page.MustEvaluate(wand.Eval(`() => () => 'ok'`).ByObject())
 	g.Eq("ok", page.MustEval(`f => f()`, obj).Str())
 
 	_, err := page.Eval(`10`)
 	g.Has(err.Error(), `eval js error: TypeError: 10.apply is not a function`)
 
 	_, err = page.Eval(`() => notExist()`)
-	g.Is(err, &rod.EvalError{})
+	g.Is(err, &wand.EvalError{})
 	g.Has(err.Error(), `eval js error: ReferenceError: notExist is not defined`)
 }
 
@@ -141,7 +141,7 @@ func TestPageExpose(t *testing.T) {
 func TestObjectRelease(t *testing.T) {
 	g := setup(t)
 
-	res, err := g.page.Evaluate(rod.Eval(`() => document`).ByObject())
+	res, err := g.page.Evaluate(wand.Eval(`() => document`).ByObject())
 	g.E(err)
 	g.page.MustRelease(res)
 }
@@ -174,10 +174,10 @@ func TestObjectLeak(t *testing.T) {
 
 	p := g.page.MustNavigate(g.blank())
 
-	obj := p.MustEvaluate(rod.Eval("() => ({a:1})").ByObject())
+	obj := p.MustEvaluate(wand.Eval("() => ({a:1})").ByObject())
 	p.MustReload().MustWaitLoad()
 	g.Panic(func() {
-		p.MustEvaluate(rod.Eval(`obj => obj`, obj))
+		p.MustEvaluate(wand.Eval(`obj => obj`, obj))
 	})
 }
 
@@ -255,12 +255,12 @@ func TestPageObjCrossNavigation(t *testing.T) {
 	g := setup(t)
 
 	p := g.page.MustNavigate(g.blank())
-	obj := p.MustEvaluate(rod.Eval(`() => ({})`).ByObject())
+	obj := p.MustEvaluate(wand.Eval(`() => ({})`).ByObject())
 
 	g.page.MustNavigate(g.blank())
 
-	_, err := p.Evaluate(rod.Eval(`() => 1`).This(obj))
-	g.Is(err, &rod.ObjectNotFoundError{})
+	_, err := p.Evaluate(wand.Eval(`() => 1`).This(obj))
+	g.Is(err, &wand.ObjectNotFoundError{})
 	g.Has(err.Error(), "cannot find object: {\"type\":\"object\"")
 }
 
@@ -279,7 +279,7 @@ func TestEvalOptionsString(t *testing.T) {
 	p := g.page.MustNavigate(g.srcFile("fixtures/click.html"))
 	el := p.MustElement("button")
 
-	g.Eq(rod.Eval(`() => this.parentElement`).This(el.Object).String(), "() => this.parentElement() button")
+	g.Eq(wand.Eval(`() => this.parentElement`).This(el.Object).String(), "() => this.parentElement() button")
 }
 
 func TestEvalObjectReferenceChainIsTooLong(t *testing.T) {
@@ -287,7 +287,7 @@ func TestEvalObjectReferenceChainIsTooLong(t *testing.T) {
 
 	p := g.page.MustNavigate(g.blank())
 
-	obj, err := p.Evaluate(&rod.EvalOptions{
+	obj, err := p.Evaluate(&wand.EvalOptions{
 		JS: `() => {
 			let a = {b: 1}
 			a.c = a

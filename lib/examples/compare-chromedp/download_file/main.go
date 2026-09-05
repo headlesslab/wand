@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/proto"
 )
 
 func main() {
@@ -18,7 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	page := browser.MustPage("https://github.com/chromedp/examples")
 

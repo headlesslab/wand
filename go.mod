@@ -1,4 +1,4 @@
-module github.com/go-rod/rod
+module github.com/headlesslab/wand
 
 go 1.21
 

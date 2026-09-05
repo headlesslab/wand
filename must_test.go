@@ -1,10 +1,10 @@
-package rod_test
+package wand_test
 
 import (
 	"testing"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/proto"
 )
 
 func TestBrowserWithPanic(t *testing.T) {
@@ -16,7 +16,7 @@ func TestBrowserWithPanic(t *testing.T) {
 		panic(x)
 	}
 
-	browser := g.browser.Sleeper(rod.NotFoundSleeper).WithPanic(trigger)
+	browser := g.browser.Sleeper(wand.NotFoundSleeper).WithPanic(trigger)
 	g.Panic(func() { browser.MustPage("____") })
 	g.Eq(1, triggers)
 
@@ -44,7 +44,7 @@ func TestPageWithPanic(t *testing.T) {
 		panic(x)
 	}
 
-	browser := g.browser.Sleeper(rod.NotFoundSleeper)
+	browser := g.browser.Sleeper(wand.NotFoundSleeper)
 	g.Panic(func() { browser.MustPage("____") })
 	g.Eq(0, triggers)
 
@@ -72,7 +72,7 @@ func TestElementWithPanic(t *testing.T) {
 		panic(x)
 	}
 
-	browser := g.browser.Sleeper(rod.NotFoundSleeper)
+	browser := g.browser.Sleeper(wand.NotFoundSleeper)
 	g.Panic(func() { browser.MustPage("____") })
 	g.Eq(0, triggers)
 

@@ -8,14 +8,14 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 // This example demonstrates how to set a HTTP header on requests.
 func main() {
 	host := headerServer()
 
-	page := rod.New().MustConnect().MustPage(host)
+	page := wand.New().MustConnect().MustPage(host)
 
 	page.MustSetExtraHeaders("X-Header", "my request header")
 	page.MustNavigate(host)

@@ -1,12 +1,12 @@
 // Package main It helps to launcher a transparent shell under the current shell with
-// some extra environment variables that are required by rod testing.
+// some extra environment variables that are required by wand testing.
 package main
 
 import (
 	"os"
 	"os/exec"
 
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {

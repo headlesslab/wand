@@ -1,16 +1,16 @@
-# Rod comparison with chromedp
+# wand comparison with chromedp
 
 chromedp is one of the most popular drivers for Devtools Protocol.
 
-To help developers who are familiar with chromedp to understand rod better we created side by side examples between rod and chromedp.
+To help developers who are familiar with chromedp to understand wand better we created side by side examples between wand and chromedp.
 
 To run an example:
 
-1. clone rod
+1. clone wand
 2. cd to the folder of an example, such as `cd lib/examples/compare-chromedp/click`
 3. run `go run .`
 
-| rod                                | chromedp                                                                          | Description                                                                |
+| wand                                | chromedp                                                                          | Description                                                                |
 | ---------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | [click](./click)                   | [click](https://github.com/chromedp/examples/blob/master/click)                   | use a selector to click on an element                                      |
 | [cookie](./cookie)                 | [cookie](https://github.com/chromedp/examples/blob/master/cookie)                 | set a HTTP cookie on requests                                              |
@@ -32,4 +32,4 @@ To run an example:
 | [visible](./visible)               | [visible](https://github.com/chromedp/examples/blob/master/visible)               | wait until an element is visible                                           |
 
 Occasionally, some of these examples may break if the specific websites these examples use get updated.
-We suggest you create an [issue](https://github.com/go-rod/rod/issues/new/choose).
+We suggest you create an [issue](https://github.com/headlesslab/wand/issues/new/choose).

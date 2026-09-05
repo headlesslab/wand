@@ -1,8 +1,8 @@
-# A docker image for rod development.
+# A docker image for wand development.
 # To build the image:
-#     docker build -t ghcr.io/go-rod/rod:dev -f lib/docker/dev.Dockerfile .
+#     docker build -t ghcr.io/headlesslab/wand:dev -f lib/docker/dev.Dockerfile .
 
-FROM ghcr.io/go-rod/rod
+FROM ghcr.io/headlesslab/wand
 
 ARG nodejs
 ARG golang

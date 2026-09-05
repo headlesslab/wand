@@ -1,6 +1,6 @@
 // This file serves for the Page.Evaluate.
 
-package rod
+package wand
 
 import (
 	"errors"
@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/js"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/js"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -75,7 +75,7 @@ func (e *EvalOptions) String() string {
 	}
 	if len(args) > 0 {
 		if f, ok := args[0].(*js.Function); ok {
-			fn = "rod." + f.Name
+			fn = "wand." + f.Name
 			args = e.JSArgs[1:]
 		}
 

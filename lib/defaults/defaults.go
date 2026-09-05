@@ -11,19 +11,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
-// Trace is the default of rod.Browser.Trace .
+// Trace is the default of wand.Browser.Trace .
 // Option name is "trace".
 var Trace bool
 
-// Slow is the default of rod.Browser.SlowMotion .
+// Slow is the default of wand.Browser.SlowMotion .
 // The format is same as https://golang.org/pkg/time/#ParseDuration
 // Option name is "slow".
 var Slow time.Duration
 
-// Monitor is the default of rod.Browser.ServeMonitor .
+// Monitor is the default of wand.Browser.ServeMonitor .
 // Option name is "monitor".
 var Monitor string
 
@@ -135,21 +135,21 @@ func init() {
 	ResetWith("")
 }
 
-// ResetWith options and "-rod" command line flag.
+// ResetWith options and "-wand" command line flag.
 // It will be called in an init() , so you don't have to call it manually.
-// It will try to load the cli flag "-rod" and then the options, the later override the former.
-// If you want to disable the global cli argument flag, set env DISABLE_ROD_FLAG.
+// It will try to load the cli flag "-wand" and then the options, the later override the former.
+// If you want to disable the global cli argument flag, set env DISABLE_WAND_FLAG.
 // Values are separated by commas, key and value are separated by "=". For example:
 //
-//	go run main.go -rod=show
-//	go run main.go -rod show,trace,slow=1s,monitor
-//	go run main.go --rod="slow=1s,dir=path/has /space,monitor=:9223"
+//	go run main.go -wand=show
+//	go run main.go -wand show,trace,slow=1s,monitor
+//	go run main.go --wand="slow=1s,dir=path/has /space,monitor=:9223"
 func ResetWith(options string) {
 	Reset()
 
-	if _, has := os.LookupEnv("DISABLE_ROD_FLAG"); !has {
-		if !flag.Parsed() && flag.Lookup("rod") == nil {
-			flag.String("rod", "", `Set the default value of options used by rod.`)
+	if _, has := os.LookupEnv("DISABLE_WAND_FLAG"); !has {
+		if !flag.Parsed() && flag.Lookup("wand") == nil {
+			flag.String("wand", "", `Set the default value of options used by wand.`)
 		}
 
 		parseFlag(os.Args)
@@ -159,8 +159,8 @@ func ResetWith(options string) {
 }
 
 func parseFlag(args []string) {
-	reg := regexp.MustCompile(`^--?rod$`)
-	regEq := regexp.MustCompile(`^--?rod=(.*)$`)
+	reg := regexp.MustCompile(`^--?wand$`)
+	regEq := regexp.MustCompile(`^--?wand=(.*)$`)
 	opts := ""
 	for i, arg := range args {
 		if reg.MatchString(arg) && i+1 < len(args) {
@@ -196,7 +196,7 @@ func parse(options string) {
 
 		f := envParsers[n]
 		if f == nil {
-			panic("unknown rod env option: " + n)
+			panic("unknown wand env option: " + n)
 		}
 		f(v)
 	}

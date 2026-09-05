@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 )
 
@@ -23,7 +23,7 @@ func BenchmarkCleanup(b *testing.B) {
 
 			url := launch.MustLaunch()
 
-			browser := rod.New().ControlURL(url).MustConnect()
+			browser := wand.New().ControlURL(url).MustConnect()
 			b.Cleanup(browser.MustClose)
 
 			browser.MustPage(u).MustClose()

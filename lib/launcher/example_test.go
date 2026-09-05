@@ -4,23 +4,23 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/leakless"
 )
 
 func Example_use_system_browser() {
 	if path, exists := launcher.LookPath(); exists {
 		u := launcher.New().Bin(path).MustLaunch()
-		rod.New().ControlURL(u).MustConnect()
+		wand.New().ControlURL(u).MustConnect()
 	}
 }
 
 func Example_print_browser_CLI_output() {
 	// Pipe the browser stderr and stdout to os.Stdout .
 	u := launcher.New().Logger(os.Stdout).MustLaunch()
-	rod.New().ControlURL(u).MustConnect()
+	wand.New().ControlURL(u).MustConnect()
 }
 
 func Example_custom_launch() {
@@ -42,5 +42,5 @@ func Example_custom_launch() {
 	utils.E(cmd.Start())
 	u := launcher.MustResolveURL(<-parser.URL)
 
-	rod.New().ControlURL(u).MustConnect()
+	wand.New().ControlURL(u).MustConnect()
 }

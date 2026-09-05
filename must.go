@@ -6,7 +6,7 @@
 // But `Click` has a `button` argument to decide which button to click.
 // `MustClick` feels like a version of `Click` with some default behaviors.
 
-package rod
+package wand
 
 import (
 	"errors"
@@ -17,10 +17,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/input"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/input"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -119,7 +119,7 @@ func (b *Browser) MustSetCookies(cookies ...*proto.NetworkCookie) *Browser {
 // MustWaitDownload is similar to [Browser.WaitDownload].
 // It will read the file into bytes then remove the file.
 func (b *Browser) MustWaitDownload() func() []byte {
-	tmpDir := filepath.Join(os.TempDir(), "rod", "downloads")
+	tmpDir := filepath.Join(os.TempDir(), "wand", "downloads")
 	wait := b.WaitDownload(tmpDir)
 
 	return func() []byte {

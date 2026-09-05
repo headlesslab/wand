@@ -2,7 +2,7 @@
 // Such as when running automation we can use trace to visually
 // see where the mouse going to click.
 
-package rod
+package wand
 
 import (
 	"encoding/json"
@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-rod/rod/lib/assets"
-	"github.com/go-rod/rod/lib/js"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/assets"
+	"github.com/headlesslab/wand/lib/js"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 // TraceType for logger.
@@ -105,7 +105,7 @@ func (b *Browser) trySlowMotion() {
 func (p *Page) ExposeHelpers(list ...*js.Function) {
 	p.MustEvaluate(evalHelper(&js.Function{
 		Name:         "_" + utils.RandString(8), // use a random name so it won't hit the cache
-		Definition:   "() => { window.rod = functions }",
+		Definition:   "() => { window.wand = functions }",
 		Dependencies: list,
 	}))
 }

@@ -7,11 +7,11 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 func main() {
-	page := rod.New().MustConnect().MustPage(testServer())
+	page := wand.New().MustConnect().MustPage(testServer())
 	page.MustEval(makeVisibleScript)
 
 	log.Printf("waiting 3s for box to become visible")

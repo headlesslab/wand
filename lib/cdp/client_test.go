@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 	"github.com/ysmood/gotrace"
 	"github.com/ysmood/gson"
@@ -336,7 +336,7 @@ func TestMassBrowserClose(t *testing.T) { //nolint: tparallel
 	for i := 0; i < 50; i++ {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			t.Parallel()
-			browser := rod.New().MustConnect()
+			browser := wand.New().MustConnect()
 			browser.MustPage(s.URL()).MustWaitLoad().MustClose()
 			browser.MustClose()
 		})

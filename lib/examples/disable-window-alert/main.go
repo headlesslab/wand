@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {
 	go serve()
 
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
 	// Creating a Page Object

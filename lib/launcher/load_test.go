@@ -6,10 +6,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 )
 
@@ -21,7 +21,7 @@ func BenchmarkManager(b *testing.B) {
 
 	s := got.New(b).Serve()
 
-	// docker run --rm -p 7317:7317 ghcr.io/go-rod/rod
+	// docker run --rm -p 7317:7317 ghcr.io/headlesslab/wand
 	s.HostURL.Host = "host.docker.internal"
 
 	s.Route("/", ".html", `<html><body>
@@ -50,7 +50,7 @@ func BenchmarkManager(b *testing.B) {
 
 			l := launcher.MustNewManaged("")
 			u, h := l.ClientHeader()
-			browser := rod.New().Client(cdp.MustStartWithURL(ctx, u, h)).MustConnect()
+			browser := wand.New().Client(cdp.MustStartWithURL(ctx, u, h)).MustConnect()
 			page := browser.MustPage()
 			wait := page.MustWaitNavigation()
 			page.MustNavigate(s.URL())

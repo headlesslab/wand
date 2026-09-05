@@ -1,15 +1,15 @@
 // This file contains all query related code for Page and Element to separate the concerns.
 
-package rod
+package wand
 
 import (
 	"errors"
 	"regexp"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/js"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/js"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 // SelectorType enum.

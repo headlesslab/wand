@@ -4,8 +4,8 @@
 //go:generate go run ./lib/assets/generate
 //go:generate go run ./lib/utils/lint
 
-// Package rod is a high-level driver directly based on DevTools Protocol.
-package rod
+// Package wand is a high-level driver directly based on DevTools Protocol.
+package wand
 
 import (
 	"context"
@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/goob"
 )
 
@@ -32,7 +32,7 @@ var (
 // Browser represents the browser.
 // It doesn't depends on file system, it should work with remote browser seamlessly.
 // To check the env var you can use to quickly enable options from CLI, check here:
-// https://pkg.go.dev/github.com/go-rod/rod/lib/defaults
+// https://pkg.go.dev/github.com/headlesslab/wand/lib/defaults
 type Browser struct {
 	// BrowserContextID is the id for incognito window
 	BrowserContextID proto.BrowserBrowserContextID

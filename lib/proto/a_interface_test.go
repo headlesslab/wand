@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 type Client struct {

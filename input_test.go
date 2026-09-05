@@ -1,12 +1,12 @@
-package rod_test
+package wand_test
 
 import (
 	"testing"
 
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/input"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/input"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 func TestKeyActions(t *testing.T) {

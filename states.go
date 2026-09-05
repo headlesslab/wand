@@ -1,9 +1,9 @@
-package rod
+package wand
 
 import (
 	"reflect"
 
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand/lib/proto"
 )
 
 type stateKey struct {

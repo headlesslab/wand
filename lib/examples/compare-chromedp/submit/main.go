@@ -5,13 +5,13 @@ import (
 	"log"
 	"strings"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/input"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/input"
 )
 
 // This example demonstrates how to fill out and submit a form.
 func main() {
-	page := rod.New().MustConnect().MustPage("https://github.com/search")
+	page := wand.New().MustConnect().MustPage("https://github.com/search")
 
 	page.MustElement(`input[name=q]`).MustWaitVisible().MustInput("chromedp").MustType(input.Enter)
 

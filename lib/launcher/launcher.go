@@ -14,14 +14,14 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/launcher/flags"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/launcher/flags"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/leakless"
 )
 
 // DefaultUserDataDirPrefix ...
-var DefaultUserDataDirPrefix = filepath.Join(os.TempDir(), "rod", "user-data")
+var DefaultUserDataDirPrefix = filepath.Join(os.TempDir(), "wand", "user-data")
 
 // Launcher is a helper to launch browser binary smartly.
 type Launcher struct {
@@ -123,7 +123,7 @@ func New() *Launcher {
 
 // NewUserMode is a preset to enable reusing current user data. Useful for automation of personal browser.
 // If you see any error, it may because you can't launch debug port for existing browser, the solution is to
-// completely close the running browser. Unfortunately, there's no API for rod to tell it automatically yet.
+// completely close the running browser. Unfortunately, there's no API for wand to tell it automatically yet.
 func NewUserMode() *Launcher {
 	ctx, cancel := context.WithCancel(context.Background())
 	bin, _ := LookPath()
@@ -373,7 +373,7 @@ func (l *Launcher) FormatArgs() []string {
 			continue
 		}
 
-		if strings.HasPrefix(string(k), "rod-") {
+		if strings.HasPrefix(string(k), "wand-") {
 			continue
 		}
 

@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 		log.Fatal("usage: go run main.go -- 'This is the phrase to translate to Spanish.'")
 	}
 
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	page := browser.MustPage("https://translate.google.com/?sl=auto&tl=es&op=translate")
 

@@ -1,22 +1,22 @@
-package rod_test
+package wand_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/js"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/js"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
 func TestMonitor(t *testing.T) {
 	g := setup(t)
 
-	b := rod.New().MustConnect()
+	b := wand.New().MustConnect()
 	defer b.MustClose()
 	p := b.MustPage(g.blank()).MustWaitLoad()
 
@@ -46,33 +46,33 @@ func TestMonitorErr(t *testing.T) {
 	defer l.Kill()
 
 	g.Panic(func() {
-		rod.New().Monitor("abc").ControlURL(u).MustConnect()
+		wand.New().Monitor("abc").ControlURL(u).MustConnect()
 	})
 }
 
 func TestTrace(t *testing.T) {
 	g := setup(t)
 
-	g.Eq(rod.TraceTypeInput.String(), "[input]")
+	g.Eq(wand.TraceTypeInput.String(), "[input]")
 
 	var msg []interface{}
 	g.browser.Logger(utils.Log(func(list ...interface{}) { msg = list }))
 	g.browser.Trace(true).SlowMotion(time.Microsecond)
 	defer func() {
-		g.browser.Logger(rod.DefaultLogger)
+		g.browser.Logger(wand.DefaultLogger)
 		g.browser.Trace(defaults.Trace).SlowMotion(defaults.Slow)
 	}()
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/click.html")).MustWaitLoad()
 
-	g.Eq(rod.TraceTypeWait, msg[0])
+	g.Eq(wand.TraceTypeWait, msg[0])
 	g.Eq("load", msg[1])
 	g.Eq(p, msg[2])
 
 	el := p.MustElement("button")
 	el.MustClick()
 
-	g.Eq(rod.TraceTypeInput, msg[0])
+	g.Eq(wand.TraceTypeInput, msg[0])
 	g.Eq("left click", msg[1])
 	g.Eq(el, msg[2])
 
@@ -86,7 +86,7 @@ func TestTraceLogs(t *testing.T) {
 	g.browser.Logger(utils.LoggerQuiet)
 	g.browser.Trace(true)
 	defer func() {
-		g.browser.Logger(rod.DefaultLogger)
+		g.browser.Logger(wand.DefaultLogger)
 		g.browser.Trace(defaults.Trace)
 	}()
 
@@ -104,5 +104,5 @@ func TestExposeHelpers(t *testing.T) {
 	p := g.newPage(g.srcFile("fixtures/click.html"))
 	p.ExposeHelpers(js.ElementR)
 
-	g.Eq(p.MustElementByJS(`() => rod.elementR('button', 'click me')`).MustText(), "click me")
+	g.Eq(p.MustElementByJS(`() => wand.elementR('button', 'click me')`).MustText(), "click me")
 }

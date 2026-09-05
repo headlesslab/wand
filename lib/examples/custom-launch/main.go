@@ -4,17 +4,17 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
 )
 
 func main() {
 	l := launcher.New()
 
-	// For more info: https://pkg.go.dev/github.com/go-rod/rod/lib/launcher
+	// For more info: https://pkg.go.dev/github.com/headlesslab/wand/lib/launcher
 	u := l.MustLaunch()
 
-	browser := rod.New().ControlURL(u).MustConnect()
+	browser := wand.New().ControlURL(u).MustConnect()
 
 	page := browser.MustPage("http://example.com").MustWaitStable()
 

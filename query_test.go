@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -33,9 +33,9 @@ func TestPagesQuery(t *testing.T) {
 	pages := b.MustPages()
 
 	g.True(pages.MustFind("button").MustHas("button"))
-	g.Panic(func() { rod.Pages{}.MustFind("____") })
+	g.Panic(func() { wand.Pages{}.MustFind("____") })
 	g.True(pages.MustFindByURL("click.html").MustHas("button"))
-	g.Panic(func() { rod.Pages{}.MustFindByURL("____") })
+	g.Panic(func() { wand.Pages{}.MustFindByURL("____") })
 
 	_, err := pages.Find("____")
 	g.Err(err)
@@ -57,11 +57,11 @@ func TestPagesQuery(t *testing.T) {
 func TestPagesOthers(t *testing.T) {
 	g := setup(t)
 
-	list := rod.Pages{}
+	list := wand.Pages{}
 	g.Nil(list.First())
 	g.Nil(list.Last())
 
-	list = append(list, &rod.Page{})
+	list = append(list, &wand.Page{})
 
 	g.NotNil(list.First())
 	g.NotNil(list.Last())
@@ -108,8 +108,8 @@ func TestSearch(t *testing.T) {
 	g.Eq("click me", el.MustText())
 	g.True(el.MustClick().MustMatches("[a=ok]"))
 
-	_, err := p.Sleeper(rod.NotFoundSleeper).Search("not-exists")
-	g.True(errors.Is(err, &rod.ElementNotFoundError{}))
+	_, err := p.Sleeper(wand.NotFoundSleeper).Search("not-exists")
+	g.True(errors.Is(err, &wand.ElementNotFoundError{}))
 	g.Eq(err.Error(), "cannot find element")
 
 	// when search result is not ready
@@ -197,34 +197,34 @@ func TestPageRace(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/selector.html"))
 
-	p.Race().Element("button").MustHandle(func(e *rod.Element) { g.Eq("01", e.MustText()) }).MustDo()
+	p.Race().Element("button").MustHandle(func(e *wand.Element) { g.Eq("01", e.MustText()) }).MustDo()
 	g.Eq("01", p.Race().Element("button").MustDo().MustText())
 
-	p.Race().ElementX("//button").MustHandle(func(e *rod.Element) { g.Eq("01", e.MustText()) }).MustDo()
+	p.Race().ElementX("//button").MustHandle(func(e *wand.Element) { g.Eq("01", e.MustText()) }).MustDo()
 	g.Eq("01", p.Race().ElementX("//button").MustDo().MustText())
 
-	p.Race().ElementR("button", "02").MustHandle(func(e *rod.Element) { g.Eq("02", e.MustText()) }).MustDo()
+	p.Race().ElementR("button", "02").MustHandle(func(e *wand.Element) { g.Eq("02", e.MustText()) }).MustDo()
 	g.Eq("02", p.Race().ElementR("button", "02").MustDo().MustText())
 
 	p.Race().MustElementByJS("() => document.querySelector('button')", nil).
-		MustHandle(func(e *rod.Element) { g.Eq("01", e.MustText()) }).MustDo()
+		MustHandle(func(e *wand.Element) { g.Eq("01", e.MustText()) }).MustDo()
 	g.Eq("01", p.Race().MustElementByJS("() => document.querySelector('button')", nil).MustDo().MustText())
 
-	p.Race().Search("button").MustHandle(func(e *rod.Element) { g.Eq("01", e.MustText()) }).MustDo()
+	p.Race().Search("button").MustHandle(func(e *wand.Element) { g.Eq("01", e.MustText()) }).MustDo()
 	g.Eq("01", p.Race().Search("button").MustDo().MustText())
 
-	raceFunc := func(p *rod.Page) (*rod.Element, error) {
+	raceFunc := func(p *wand.Page) (*wand.Element, error) {
 		el := p.MustElement("button")
 		g.Eq("01", el.MustText())
 		return el, nil
 	}
-	p.Race().ElementFunc(raceFunc).MustHandle(func(e *rod.Element) { g.Eq("01", e.MustText()) }).MustDo()
+	p.Race().ElementFunc(raceFunc).MustHandle(func(e *wand.Element) { g.Eq("01", e.MustText()) }).MustDo()
 	g.Eq("01", p.Race().ElementFunc(raceFunc).MustDo().MustText())
 
 	el, err := p.Sleeper(func() utils.Sleeper { return utils.CountSleeper(2) }).Race().
-		Element("not-exists").MustHandle(func(_ *rod.Element) {}).
+		Element("not-exists").MustHandle(func(_ *wand.Element) {}).
 		ElementX("//not-exists").
-		ElementR("not-exists", "test").MustHandle(func(_ *rod.Element) {}).
+		ElementR("not-exists", "test").MustHandle(func(_ *wand.Element) {}).
 		Do()
 	g.Err(err)
 	g.Nil(el)
@@ -238,7 +238,7 @@ func TestPageRaceRetryInHandle(t *testing.T) {
 	g := setup(t)
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/selector.html"))
-	p.Race().Element("div").MustHandle(func(e *rod.Element) {
+	p.Race().Element("div").MustHandle(func(e *wand.Element) {
 		go func() {
 			utils.Sleep(0.5)
 			e.MustElement("button").MustEval(`() => this.innerText = '04'`)
@@ -253,8 +253,8 @@ func TestPageRaceSearchCrossIframe(t *testing.T) {
 	p := g.page.MustNavigate(g.srcFile("fixtures/iframe.html"))
 
 	race := p.Race()
-	race.Element("not exist").MustHandle(func(_ *rod.Element) { panic("element not exist") })
-	race.Search("span").MustHandle(func(e *rod.Element) { g.Eq("01", e.MustText()) })
+	race.Element("not exist").MustHandle(func(_ *wand.Element) { panic("element not exist") })
+	race.Search("span").MustHandle(func(e *wand.Element) { g.Eq("01", e.MustText()) })
 	race.MustDo()
 }
 
@@ -370,11 +370,11 @@ func TestElementTracing(t *testing.T) {
 	g.browser.Logger(utils.LoggerQuiet)
 	defer func() {
 		g.browser.Trace(defaults.Trace)
-		g.browser.Logger(rod.DefaultLogger)
+		g.browser.Logger(wand.DefaultLogger)
 	}()
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/click.html"))
-	g.Eq(`rod.element("code") html`, p.MustElement("html").MustElement("code").MustText())
+	g.Eq(`wand.element("code") html`, p.MustElement("html").MustElement("code").MustText())
 }
 
 func TestPageElementByJS(t *testing.T) {
@@ -384,8 +384,8 @@ func TestPageElementByJS(t *testing.T) {
 
 	g.Eq(p.MustElementByJS(`() => document.querySelector('button')`).MustText(), "click me")
 
-	_, err := p.ElementByJS(rod.Eval(`() => 1`))
-	g.Is(err, &rod.ExpectElementError{})
+	_, err := p.ElementByJS(wand.Eval(`() => 1`))
+	g.Is(err, &wand.ExpectElementError{})
 	g.Eq(err.Error(), "expect js to return an element, but got: {\"type\":\"number\",\"value\":1,\"description\":\"1\"}")
 }
 
@@ -396,16 +396,16 @@ func TestPageElementsByJS(t *testing.T) {
 
 	g.Len(p.MustElementsByJS("() => document.querySelectorAll('button')"), 4)
 
-	_, err := p.ElementsByJS(rod.Eval(`() => [1]`))
-	g.Is(err, &rod.ExpectElementsError{})
+	_, err := p.ElementsByJS(wand.Eval(`() => [1]`))
+	g.Is(err, &wand.ExpectElementsError{})
 	g.Eq(err.Error(), "expect js to return an array of elements, but got: {\"type\":\"number\",\"value\":1,\"description\":\"1\"}")
-	_, err = p.ElementsByJS(rod.Eval(`() => 1`))
+	_, err = p.ElementsByJS(wand.Eval(`() => 1`))
 	g.Eq(err.Error(), "expect js to return an array of elements, but got: {\"type\":\"number\",\"value\":1,\"description\":\"1\"}")
-	_, err = p.ElementsByJS(rod.Eval(`() => foo()`))
+	_, err = p.ElementsByJS(wand.Eval(`() => foo()`))
 	g.Err(err)
 
 	g.mc.stubErr(1, proto.RuntimeGetProperties{})
-	_, err = p.ElementsByJS(rod.Eval(`() => [document.body]`))
+	_, err = p.ElementsByJS(wand.Eval(`() => [document.body]`))
 	g.Err(err)
 
 	g.mc.stubErr(4, proto.RuntimeCallFunctionOn{})
@@ -434,7 +434,7 @@ func TestPageElementMaxRetry(t *testing.T) {
 func TestElementsOthers(t *testing.T) {
 	g := setup(t)
 
-	list := rod.Elements{}
+	list := wand.Elements{}
 	g.Nil(list.First())
 	g.Nil(list.Last())
 }

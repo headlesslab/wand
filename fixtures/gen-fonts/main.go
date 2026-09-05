@@ -9,14 +9,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {
 	url := launcher.New().MustLaunch()
-	b := rod.New().ControlURL(url).MustConnect()
+	b := wand.New().ControlURL(url).MustConnect()
 	defer b.MustClose()
 
 	p := b.MustPage("https://translate.google.com/")

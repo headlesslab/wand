@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 	"github.com/ysmood/gson"
 )

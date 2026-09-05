@@ -1,4 +1,4 @@
-package rod
+package wand
 
 import (
 	"bytes"
@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
-// CDPClient is usually used to make rod side-effect free. Such as proxy all IO of rod.
+// CDPClient is usually used to make wand side-effect free. Such as proxy all IO of wand.
 type CDPClient interface {
 	Event() <-chan *cdp.Event
 	Call(ctx context.Context, sessionID, method string, params interface{}) ([]byte, error)
@@ -63,8 +63,8 @@ func (msg *Message) Load(e proto.Event) bool {
 	return true
 }
 
-// DefaultLogger for rod.
-var DefaultLogger = log.New(os.Stdout, "[rod] ", log.LstdFlags)
+// DefaultLogger for wand.
+var DefaultLogger = log.New(os.Stdout, "[wand] ", log.LstdFlags)
 
 // DefaultSleeper generates the default sleeper for retry, it uses backoff to grow the interval.
 // The growth looks like:
@@ -88,7 +88,7 @@ func NewBrowserPool(limit int) Pool[Browser] {
 }
 
 // Pool is used to thread-safely limit the number of elements at the same time.
-// It's a common practice to use a channel to limit concurrency, it's not special for rod.
+// It's a common practice to use a channel to limit concurrency, it's not special for wand.
 // This helper is more like an example to use Go Channel.
 // Reference: https://golang.org/doc/effective_go#channels
 type Pool[T any] chan *T
@@ -180,7 +180,7 @@ func (sr *StreamReader) Close() error {
 	return proto.IOClose{Handle: sr.handle}.Call(sr.c)
 }
 
-// Try try fn with recover, return the panic as rod.ErrTry.
+// Try try fn with recover, return the panic as wand.ErrTry.
 func Try(fn func()) (err error) {
 	defer func() {
 		if val := recover(); val != nil {

@@ -9,14 +9,14 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 // This example demonstrates how to upload a file on a form.
 func main() {
 	host := uploadServer()
 
-	page := rod.New().MustConnect().MustPage(host)
+	page := wand.New().MustConnect().MustPage(host)
 
 	page.MustElement(`input[name="upload"]`).MustSetFiles("./main.go")
 	page.MustElement(`input[name="submit"]`).MustClick()

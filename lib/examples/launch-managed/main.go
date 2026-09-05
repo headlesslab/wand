@@ -4,19 +4,19 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {
 	// This example is to launch a browser remotely, not connect to a running browser remotely,
 	// to connect to a running browser check the "../connect-browser" example.
-	// Rod provides a docker image for beginners, run the below to start a launcher.Manager:
+	// wand provides a docker image for beginners, run the below to start a launcher.Manager:
 	//
-	//     docker run --rm -p 7317:7317 ghcr.io/go-rod/rod
+	//     docker run --rm -p 7317:7317 ghcr.io/headlesslab/wand
 	//
-	// For available CLI flags run: docker run --rm ghcr.io/go-rod/rod rod-manager -h
+	// For available CLI flags run: docker run --rm ghcr.io/headlesslab/wand rod-manager -h
 	// For more information, check the doc of launcher.Manager
 	l := launcher.MustNewManaged("")
 
@@ -27,7 +27,7 @@ func main() {
 	// Launch with headful mode
 	l.Headless(false).XVFB("--server-num=5", "--server-args=-screen 0 1600x900x16")
 
-	browser := rod.New().Client(l.MustClient()).MustConnect()
+	browser := wand.New().Client(l.MustClient()).MustConnect()
 
 	// You may want to start a server to watch the screenshots of the remote browser.
 	launcher.Open(browser.ServeMonitor(""))
@@ -42,7 +42,7 @@ func main() {
 	// You can set different flags for each browser.
 	ll.Set("disable-sync").Delete("disable-sync")
 
-	anotherBrowser := rod.New().Client(ll.MustClient()).MustConnect()
+	anotherBrowser := wand.New().Client(ll.MustClient()).MustConnect()
 
 	fmt.Println(
 		anotherBrowser.MustPage("https://go-rod.github.io").MustEval("() => document.title"),

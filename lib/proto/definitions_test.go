@@ -3,7 +3,7 @@
 package proto_test
 
 import (
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand/lib/proto"
 )
 
 func (t T) AccessibilityDisable() {

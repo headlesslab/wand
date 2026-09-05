@@ -5,13 +5,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 func main() {
 	u := "https://avatars.githubusercontent.com/u/33149672"
 
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	page := browser.MustPage(u).MustWaitLoad()
 

@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/proto"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 	}))
 	defer ts.Close()
 
-	page := rod.New().MustConnect().MustPage(ts.URL)
+	page := wand.New().MustConnect().MustPage(ts.URL)
 
 	node, err := page.MustElement("body").Describe(-1, true)
 	if err != nil {

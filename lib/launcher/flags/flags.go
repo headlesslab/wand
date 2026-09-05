@@ -34,28 +34,28 @@ const (
 	WindowPosition Flag = "window-position"
 
 	// WorkingDir flag.
-	WorkingDir Flag = "rod-working-dir"
+	WorkingDir Flag = "wand-working-dir"
 
 	// Env flag.
-	Env Flag = "rod-env"
+	Env Flag = "wand-env"
 
 	// XVFB flag.
-	XVFB Flag = "rod-xvfb"
+	XVFB Flag = "wand-xvfb"
 
 	// ProfileDir flag.
 	ProfileDir = "profile-directory"
 
 	// Preferences flag.
-	Preferences Flag = "rod-preferences"
+	Preferences Flag = "wand-preferences"
 
 	// Leakless flag.
-	Leakless Flag = "rod-leakless"
+	Leakless Flag = "wand-leakless"
 
 	// Bin is the browser executable file path. If it's empty, launcher will automatically search or download the bin.
-	Bin Flag = "rod-bin"
+	Bin Flag = "wand-bin"
 
 	// KeepUserDataDir flag.
-	KeepUserDataDir Flag = "rod-keep-user-data-dir"
+	KeepUserDataDir Flag = "wand-keep-user-data-dir"
 
 	// Arguments for the command. Such as
 	//     chrome-bin http://a.com http://b.com

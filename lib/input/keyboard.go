@@ -2,7 +2,7 @@
 package input
 
 import (
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand/lib/proto"
 	"github.com/ysmood/gson"
 )
 

@@ -4,8 +4,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
 )
 
 // To manually launch a browser.
@@ -16,11 +16,11 @@ func main() {
 	//
 	// Or use docker:
 	//
-	//     docker run -p 9222:9222 ghcr.io/go-rod/rod chrome --headless --no-sandbox --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
+	//     docker run -p 9222:9222 ghcr.io/headlesslab/wand chrome --headless --no-sandbox --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
 	//
 	u := launcher.MustResolveURL("")
 
-	browser := rod.New().ControlURL(u).MustConnect()
+	browser := wand.New().ControlURL(u).MustConnect()
 
 	fmt.Println(
 		browser.MustPage("https://mdn.dev/").MustEval("() => document.title"),

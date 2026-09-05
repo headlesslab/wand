@@ -7,11 +7,11 @@ import (
 	"log"
 	"net"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/launcher"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 
 	client := cdp.New().Start(w)
 
-	p := rod.New().Client(client).MustConnect().MustPage("http://example.com")
+	p := wand.New().Client(client).MustConnect().MustPage("http://example.com")
 
 	fmt.Println(p.MustInfo().Title)
 }

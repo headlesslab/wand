@@ -1,4 +1,4 @@
-package rod
+package wand
 
 import (
 	"context"
@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/js"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/js"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/goob"
 	"github.com/ysmood/got/lib/lcs"
 	"github.com/ysmood/gson"
@@ -29,7 +29,7 @@ var (
 
 // Page represents the webpage.
 // We try to hold as less states as possible.
-// When a page is closed by Rod or not all the ongoing operations an events on it will abort.
+// When a page is closed by wand or not all the ongoing operations an events on it will abort.
 type Page struct {
 	// TargetID is a unique ID for a remote page.
 	// It's usually used in events sent from the browser to tell which page an event belongs to.

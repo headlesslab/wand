@@ -6,13 +6,13 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 	"github.com/ysmood/gson"
 )
 
 // An example to handle stripe 3DS callback.
 func main() {
-	page := rod.New().MustConnect().MustPage(getRedirectURL())
+	page := wand.New().MustConnect().MustPage(getRedirectURL())
 
 	// Get the button from the nested iframes
 	frame01 := page.MustElement("div iframe").MustFrame()

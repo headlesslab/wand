@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"context"
@@ -15,12 +15,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 	"github.com/ysmood/gotrace"
 	"github.com/ysmood/gson"
@@ -38,7 +38,7 @@ func init() {
 	launcher.NewBrowser().MustGet() // preload browser to local
 }
 
-var testerPool rod.Pool[G]
+var testerPool wand.Pool[G]
 
 func TestMain(m *testing.M) {
 	testerPool = newTesterPool()
@@ -66,18 +66,18 @@ type G struct {
 
 	// a random browser instance from the pool. If you have changed state of it, you must reset it
 	// or it may affect other test cases.
-	browser *rod.Browser
+	browser *wand.Browser
 
 	// a random page instance from the pool. If you have changed state of it, you must reset it
 	// or it may affect other test cases.
-	page *rod.Page
+	page *wand.Page
 
 	// use it to cancel the TimeoutEach for current test case
 	cancelTimeout func()
 }
 
 // If we don't use pool to cache, the total time will be much longer.
-func newTesterPool() rod.Pool[G] {
+func newTesterPool() wand.Pool[G] {
 	parallel := got.Parallel()
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
@@ -85,7 +85,7 @@ func newTesterPool() rod.Pool[G] {
 
 	fmt.Println("parallel test", parallel) //nolint: forbidigo
 
-	return rod.NewPool[G](parallel)
+	return wand.NewPool[G](parallel)
 }
 
 func newTester() *G {
@@ -93,11 +93,11 @@ func newTester() *G {
 
 	mc := newMockClient(u)
 
-	browser := rod.New().Client(mc).MustConnect().MustIgnoreCertErrors(false)
+	browser := wand.New().Client(mc).MustConnect().MustIgnoreCertErrors(false)
 
 	pages := browser.MustPages()
 
-	var page *rod.Page
+	var page *wand.Page
 	if pages.Empty() {
 		page = browser.MustPage()
 	} else {
@@ -133,7 +133,7 @@ func setup(t *testing.T) G {
 }
 
 func (g G) enableCDPLog() {
-	g.mc.principal.Logger(rod.DefaultLogger)
+	g.mc.principal.Logger(wand.DefaultLogger)
 }
 
 func (g G) dump(args ...interface{}) {
@@ -159,7 +159,7 @@ func (g G) srcFile(path string) string {
 	return "file://" + f
 }
 
-func (g G) newPage(u ...string) *rod.Page {
+func (g G) newPage(u ...string) *wand.Page {
 	g.Helper()
 	p := g.browser.MustPage(u...)
 	g.Cleanup(func() {
@@ -182,7 +182,7 @@ func (g *G) checkLeaking() {
 			}
 			return ig(t)
 		}).String()
-		panic(fmt.Sprintf(`[rod_test.TimeoutEach] %s timeout after %v
+		panic(fmt.Sprintf(`[wand_test.TimeoutEach] %s timeout after %v
 running goroutines: %s`, g.Name(), *TimeoutEach, t))
 	})
 
@@ -211,7 +211,7 @@ running goroutines: %s`, g.Name(), *TimeoutEach, t))
 
 type Call func(ctx context.Context, sessionID, method string, params interface{}) ([]byte, error)
 
-var _ rod.CDPClient = &MockClient{}
+var _ wand.CDPClient = &MockClient{}
 
 type MockClient struct {
 	sync.RWMutex
@@ -362,7 +362,7 @@ func (mr *MockReader) Read(_ []byte) (n int, err error) {
 func TestLintIgnore(t *testing.T) {
 	t.Skip()
 
-	_ = rod.Try(func() {
+	_ = wand.Try(func() {
 		tt := G{}
 		tt.dump()
 		tt.enableCDPLog()

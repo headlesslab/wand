@@ -4,10 +4,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 func main() {
-	rod.New().MustConnect().MustPage("https://www.google.com/").MustWaitLoad().MustPDF("sample.pdf")
+	wand.New().MustConnect().MustPage("https://www.google.com/").MustWaitLoad().MustPDF("sample.pdf")
 	fmt.Println("wrote sample.pdf")
 }

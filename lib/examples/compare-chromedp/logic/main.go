@@ -5,13 +5,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 // On awesome-go page, finding the specified section sect,
 // and retrieving the associated projects from the page.
 func main() {
-	page := rod.New().MustConnect().Timeout(time.Second * 15).MustPage("https://github.com/avelino/awesome-go")
+	page := wand.New().MustConnect().Timeout(time.Second * 15).MustPage("https://github.com/avelino/awesome-go")
 
 	section := page.MustElementR("p", "Selenium and browser control tools").MustNext()
 

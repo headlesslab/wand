@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 // Request to send to browser.
@@ -62,7 +62,7 @@ func New() *Client {
 	}
 }
 
-// Logger sets the logger to log all the requests, responses, and events transferred between Rod and the browser.
+// Logger sets the logger to log all the requests, responses, and events transferred between wand and the browser.
 // The default format for each type is in file format.go.
 func (cdp *Client) Logger(l utils.Logger) *Client {
 	cdp.logger = l

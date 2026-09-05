@@ -5,14 +5,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 )
 
 // This example demonstrates how to use a selector to click on an element.
 func main() {
-	page := rod.New().
+	page := wand.New().
 		MustConnect().
-		Trace(true). // log useful info about what rod is doing
+		Trace(true). // log useful info about what wand is doing
 		Timeout(15 * time.Second).
 		MustPage("https://pkg.go.dev/time/")
 

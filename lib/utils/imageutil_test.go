@@ -5,7 +5,7 @@ import (
 	"image"
 	"testing"
 
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand/lib/proto"
 	"github.com/ysmood/got"
 )
 

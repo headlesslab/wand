@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 

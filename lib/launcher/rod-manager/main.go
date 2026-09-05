@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 var (

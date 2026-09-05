@@ -7,13 +7,13 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/input"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/input"
 )
 
 // This example demonstrates how to send key events to an element.
 func main() {
-	page := rod.New().MustConnect().MustPage(testServer())
+	page := wand.New().MustConnect().MustPage(testServer())
 
 	val1 := page.MustElement("#input1").MustText()
 	// cSpell:ignore naoeu

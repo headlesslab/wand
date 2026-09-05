@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -41,7 +41,7 @@ func TestHijack(t *testing.T) {
 	router := g.page.HijackRequests()
 	defer router.MustStop()
 
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) {
 		r := ctx.Request.SetContext(g.Context())
 		r.Req().Header.Set("Test", "header") // override request header
 		r.SetBody([]byte("test"))            // override request body
@@ -89,12 +89,12 @@ func TestHijack(t *testing.T) {
 		g.Eq("{\"text\":\"test\"}", ctx.Response.Body())
 	})
 
-	router.MustAdd(s.URL("/b"), func(_ *rod.Hijack) {
+	router.MustAdd(s.URL("/b"), func(_ *wand.Hijack) {
 		panic("should not come to here")
 	})
 	router.MustRemove(s.URL("/b"))
 
-	router.MustAdd(s.URL("/b"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/b"), func(ctx *wand.Hijack) {
 		// transparent proxy
 		ctx.MustLoadResponse()
 	})
@@ -117,7 +117,7 @@ func TestHijackContinue(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) {
 		ctx.ContinueRequest(&proto.FetchContinueRequest{})
 		wg.Done()
 	})
@@ -136,7 +136,7 @@ func TestHijackMockWholeResponseEmptyBody(t *testing.T) {
 	router := g.page.HijackRequests()
 	defer router.MustStop()
 
-	router.MustAdd("*", func(ctx *rod.Hijack) {
+	router.MustAdd("*", func(ctx *wand.Hijack) {
 		ctx.Response.SetBody("")
 	})
 
@@ -159,7 +159,7 @@ func TestHijackMockWholeResponseNoBody(t *testing.T) {
 	defer router.MustStop()
 
 	// intercept and reply without setting a body
-	router.MustAdd("*", func(_ *rod.Hijack) {
+	router.MustAdd("*", func(_ *wand.Hijack) {
 		// we don't set any body here
 	})
 
@@ -176,7 +176,7 @@ func TestHijackMockWholeResponse(t *testing.T) {
 	router := g.page.HijackRequests()
 	defer router.MustStop()
 
-	router.MustAdd("*", func(ctx *rod.Hijack) {
+	router.MustAdd("*", func(ctx *wand.Hijack) {
 		ctx.Response.SetHeader("Content-Type", mime.TypeByExtension(".html"))
 		ctx.Response.SetBody("<body>ok</body>")
 	})
@@ -198,11 +198,11 @@ func TestHijackSkip(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) {
 		ctx.Skip = true
 		wg.Done()
 	})
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) {
 		ctx.ContinueRequest(&proto.FetchContinueRequest{})
 		wg.Done()
 	})
@@ -226,7 +226,7 @@ func TestHijackOnErrorLog(t *testing.T) {
 	wg.Add(1)
 	var err error
 
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) {
 		ctx.OnError = func(e error) {
 			err = e
 			wg.Done()
@@ -262,7 +262,7 @@ func TestHijackFailRequest(t *testing.T) {
 	router := g.browser.HijackRequests()
 	defer router.MustStop()
 
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) {
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) {
 		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
 	})
 
@@ -291,7 +291,7 @@ func TestHijackLoadResponseErr(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	router.MustAdd("http://localhost/a", func(ctx *rod.Hijack) {
+	router.MustAdd("http://localhost/a", func(ctx *wand.Hijack) {
 		g.Err(ctx.LoadResponse(&http.Client{
 			Transport: &MockRoundTripper{err: errors.New("err")},
 		}, true))
@@ -327,7 +327,7 @@ func TestHijackResponseErr(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	router.MustAdd(s.URL("/a"), func(ctx *rod.Hijack) { // to ignore favicon
+	router.MustAdd(s.URL("/a"), func(ctx *wand.Hijack) { // to ignore favicon
 		ctx.OnError = func(err error) {
 			g.Err(err)
 			wg.Done()
@@ -373,7 +373,7 @@ func TestHandleAuth(t *testing.T) {
 	page.MustElementR("p", "ok")
 
 	wait := g.browser.HandleAuth("a", "b")
-	var page2 *rod.Page
+	var page2 *wand.Page
 	wait2 := utils.All(func() {
 		page2, _ = g.browser.Page(proto.TargetCreateTarget{URL: s.URL("/err")})
 	})

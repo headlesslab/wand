@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/launcher/flags"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/launcher/flags"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 )
 
@@ -118,7 +118,7 @@ func TestManaged(t *testing.T) {
 
 	u, h := MustNewManaged(s.URL()).Bin("go").ClientHeader()
 	_, err := cdp.StartWithURL(ctx, u, h)
-	g.Eq(err.(*cdp.BadHandshakeError).Body, "[rod-manager] not allowed rod-bin path: go (use --allow-all to disable the protection)")
+	g.Eq(err.(*cdp.BadHandshakeError).Body, "[rod-manager] not allowed wand-bin path: go (use --allow-all to disable the protection)")
 }
 
 func TestLaunchErrs(t *testing.T) {

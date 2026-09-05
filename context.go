@@ -1,10 +1,10 @@
-package rod
+package wand
 
 import (
 	"context"
 	"time"
 
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 type (

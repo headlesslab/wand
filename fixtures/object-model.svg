@@ -40,11 +40,11 @@
     <g id="object-model" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="objects" transform="translate(25.000000, 19.000000)">
             <use id="Rectangle" stroke="#444444" mask="url(#mask-2)" stroke-width="2" stroke-dasharray="3,3" xlink:href="#path-1"></use>
-            <g id="rod.Browser" transform="translate(24.000000, 24.000000)">
+            <g id="wand.Browser" transform="translate(24.000000, 24.000000)">
                 <g id="base">
                     <rect id="Rectangle" stroke="#007AFF" fill="#DDEDFF" x="0.5" y="0.5" width="128" height="174" rx="8"></rect>
-                    <text id="rod.Browser" font-family="Menlo-Regular, Menlo" font-size="15" font-weight="normal" fill="#18395F">
-                        <tspan x="15.3308105" y="31">rod.Browser</tspan>
+                    <text id="wand.Browser" font-family="Menlo-Regular, Menlo" font-size="15" font-weight="normal" fill="#18395F">
+                        <tspan x="15.3308105" y="31">wand.Browser</tspan>
                     </text>
                 </g>
                 <g id="window" transform="translate(13.000000, 53.000000)">
@@ -60,12 +60,12 @@
                     </text>
                 </g>
             </g>
-            <g id="rod.Page" transform="translate(213.000000, 24.000000)">
+            <g id="wand.Page" transform="translate(213.000000, 24.000000)">
                 <g id="base">
                     <rect id="Rectangle" stroke="#007AFF" fill="#DDEDFF" x="0.5" y="0.5" width="128" height="174" rx="8"></rect>
                     <rect id="Rectangle" stroke="#007AFF" fill="#DDEDFF" x="0.5" y="0.5" width="128" height="174" rx="8"></rect>
-                    <text id="rod.Page" font-family="Menlo-Regular, Menlo" font-size="15" font-weight="normal" fill="#18395F">
-                        <tspan x="28.3769531" y="30">rod.Page</tspan>
+                    <text id="wand.Page" font-family="Menlo-Regular, Menlo" font-size="15" font-weight="normal" fill="#18395F">
+                        <tspan x="28.3769531" y="30">wand.Page</tspan>
                     </text>
                 </g>
                 <g id="tab" transform="translate(13.000000, 53.000000)">
@@ -87,12 +87,12 @@
                     </text>
                 </g>
             </g>
-            <g id="rod.Element" transform="translate(402.000000, 24.000000)">
+            <g id="wand.Element" transform="translate(402.000000, 24.000000)">
                 <g id="base">
                     <rect id="Rectangle" stroke="#007AFF" fill="#DDEDFF" x="0.5" y="0.5" width="128" height="174" rx="8"></rect>
                     <rect id="Rectangle" stroke="#007AFF" fill="#DDEDFF" x="0.5" y="0.5" width="128" height="174" rx="8"></rect>
-                    <text id="rod.Element" font-family="Menlo-Regular, Menlo" font-size="15" font-weight="normal" fill="#18395F">
-                        <tspan x="15.3308105" y="32">rod.Element</tspan>
+                    <text id="wand.Element" font-family="Menlo-Regular, Menlo" font-size="15" font-weight="normal" fill="#18395F">
+                        <tspan x="15.3308105" y="32">wand.Element</tspan>
                     </text>
                 </g>
                 <g id="dom-element" transform="translate(15.000000, 52.000000)">

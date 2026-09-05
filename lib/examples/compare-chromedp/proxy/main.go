@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/launcher"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 
 	url := launcher.New().Proxy(p.URL).Set("proxy-bypass-list", "<-loopback>").MustLaunch()
 
-	browser := rod.New().ControlURL(url).MustConnect()
+	browser := wand.New().ControlURL(url).MustConnect()
 	defer browser.MustClose()
 
 	browser.MustIgnoreCertErrors(true)

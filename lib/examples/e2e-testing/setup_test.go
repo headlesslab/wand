@@ -5,7 +5,7 @@ package main
 import (
 	"testing"
 
-	"github.com/go-rod/rod"
+	"github.com/headlesslab/wand"
 	"github.com/ysmood/got"
 )
 
@@ -13,12 +13,12 @@ import (
 type G struct {
 	got.G
 
-	browser *rod.Browser
+	browser *wand.Browser
 }
 
 // setup for tests.
 var setup = func() func(t *testing.T) G {
-	browser := rod.New().MustConnect()
+	browser := wand.New().MustConnect()
 
 	return func(t *testing.T) G {
 		t.Parallel() // run each test concurrently
@@ -28,7 +28,7 @@ var setup = func() func(t *testing.T) G {
 }()
 
 // a helper function to create an incognito page.
-func (g G) page(url string) *rod.Page {
+func (g G) page(url string) *wand.Page {
 	page := g.browser.MustIncognito().MustPage(url)
 	g.Cleanup(page.MustClose)
 	return page

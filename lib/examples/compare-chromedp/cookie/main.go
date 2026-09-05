@@ -9,15 +9,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/proto"
 )
 
 // This example demonstrates how we can modify the cookies on a web page.
 func main() {
 	expr := proto.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour).Unix())
 
-	page := rod.New().MustConnect().MustPage()
+	page := wand.New().MustConnect().MustPage()
 
 	page.MustSetCookies(&proto.NetworkCookieParam{
 		Name:     "cookie1",

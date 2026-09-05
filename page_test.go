@@ -1,4 +1,4 @@
-package rod_test
+package wand_test
 
 import (
 	"bytes"
@@ -16,12 +16,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/cdp"
-	"github.com/go-rod/rod/lib/defaults"
-	"github.com/go-rod/rod/lib/devices"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/wand/lib/devices"
+	"github.com/headlesslab/wand/lib/proto"
+	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
 
@@ -477,8 +477,8 @@ func TestPageWaitRequestIdle(t *testing.T) {
 
 	waitReq := ""
 	g.browser.Logger(utils.Log(func(msg ...interface{}) {
-		typ := msg[0].(rod.TraceType)
-		if typ == rod.TraceTypeWaitRequests {
+		typ := msg[0].(wand.TraceType)
+		if typ == wand.TraceTypeWaitRequests {
 			list := msg[2].(map[string]string)
 			for _, v := range list {
 				waitReq = v
@@ -486,7 +486,7 @@ func TestPageWaitRequestIdle(t *testing.T) {
 			}
 		}
 	}))
-	defer g.browser.Logger(rod.DefaultLogger)
+	defer g.browser.Logger(wand.DefaultLogger)
 
 	g.browser.Trace(true)
 	wait := page.MustWaitRequestIdle("/r1")
@@ -845,7 +845,7 @@ func TestScrollScreenshotErrors(t *testing.T) {
 	})
 
 	// test unsupported format
-	_, err := p.ScrollScreenshot(&rod.ScrollScreenshotOptions{
+	_, err := p.ScrollScreenshot(&wand.ScrollScreenshotOptions{
 		/* cspell: disable-next-line */
 		Format:  proto.PageCaptureScreenshotFormatWebp,
 		Quality: gson.Int(10),
@@ -908,7 +908,7 @@ func TestPageNavigateNetworkErr(t *testing.T) {
 	p := g.newPage()
 
 	err := p.Navigate("http://127.0.0.1:1")
-	g.Is(err, &rod.NavigationError{})
+	g.Is(err, &wand.NavigationError{})
 	g.Is(err.Error(), "navigation failed: net::ERR_NAME_NOT_RESOLVED")
 	p.MustNavigate("about:blank")
 }
@@ -931,10 +931,10 @@ func TestPageNavigateErr(t *testing.T) {
 
 	g.Is(g.Panic(func() {
 		g.page.MustNavigate(s.URL("/404"))
-	}), &rod.NavigationError{})
+	}), &wand.NavigationError{})
 	g.Is(g.Panic(func() {
 		g.page.MustNavigate(s.URL("/500"))
-	}), &rod.NavigationError{})
+	}), &wand.NavigationError{})
 }
 
 func TestPageWaitLoadErr(t *testing.T) {
@@ -976,18 +976,18 @@ func TestPageNavigation(t *testing.T) {
 func TestPagePool(t *testing.T) {
 	g := setup(t)
 
-	pool := rod.NewPagePool(3)
+	pool := wand.NewPagePool(3)
 
-	p, err := pool.Get(func() (*rod.Page, error) {
+	p, err := pool.Get(func() (*wand.Page, error) {
 		return g.browser.Page(proto.TargetCreateTarget{})
 	})
 	g.E(err)
 	pool.Put(p)
 
-	p = pool.MustGet(func() *rod.Page { return g.browser.MustPage() })
+	p = pool.MustGet(func() *wand.Page { return g.browser.MustPage() })
 	pool.Put(p)
 
-	pool.Cleanup(func(p *rod.Page) {
+	pool.Cleanup(func(p *wand.Page) {
 		p.MustClose()
 	})
 }
@@ -1097,7 +1097,7 @@ func TestPageResetNavigationHistory(t *testing.T) {
 	g := setup(t)
 
 	// Helper function for navigation
-	navigateTo := func(p *rod.Page, url string) {
+	navigateTo := func(p *wand.Page, url string) {
 		wait := p.WaitNavigation(proto.PageLifecycleEventNameDOMContentLoaded)
 		p.MustNavigate(url)
 		wait()

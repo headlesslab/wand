@@ -66,14 +66,14 @@ func TestParseFlag(t *testing.T) {
 
 	Reset()
 
-	parseFlag([]string{"-rod"})
+	parseFlag([]string{"-wand"})
 	g.False(Show)
 
-	parseFlag([]string{"-rod=show"})
+	parseFlag([]string{"-wand=show"})
 	g.True(Show)
 
 	Reset()
 
-	parseFlag([]string{"-rod", "show"})
+	parseFlag([]string{"-wand", "show"})
 	g.True(Show)
 }
