@@ -20,6 +20,12 @@ This document states facts. It does not recommend.
 
 **(1) Transport.** Playwright always launches Chromium with `--remote-debugging-pipe` and always talks CDP over fds 3/4 — there is no option to turn it off, and passing the flag yourself is rejected. Puppeteer defaults to `--remote-debugging-port=0` (WebSocket) and uses the pipe only when the caller passes `pipe: true` (`@defaultValue false`). Chromium **does** shut the whole browser down when the read end of that pipe reaches EOF: the reader thread treats `read() <= 0` as an error, posts `DevToolsPipeHandler::OnDisconnect`, and the `on_disconnect` closure that Chrome installs is `ChromeDevToolsManagerDelegate::CloseBrowserSoon`, which calls `chrome::ExitIgnoreUnloadHandlers()`; the headless shell installs `HeadlessBrowserImpl::Shutdown`. The same code path runs on Windows (`ReadFile` failure), where the fds are obtained with `_get_osfhandle(3)` / `_get_osfhandle(4)`. There is no equivalent closure for `--remote-debugging-port`: closing a DevTools WebSocket does not stop the browser.
 
+Three qualifiers on that, each load-bearing for a Go driver:
+
+- **It is an M89 feature.** Before Chromium 89 the pipe handler took no disconnect closure and the browser did *not* exit on EOF. The CL that added it says so plainly: "When the browser is controlled remotely over the pipe, and the pipe is disconnected, there is no way left to control the browser. **Every pipe client tries to kill the browser at that point.** Instead, we can just shutdown normally, leaving no core dumps."
+- **Only the read end counts.** Chromium `SIG_IGN`s `SIGPIPE` process-wide, and `PipeWriterBase::WriteBytes` on failure only does `LOG(ERROR) << "Could not write into pipe";` — no disconnect, no exit. To make Chrome exit you must close the end *Chrome reads from* (its fd 3). Closing only the parent's read end does nothing.
+- **The closure is per-embedder.** Chrome and `chrome-headless-shell` exit; `content_shell` passes `base::OnceClosure()` (null) and keeps running.
+
 **(3) Parent hard-killed (SIGKILL / crash / OOM).** Two independent things save these drivers, and neither is JavaScript:
 
 - **Windows**: libuv — hence Node, hence both drivers — puts every non-`detached` child into a process-wide job object created with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, explicitly "so windows will kill it when the parent process dies". Both drivers pass `detached: false` on Windows. So on Windows the browser is killed by the kernel when Node dies, whatever the transport, with no driver code involved.
@@ -43,6 +49,7 @@ Cross-cutting caveats that apply to every row:
 
 - The Windows job-object row depends on `AssignProcessToJobObject` succeeding. libuv deliberately swallows `ERROR_ACCESS_DENIED` and then "continue[s] without establishing a kill-child-on-parent-exit relationship", which happens when the Node process itself is inside a job that forbids breakaway on a Windows version without nested-job support. libuv also sets `JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK`, so only the browser process itself is in the job — Chromium's own child processes are not. They are covered separately by Chromium's sandbox, which puts each target in a job object that also carries `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` and whose handle the browser process holds; `--no-sandbox` (Playwright's default unless `chromiumSandbox: true`) bypasses that.
 - On branded Google Chrome for Win/Mac/Linux, `--remote-debugging-pipe` is refused entirely when the default user-data-dir is in use (`NotStartedReason::kDisabledByDefaultUserDataDir`), and by the `DevToolsRemoteDebuggingAllowed` policy. Both drivers always pass an explicit `--user-data-dir`, so they never hit the first gate.
+- Every "Browser exits via pipe EOF" cell requires **Chromium M89 or newer** (see 3.4). On M88 and earlier the pipe handler had no disconnect closure and the browser survived.
 - Neither driver arms anything for the case where the *browser* is killed and the driver survives; that is handled by the `close`/`exit` event on the child, which is a different problem.
 
 ---
@@ -344,7 +351,31 @@ By contrast `StartHttpServer` — the `--remote-debugging-port` path — takes o
 - **Windows fd 3/4.** Chromium maps them with the CRT: `read_handle_ = reinterpret_cast<HANDLE>(_get_osfhandle(read_fd));` (and the same for the writer), wrapped in a `ScopedInvalidParameterHandlerOverride` so a bad fd returns `INVALID_HANDLE_VALUE` instead of tripping the CRT's invalid-parameter handler. This only works if the launcher hands the child a CRT fd table with entries 3 and 4 — which is what libuv does by building the MSVCRT `child_stdio_buffer` (`int count; unsigned char crt_flags[]; HANDLE os_handle[]`) and passing it as `StartupInfo.lpReserved2` / `cbReserved2`.
 - **Windows alternative: raw handles on the command line.** Since the parent may not be a CRT program, Chromium also accepts `--remote-debugging-io-pipes=<in>,<out>`, "a comma separated list of two pipe handles serialized as unsigned integers", which the browser turns back into fds with `_open_osfhandle`. `StartRemoteDebuggingPipeHandler` consults it before falling back to fds 3/4, and if adoption fails it runs `on_disconnect` immediately.
 - **Framing.** `--remote-debugging-pipe` alone means `kASCIIZ` (NUL-separated JSON); `--remote-debugging-pipe=cbor` selects the "Experimental (!) CBOR (RFC 7049) based binary format".
-- **Policy / default-profile gate.** In branded Google Chrome on Win/Mac/Linux, `RemoteDebuggingServer::GetInstance` refuses to start the pipe handler at all when the default user data directory is in use (`kDisabledByDefaultUserDataDir`) or when the `DevToolsRemoteDebuggingAllowed` policy is off. Both drivers always pass an explicit `--user-data-dir`, so they clear the first gate; a Go driver that reuses the user's real profile would not.
+- **Policy / default-profile gate.** In branded Google Chrome on Win/Mac/Linux, `RemoteDebuggingServer::GetInstance` refuses to start the pipe handler at all when the default user data directory is in use (`kDisabledByDefaultUserDataDir`) or when the `DevToolsRemoteDebuggingAllowed` policy is off. Both drivers always pass an explicit `--user-data-dir`, so they clear the first gate; a Go driver that reuses the user's real profile would not. When the handler never starts, there is no EOF watchdog at all.
+- **Write side is inert.** `PipeWriterBase::WriteBytes` logs `"Could not write into pipe"` and returns; it never posts `OnDisconnect`. Chromium ignores `SIGPIPE` globally (`content/app/content_main.cc`: `CHECK_NE(SIG_ERR, signal(SIGPIPE, SIG_IGN));`). Only closing Chrome's **read** end (its fd 3) triggers shutdown.
+- **The keep-alive.** With `--no-startup-window`/`--headless` plus a remote-debugging switch, `ChromeDevToolsManagerDelegate` holds a `ScopedKeepAlive(KeepAliveOrigin::REMOTE_DEBUGGING)`; `AllowBrowserToClose()` inside `CloseBrowserSoon` is what releases it. That is why a windowless Chrome stays up until the pipe closes and then exits cleanly rather than being terminated.
+- **fd 3/4 must actually be open (M113+).** `chrome/app/chrome_main_delegate.cc` and `headless/lib/headless_content_main_delegate.cc` verify the descriptors before opening any other file (`fcntl(fd, F_GETFL) != -1` on POSIX, `_get_osfhandle(fd) != INVALID_HANDLE_VALUE` on Windows, in `components/devtools/devtools_pipe/devtools_pipe.cc`) and abort with `CHROME_RESULT_CODE_UNSUPPORTED_PARAM` / `EXIT_FAILURE` and `LOG(ERROR) << "Remote debugging pipe file descriptors are not open.";`. The check is skipped on Windows when `--remote-debugging-io-pipes` is present. It was added for crbug 40259890, where a launcher that did not open fd 3/4 made Chrome read and write whatever files happened to land there ("will result in file data corruption").
+- **Windows teardown.** `ClosePipe` does `CancelIoEx(read_handle_, nullptr)` before `_close(read_fd_)` (POSIX does `shutdown(read_fd_, SHUT_RDWR)`), added because `CloseHandle` blocked indefinitely on a synchronous read.
+- **Headless-shell packaging.** Per `headless/README.md`, prebuilt `headless_shell` ships as `chrome-headless-shell` from M118, and as of M132 `--headless=old` has no effect — the shell is no longer inside the Chrome binary.
+
+### 3.4 Version floor and history
+
+The disconnect closure is not ancient. Relevant landings:
+
+| Landed | Milestone | Change |
+|---|---|---|
+| 2017-10-25 | M64 | `DevToolsPipeHandler` introduced (CL 735515), content_shell only |
+| 2018-02-13 | M66 | full Chrome support for `--remote-debugging-pipe` (CL 912247) |
+| 2018-03-29 | M67 | headless support (CL 954405) — no separate handler, it calls the same `content::` entry point |
+| 2018-12-15 | M74 | `CancelIoEx` on Windows teardown (CL 1379314) |
+| 2019-02-12 | M74 | CBOR framing mode (CL 1460182) |
+| **2020-11-13** | **M89** (89.0.4325.0) | **CL 2536354 "Disconnected DevToolsPipeHandler closes the browser"** — adds `on_disconnect` and wires `CloseBrowserSoon` / `PostTaskToCloseBrowser` |
+| 2021-02-05 | M90 | pipe and port may be used simultaneously (CL 2679787) |
+| 2023-03-13 | M113 | fd-open pre-check (CL 4327189, crbug 40259890) |
+| 2023-03-16 | M113 | fix for the Mac/Windows regression that pre-check caused for Puppeteer `pipe: true` (CL 4346972, crbug 1425099) |
+| 2023-07-10 | M117 | `--remote-debugging-io-pipes` for ChromeDriver on Windows (CL 4628834) |
+
+So: **M89+ means pipe EOF shuts the browser down; M88 and earlier do not, and the launcher must kill the process itself.** No primary-source bug reporting "browser does not exit on pipe EOF" exists after M89; the earlier behaviour was by design, not a defect.
 
 ---
 
@@ -453,7 +484,24 @@ leakless itself, for the record: `Launcher.Command` does not exec the target —
 
 ### 5.4 Does Chrome have any other "die with parent" switch?
 
-No. The switch list in `content/public/common/content_switches.cc` has `remote-debugging-pipe`, `remote-debugging-port`, `remote-debugging-io-pipes` (Windows) and `remote-allow-origins`; the disconnect closure is wired only for the pipe. Chromium's `PR_SET_PDEATHSIG` usage in `base/process/launch_posix.cc` applies to processes the *browser* launches (renderers, GPU, zygote), not to the browser relative to whatever launched it. On Windows, Chromium's contribution is the other way round too: `sandbox/win/src/job.cc` gives each sandboxed child a job with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` held by the browser.
+No. The switch list in `content/public/common/content_switches.cc` has `remote-debugging-pipe`, `remote-debugging-port`, `remote-debugging-io-pipes` (Windows) and `remote-allow-origins`; the disconnect closure is wired only for the pipe. There is no `--parent-process-handle` or equivalent.
+
+`PR_SET_PDEATHSIG` does appear in Chromium, but not where it would help:
+
+```cpp
+    if (options.kill_on_parent_death) {
+      if (prctl(PR_SET_PDEATHSIG, SIGKILL) != 0) {
+        RAW_LOG(ERROR, "prctl(PR_SET_PDEATHSIG) failed");
+        _exit(127);
+      }
+    }
+```
+
+`base/process/launch_posix.cc`, driven by `LaunchOptions::kill_on_parent_death`, which is declared only under `#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)`. A code search for that field across the tree returns four files — `base/process/launch.h`, `base/process/launch_posix.cc`, `remoting/host/linux/linux_process_launcher_delegate.cc`, `base/test/launcher/test_launcher.cc`. **No renderer/GPU launch path sets it**, and nothing lets an external launcher request it: the flag is set by the launching process on itself after `fork()`, so a Go driver would have to set it in its own `pre_exec` hook, which is exactly `SysProcAttr.Pdeathsig`.
+
+How Chromium's own children actually die (browser -> renderer, the reverse of our problem): on POSIX, `ChildThreadImpl::TerminateSelfOnDisconnect()` on Mojo channel error calls `base::Process::TerminateCurrentProcessImmediately(0)`, with the comment "This isn't needed on Windows because there the sandbox's job object terminates child processes automatically"; on Windows, `sandbox/win/src/job.cc` and `CreateUnsandboxedJob()` in `sandbox/policy/win/sandbox_win.cc` give each child a `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` job whose handle the *browser* holds. Both protect children from a browser crash, not the browser from a launcher crash.
+
+The one place Chromium does exactly what wand would need is internal: `chrome/browser/win/isolated_browser/isolated_browser_support.cc` has a stub process create a `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` job, put itself and the isolated browser in it, and deliberately leak the primary job handle so that "when the stub/test process terminates or crashes, Windows kernel automatically closes all process handles, triggering `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` to kill any surviving browser processes". That is chrome.exe launching itself; it is not exposed to external launchers.
 
 ---
 
@@ -518,7 +566,7 @@ Darwin's `syscall.SysProcAttr` (`syscall/exec_libc2.go`, `//go:build darwin || o
 
 What macOS does offer is the reverse direction: kqueue `EVFILT_PROC` with `NOTE_EXIT`, per Apple's `kqueue(2)` — "Takes the process ID to monitor as the identifier ... `NOTE_EXIT` — The process has exited." That is usable only from a separate watcher process observing the parent's pid, and carries the pid-reuse race that leakless cites as its reason for using a socket instead.
 
-So on macOS the available options are exactly: (a) a guard process (socket-EOF like leakless, or kqueue `NOTE_EXIT`); (b) a pipe or socket the child itself watches — which is what `--remote-debugging-pipe` provides for free, since Chrome exits on pipe EOF; or (c) accept the leak, which is what chromedp and chromedriver do.
+So on macOS the available options are exactly: (a) a guard process (socket-EOF like leakless, or kqueue `NOTE_EXIT`); (b) a pipe or socket the child itself watches — which is what `--remote-debugging-pipe` provides for free on Chromium M89+, since Chrome exits on pipe EOF; or (c) accept the leak, which is what chromedp and chromedriver do.
 
 ---
 
@@ -551,9 +599,16 @@ Chromium (`chromium/src`, branch `main`, via chromium.googlesource.com `?format=
 - chrome/browser/devtools/remote_debugging_server.cc (`StartPipeHandler`, `IsRemoteDebuggingAllowed`, `kDisabledByDefaultUserDataDir`)
 - chrome/browser/devtools/chrome_devtools_manager_delegate.cc (`CloseBrowserSoon` -> `chrome::ExitIgnoreUnloadHandlers`)
 - headless/lib/browser/headless_devtools.cc (`PostTaskToCloseBrowser` -> `HeadlessBrowserImpl::Shutdown`)
-- sandbox/win/src/job.cc (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`)
-- base/process/launch.h (`job_handle`, `CREATE_BREAKAWAY_FROM_JOB` note)
+- sandbox/win/src/job.cc, sandbox/policy/win/sandbox_win.cc (`CreateUnsandboxedJob`), `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`
+- base/process/launch.h (`job_handle`, `kill_on_parent_death`, `CREATE_BREAKAWAY_FROM_JOB` note), base/process/launch_posix.cc (`PR_SET_PDEATHSIG`)
+- content/app/content_main.cc (`signal(SIGPIPE, SIG_IGN)`), content/child/child_thread_impl.cc (`TerminateSelfOnDisconnect`)
+- chrome/app/chrome_main_delegate.cc, headless/lib/headless_content_main_delegate.cc, components/devtools/devtools_pipe/devtools_pipe.cc (fd 3/4 pre-check)
+- headless/lib/browser/command_line_handler.cc, headless/lib/browser/headless_browser_impl.cc, headless/README.md
+- content/shell/browser/shell_devtools_manager_delegate.cc (null `on_disconnect`)
+- chrome/browser/win/isolated_browser/isolated_browser_support.cc
 - chrome/test/chromedriver/chrome_launcher.cc, chrome/test/chromedriver/chrome/chrome_desktop_impl.cc, chrome/test/chromedriver/net/pipe_builder.cc
+- CLs: https://chromium-review.googlesource.com/c/chromium/src/+/735515 (M64, handler), .../912247 (M66, Chrome), .../954405 (M67, headless), .../1379314 (M74, `CancelIoEx`), .../1460182 (M74, CBOR), **.../2536354 (M89, "Disconnected DevToolsPipeHandler closes the browser")**, .../2679787 (M90), .../4327189 and .../4346972 (M113), .../4628834 (M117, `--remote-debugging-io-pipes`)
+- https://issues.chromium.org/issues/40259890 (fd 3/4 corruption when the launcher does not open them), crbug 1425099 (M113 Mac/Windows `pipe: true` regression)
 
 Node.js / libuv
 - https://github.com/nodejs/node/blob/main/doc/api/child_process.md (`options.stdio`, `options.detached`)
