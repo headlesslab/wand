@@ -29,3 +29,11 @@ _Avoid_: v2, rewrite, new API
 **Domestic platform**:
 A Chinese-market OS and CPU combination wand targets: Kylin, UOS, or openEuler on x86-64 (Hygon, Zhaoxin), ARM64 (Phytium, Kunpeng), or LoongArch new-world (Loongson 3A5000 / 3A6000, `linux/loong64`). Users both build on it with the distro's own Go and deploy cross-compiled binaries to it.
 _Avoid_: Chinese platform, localized platform, xinchuang, 国产化 left untranslated in English docs
+
+**Go floor**:
+The Go version `go.mod` declares. Anchored to the newest Go the current openEuler LTS ships natively on every architecture it supports; it moves only when a new LTS raises it.
+_Avoid_: minimum Go, Go baseline, the go directive
+
+**Support tier**:
+How much wand promises for a `GOOS/GOARCH`. Tier 1: built and tested with a real browser in CI. Tier 2: cross-compiled in CI, runtime best-effort. Tier 3: no promise.
+_Avoid_: supported platform (without a tier), first-class, best-effort (as a bare label)
