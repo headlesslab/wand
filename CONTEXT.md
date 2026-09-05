@@ -68,6 +68,10 @@ _Avoid_: bump, revision update, upgrade PR, check-revision
 The Chrome versions wand claims to work with: the Target Chrome, which is tested, plus the three stable milestones before it, which are best-effort. Nothing older is supported, and nothing is enforced in code.
 _Avoid_: Chrome floor, minimum Chrome, supported Chrome (without the window), lastMaintainedChromeVersion
 
+**Security roll**:
+A Roll forced by hand inside the Target Chrome's own milestone, made only to take a Chrome patch that fixes a vulnerability reported as exploited in the wild; it moves the Target Chrome's patch number and the archive hashes, nothing else, and ships as a patch release.
+_Avoid_: hotfix roll, emergency roll, out-of-band roll, patch roll
+
 ### Browser acquisition
 
 **System browser**:
@@ -121,3 +125,13 @@ _Avoid_: Chrome release, roll release, monthly release
 **Confirmed fix**:
 An upstream issue the baseline release claims to resolve, backed by a named regression test that fails on the Snapshot and passes on wand. Documentation-only items are known limitations, not confirmed fixes.
 _Avoid_: harvested fix, ported fix, closed upstream issue
+
+### Verification
+
+**Gate**:
+A check that must be green before a pull request merges to `main`; a red gate blocks that merge and nothing else.
+_Avoid_: required check (as the concept's name), CI (as a bare label), blocking job
+
+**Nightly**:
+A scheduled run that never blocks a merge or a release; when it goes red it opens an issue keyed by its job name, or comments on the open one.
+_Avoid_: cron job, scheduled workflow (as the concept's name), non-blocking check
