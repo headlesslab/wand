@@ -81,3 +81,19 @@ _Avoid_: channel, provider, host (that is where an archive is fetched from)
 **Download host**:
 A URL template that serves managed-browser archives; wand ships Google's buckets and npmmirror and probes every configured host concurrently.
 _Avoid_: mirror (as the generic term), CDN, registry
+
+### Dependencies
+
+**Satellite module**:
+A Go module headlesslab maintains in its own repository for wand to depend on, snapshot-imported from one of upstream's ysmood dependencies or written new; versioned on its own and pinned exactly by wand.
+_Avoid_: internalized package, vendored copy, in-tree copy, fork (of a ysmood module)
+
+### Browser lifetime
+
+**Orphan guard**:
+The launcher's guarantee that a browser it launched does not outlive the wand process, kept by the operating system and the pipe tether rather than by a helper process.
+_Avoid_: leakless (as the name of the mechanism), watchdog, guard process, guard binary
+
+**Pipe tether**:
+The remote-debugging pipe wand opens to a launched browser and never speaks on, held only so that the browser exits by itself when the wand process dies and the pipe closes.
+_Avoid_: pipe transport, debugging pipe, remote-debugging-pipe (as the concept's name)
