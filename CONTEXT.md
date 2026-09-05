@@ -37,3 +37,13 @@ _Avoid_: minimum Go, Go baseline, the go directive
 **Support tier**:
 How much wand promises for a `GOOS/GOARCH`. Tier 1: built and tested with a real browser in CI. Tier 2: cross-compiled in CI, runtime best-effort. Tier 3: no promise.
 _Avoid_: supported platform (without a tier), first-class, best-effort (as a bare label)
+
+### Chrome alignment
+
+**Target Chrome**:
+The single Chrome stable version wand is aligned to: the protocol layer is generated for it and the launcher's default browser is pinned to it, and both move together. It is whatever Chrome for Testing's Stable channel serves at the time of the last roll.
+_Avoid_: pinned browser, default revision, browser version (as a bare label)
+
+**Protocol roll**:
+The devtools-protocol revision wand's protocol layer is generated from: the newest roll at or below the Target Chrome's branch point.
+_Avoid_: schema version, protocol revision, RevisionDefault
