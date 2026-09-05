@@ -1,0 +1,22 @@
+# Keep upstream's `lib/` layout, with user commands in `cmd/` and tooling under `internal/`
+
+Upstream's packages live under `lib/` (`launcher`, `proto`, `cdp`, `input`, `devices`, `js`, `utils`, `defaults`, `assets`), a prefix Go has no convention for, and its developer tooling and two user-run commands sit as `main` packages inside those library directories. wand keeps the `lib/` tree as it is under the new module path, because seven of the nine packages have types in exported signatures (`proto` in 200 root symbols, `input.Key`, `devices.Device`, `cdp.Event`, `utils.Sleeper` and `utils.Logger`, `js.Function` in `Page.ExposeHelpers`, `flags.Flag` in `Launcher` methods), so any other shape for them would be an API change the baseline release rules out (ADR-0002), while flattening the paths would buy appearance at the cost of rewriting every upstream patch due for harvesting and every documentation page. What moves is what is not library code: `lib/assets` becomes `internal/assets`; the seven `lib/utils` helpers used only by generators and tools (`Exec`, `ExecLine`, `UseNode`, `S`, `EscapeGoString`, `ReadString`, `TestEnvs`) become `internal/devutil`; the two user-run commands become `cmd/wand-manager` and `cmd/wand-fetch-browser`; the developer tools (`setup`, `lint`, `ci-test`, `simple-check`, `shell` and the Docker build script) become `internal/tools/<name>`, with the Dockerfiles at `docker/`; generators stay beside the package they generate. The Target Chrome, Companion Chromium, Protocol roll and managed-browser archive hashes live in one new zero-import leaf package, `lib/launcher/pins`, imported by `lib/launcher` and `lib/proto/generate` and rewritten by the Roll, whose generator `lib/launcher/pins/generate` is the Roll tool. The two nested example modules and `go.work` stay, every `go` directive at `1.21`.
+
+## Considered Options
+
+- **Flatten to top-level packages** (`wand/launcher`, `wand/proto`, ...): idiomatic Go, but every user rewrites per-package paths instead of one prefix, and the 20 upstream pull requests due for harvesting and upstream's documentation all name `lib/` paths.
+- **`pkg/` prefix** (runZeroInc/go-rod uses it for inlined dependencies only): the cost of flattening with none of its benefit.
+- **`lib/defaults` under `internal/` too**: no signature leaks its types, but it is the documented configuration surface (the `-wand=` flag, `defaults.Show`) with 27 external importers.
+- **`lib/utils` untouched**: the least churn, but leaves shell-and-template helpers for build scripts in a public package that 255 modules import; a fuller split of `utils` (sleepers, loggers, image helpers) is left to API modernization.
+- **Pins as constants inside the `launcher` package, or inside `lib/proto` beside `proto.Version`**: the first makes `lib/proto/generate` import the whole launcher for a few constants, the second puts six platforms' archive hashes next to the protocol.
+- **Every `main` package under `cmd/`**: generators would leave the packages they generate and ADR-0004's `lib/proto/generate` wording would change.
+- **A single `wand` CLI with subcommands**: out of scope for the baseline.
+
+## Consequences
+
+- A go-rod user swaps one import prefix, `github.com/go-rod/rod` → `github.com/headlesslab/wand`, with four exceptions: `ysmood/gson` → `headlesslab/lazyjson` (ADR-0006), `lib/assets` and the seven `utils` helpers are no longer importable, and the two commands sit at their `cmd/` paths.
+- `internal/` sits at the module root, not at `lib/internal/`: the root package imports `internal/assets`, which Go's visibility rule would forbid from `lib/internal/`.
+- `go install ./cmd/...` yields binaries named `wand-manager` and `wand-fetch-browser`, since Go names a binary after the last path element; that is why the commands carry the `wand-` prefix.
+- The seven helpers leave before the first release, so ADR-0008's one-minor `// Deprecated:` window does not apply; CI may assert that `lib/utils` no longer exports them.
+- The release workflow reads the three pins from `lib/launcher/pins` through a small Go printer rather than by parsing source, and the regeneration zero-diff gate (ADR-0004) covers `lib/launcher/pins` as well as `lib/proto`.
+- Nested example modules keep demo-only dependencies such as `gobwas/ws` out of wand's `go.mod`; `lib/examples/debug-deadlock`, which demonstrates gotrace rather than wand, is not carried over.
