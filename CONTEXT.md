@@ -126,6 +126,10 @@ _Avoid_: Chrome release, roll release, monthly release
 An upstream issue the baseline release claims to resolve, backed by a named regression test that fails on the Snapshot and passes on wand. Documentation-only items are known limitations, not confirmed fixes.
 _Avoid_: harvested fix, ported fix, closed upstream issue
 
+**Release preamble**:
+The hand-written part of a release's GitHub Release body, placed above the generated pull-request list and kept in the repository per tag; optional, written only when a release has something to say beyond its pins and pull requests, such as a first release, a breaking change or a Security roll.
+_Avoid_: release notes (as the file's name; those are the whole body), announcement (as the file's name), changelog
+
 ### Verification
 
 **Gate**:
