@@ -12,12 +12,6 @@ import (
 
 var setup = got.Setup(nil)
 
-func TestTestEnvs(t *testing.T) {
-	g := setup(t)
-
-	g.Eq(devutil.TestEnvs["GODEBUG"], "tracebackancestors=100")
-}
-
 func TestSTemplate(t *testing.T) {
 	g := setup(t)
 

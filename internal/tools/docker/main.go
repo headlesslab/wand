@@ -1,5 +1,5 @@
-// The .github/workflows/docker.yml uses it as an github action
-// and run it like this:
+// Package main builds, tests and publishes the wand container image.
+// The image workflow runs it with the git ref that triggered the run:
 //
 //	GITHUB_TOKEN=$TOKEN go run ./internal/tools/docker $GITHUB_REF
 package main
