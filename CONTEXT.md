@@ -90,6 +90,12 @@ _Avoid_: channel, provider, host (that is where an archive is fetched from)
 A URL template that serves managed-browser archives; wand ships Google's buckets and npmmirror and probes every configured host concurrently.
 _Avoid_: mirror (as the generic term), CDN, registry
 
+### Launcher presets
+
+**User mode**:
+The launcher preset that drives a visible browser on a persistent profile wand owns, so logins and extensions survive between runs; since Chrome 136 it cannot use Chrome's own default profile.
+_Avoid_: default profile mode, headful mode, attach mode
+
 ### Dependencies
 
 **Satellite module**:
@@ -111,3 +117,7 @@ _Avoid_: pipe transport, debugging pipe, remote-debugging-pipe (as the concept's
 **Milestone release**:
 The minor release cut after each Roll, one per Chrome stable milestone; with the patch releases between two of them, the only kind of release wand makes before 1.0. A minor may break, a patch only fixes.
 _Avoid_: Chrome release, roll release, monthly release
+
+**Confirmed fix**:
+An upstream issue the baseline release claims to resolve, backed by a named regression test that fails on the Snapshot and passes on wand. Documentation-only items are known limitations, not confirmed fixes.
+_Avoid_: harvested fix, ported fix, closed upstream issue
