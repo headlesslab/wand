@@ -24,6 +24,10 @@ _Avoid_: v1, MVP, first version, migration release
 The effort, after the baseline release, to bring wand's API to Playwright/Puppeteer-level ergonomics. Not part of the baseline release.
 _Avoid_: v2, rewrite, new API
 
+**Stealth**:
+Client-side evasions injected into a page so a site's bot-detection scripts see a human-looking browser. Not part of the baseline release; a later effort of its own.
+_Avoid_: anti-bot, anti-bot-detection, anti-detection, undetected
+
 ### Platforms
 
 **Domestic platform**:
