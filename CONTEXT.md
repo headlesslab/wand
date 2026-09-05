@@ -23,3 +23,9 @@ _Avoid_: v1, MVP, first version, migration release
 **API modernization**:
 The effort, after the baseline release, to bring wand's API to Playwright/Puppeteer-level ergonomics. Not part of the baseline release.
 _Avoid_: v2, rewrite, new API
+
+### Platforms
+
+**Domestic platform**:
+A Chinese-market OS and CPU combination wand targets: Kylin, UOS, or openEuler on x86-64 (Hygon, Zhaoxin), ARM64 (Phytium, Kunpeng), or LoongArch new-world (Loongson 3A5000 / 3A6000, `linux/loong64`). Users both build on it with the distro's own Go and deploy cross-compiled binaries to it.
+_Avoid_: Chinese platform, localized platform, xinchuang, 国产化 left untranslated in English docs
