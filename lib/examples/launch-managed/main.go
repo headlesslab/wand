@@ -16,7 +16,7 @@ func main() {
 	//
 	//     docker run --rm -p 7317:7317 ghcr.io/headlesslab/wand
 	//
-	// For available CLI flags run: docker run --rm ghcr.io/headlesslab/wand rod-manager -h
+	// For available CLI flags run: docker run --rm ghcr.io/headlesslab/wand wand-manager -h
 	// For more information, check the doc of launcher.Manager
 	l := launcher.MustNewManaged("")
 

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/gson"
 )
@@ -17,7 +18,7 @@ func main() {
 	for _, fn := range list.Arr() {
 		name := fn.Get("name").Str()
 		def := fn.Get("definition").Str()
-		out += utils.S(`
+		out += devutil.S(`
 			// {{.Name}} ...
 			var {{.Name}} = &Function{
 				Name: "{{.name}}",
@@ -27,14 +28,14 @@ func main() {
 		`,
 			"Name", fnName(name),
 			"name", name,
-			"definition", utils.EscapeGoString(def),
+			"definition", devutil.EscapeGoString(def),
 			"dependencies", getDeps(def),
 		)
 	}
 
 	utils.E(utils.OutputFile("lib/js/helper.go", out))
 
-	utils.Exec("gofumpt -w lib/js/helper.go")
+	devutil.Exec("gofumpt -w lib/js/helper.go")
 }
 
 var regDeps = regexp.MustCompile(`\Wfunctions.(\w+)`)
@@ -56,8 +57,8 @@ func fnName(name string) string {
 }
 
 func getList() gson.JSON {
-	utils.UseNode(false)
-	code := utils.ExecLine(false, "npx -ys -- uglify-js@3.17.4 -c -m -- lib/js/helper.js")
+	devutil.UseNode(false)
+	code := devutil.ExecLine(false, "npx -ys -- uglify-js@3.17.4 -c -m -- lib/js/helper.js")
 
 	script := fmt.Sprintf(`
 		%s
@@ -77,5 +78,5 @@ func getList() gson.JSON {
 
 	utils.E(utils.OutputFile(tmp, script))
 
-	return gson.NewFrom(utils.ExecLine(false, "node", tmp))
+	return gson.NewFrom(devutil.ExecLine(false, "node", tmp))
 }

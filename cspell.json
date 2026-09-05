@@ -35,6 +35,7 @@
     "contextcheck",
     "coverprofile",
     "Dataview",
+    "devutil",
     "datetime",
     "dockerenv",
     "dropzone",

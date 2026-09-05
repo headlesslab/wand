@@ -1,7 +1,7 @@
 // The .github/workflows/docker.yml uses it as an github action
 // and run it like this:
 //
-//	GITHUB_TOKEN=$TOKEN go run ./lib/utils/docker $GITHUB_REF
+//	GITHUB_TOKEN=$TOKEN go run ./internal/tools/docker $GITHUB_REF
 package main
 
 import (
@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
@@ -42,32 +43,32 @@ func releaseLatest(at archType) {
 	login()
 	test(at)
 
-	utils.Exec("docker push", at.tagDev())
-	utils.Exec("docker push", at.tag())
+	devutil.Exec("docker push", at.tagDev())
+	devutil.Exec("docker push", at.tag())
 }
 
 func releaseWithVer(ver string) {
 	login()
 
 	verImageDev := registry + ":" + ver + "-dev"
-	utils.Exec("docker manifest create", verImageDev, archAmd.tagDev(), archArm.tagDev())
-	utils.Exec("docker manifest push", verImageDev)
+	devutil.Exec("docker manifest create", verImageDev, archAmd.tagDev(), archArm.tagDev())
+	devutil.Exec("docker manifest push", verImageDev)
 
 	verImage := registry + ":" + ver
-	utils.Exec("docker manifest create", verImage, archAmd.tag(), archArm.tag())
-	utils.Exec("docker manifest push", verImage)
+	devutil.Exec("docker manifest create", verImage, archAmd.tag(), archArm.tag())
+	devutil.Exec("docker manifest push", verImage)
 
 	registryDev := registry + ":dev"
-	utils.Exec("docker manifest create", registryDev, archAmd.tagDev(), archArm.tagDev())
-	utils.Exec("docker manifest push", registryDev)
+	devutil.Exec("docker manifest create", registryDev, archAmd.tagDev(), archArm.tagDev())
+	devutil.Exec("docker manifest push", registryDev)
 
-	utils.Exec("docker manifest create", registry, archAmd.tag(), archArm.tag())
-	utils.Exec("docker manifest push", registry)
+	devutil.Exec("docker manifest create", registry, archAmd.tag(), archArm.tag())
+	devutil.Exec("docker manifest push", registry)
 }
 
 func test(at archType) {
-	utils.Exec("docker build -f=lib/docker/Dockerfile", "--platform", at.platform(), "-t", at.tag(), description(false), ".")
-	utils.Exec("docker build -f=lib/docker/dev.Dockerfile",
+	devutil.Exec("docker build -f=docker/Dockerfile", "--platform", at.platform(), "-t", at.tag(), description(false), ".")
+	devutil.Exec("docker build -f=docker/dev.Dockerfile",
 		"--platform", at.platform(),
 		"--build-arg", "golang="+at.golang(),
 		"--build-arg", "nodejs="+at.nodejs(),
@@ -75,13 +76,13 @@ func test(at archType) {
 		description(true), ".",
 	)
 
-	utils.Exec("docker run", at.tag(), "rod-manager", "-h")
+	devutil.Exec("docker run", at.tag(), "wand-manager", "-h")
 
 	// TODO: arm cross execution for chromium doesn't work well on github actions.
 	if at != archArm {
 		wd, err := os.Getwd()
 		utils.E(err)
-		utils.Exec("docker run -w=/t -v", fmt.Sprintf("%s:/t", wd), at.tagDev(), "go", "run", "./lib/utils/ci-test")
+		devutil.Exec("docker run -w=/t -v", fmt.Sprintf("%s:/t", wd), at.tagDev(), "go", "run", "./internal/tools/ci-test")
 	}
 }
 
@@ -92,7 +93,7 @@ func login() {
 	utils.E(os.Stdout.Write(out))
 }
 
-var headSha = strings.TrimSpace(utils.ExecLine(false, "git", "rev-parse", "HEAD"))
+var headSha = strings.TrimSpace(devutil.ExecLine(false, "git", "rev-parse", "HEAD"))
 
 func description(dev bool) string {
 	f := "Dockerfile"
@@ -100,7 +101,7 @@ func description(dev bool) string {
 		f = "dev." + f
 	}
 
-	return `--label=org.opencontainers.image.description=https://github.com/headlesslab/wand/blob/` + headSha + "/lib/docker/" + f
+	return `--label=org.opencontainers.image.description=https://github.com/headlesslab/wand/blob/` + headSha + "/docker/" + f
 }
 
 const registry = "ghcr.io/headlesslab/wand"

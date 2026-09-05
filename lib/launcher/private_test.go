@@ -118,7 +118,7 @@ func TestManaged(t *testing.T) {
 
 	u, h := MustNewManaged(s.URL()).Bin("go").ClientHeader()
 	_, err := cdp.StartWithURL(ctx, u, h)
-	g.Eq(err.(*cdp.BadHandshakeError).Body, "[rod-manager] not allowed wand-bin path: go (use --allow-all to disable the protection)")
+	g.Eq(err.(*cdp.BadHandshakeError).Body, "[wand-manager] not allowed wand-bin path: go (use --allow-all to disable the protection)")
 }
 
 func TestLaunchErrs(t *testing.T) {

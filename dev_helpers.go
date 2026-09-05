@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/headlesslab/wand/lib/assets"
+	"github.com/headlesslab/wand/internal/assets"
 	"github.com/headlesslab/wand/lib/js"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
