@@ -60,6 +60,14 @@ _Avoid_: Chromium snapshot (Snapshot is the go-rod commit), revision (as a bare 
 The Chromium trunk build wand pins alongside the Target Chrome: the newest position at or below the Target Chrome's branch point that exists for every platform in the launcher's Chromium table, rolled together with the Target Chrome.
 _Avoid_: Target Chromium, Chromium pin, default revision, RevisionDefault
 
+**Roll**:
+The automated pull request that moves the Target Chrome, the Protocol roll, the Companion Chromium and every managed-browser archive hash together, once per Chrome stable milestone.
+_Avoid_: bump, revision update, upgrade PR, check-revision
+
+**Support window**:
+The Chrome versions wand claims to work with: the Target Chrome, which is tested, plus the three stable milestones before it, which are best-effort. Nothing older is supported, and nothing is enforced in code.
+_Avoid_: Chrome floor, minimum Chrome, supported Chrome (without the window), lastMaintainedChromeVersion
+
 ### Browser acquisition
 
 **System browser**:
@@ -97,3 +105,9 @@ _Avoid_: leakless (as the name of the mechanism), watchdog, guard process, guard
 **Pipe tether**:
 The remote-debugging pipe wand opens to a launched browser and never speaks on, held only so that the browser exits by itself when the wand process dies and the pipe closes.
 _Avoid_: pipe transport, debugging pipe, remote-debugging-pipe (as the concept's name)
+
+### Releases
+
+**Milestone release**:
+The minor release cut after each Roll, one per Chrome stable milestone; with the patch releases between two of them, the only kind of release wand makes before 1.0. A minor may break, a patch only fixes.
+_Avoid_: Chrome release, roll release, monthly release

@@ -1,0 +1,23 @@
+# Start a fresh v0 series and cut one milestone release per Chrome stable
+
+Upstream tagged 117 releases as `v0.x` by hand, mixing features and breaking changes into patch and minor bumps at the maintainer's discretion, and never tied a release to a Chrome version. wand's module path is new and ADR-0002 promises no drop-in compatibility, so continuing upstream's numbering at `v0.117.0` would advertise a continuity that does not exist, while `v1.0.0` would force the API modernization that follows the baseline into a `/v2` module path. wand therefore starts a fresh series at `v0.1.0`, shipped first as `v0.1.0-rc.1` and promoted unchanged after a soak, and stays at v0 until the API modernization has shipped and its public API has held for three consecutive milestone releases. Under v0 the rule is fixed rather than discretionary: a minor release may break (remove or rename exported symbols, including the `lib/proto` entities a Roll drops, move the Target Chrome to a new milestone, raise the Go floor, swap a dependency) and a patch release never does, so `go get -u=patch` is always safe; wand's own exported API carries a `// Deprecated:` marker for at least one minor before removal, whereas protocol removals follow Chrome with no notice period (ADR-0004). One milestone release follows each Roll, so the cadence is Chrome's four-week stable cycle; Chrome's within-milestone patch versions are not rolled unless wand needs a specific fix, and bug-fix patches ship on demand. Releases are git tags plus GitHub Releases whose notes GitHub generates from pull-request labels, headed by the Target Chrome, Protocol roll and Companion Chromium; a root `versions.json` maps every release to those three pins, and no changelog file is kept. wand documents a support window of the Target Chrome plus the three preceding stable milestones and sets no numeric Chrome floor.
+
+## Considered Options
+
+- **Continue upstream's numbering (`v0.117.0`)**: signals lineage, but pkg.go.dev shows two unrelated module paths and go-rod users would read it as a drop-in series.
+- **Minor number = Chrome milestone (`v0.153.0`)**: every tag names its Chrome, but an API change between two Rolls has nowhere to go except a patch or a four-week wait.
+- **`v1.0.0` for the baseline**: production signalling at the cost of a `/v2` path suffix when the API modernization breaks the API.
+- **Rolls as patches**: the baseline could stay `v0.1.x` for months, but a patch upgrade could then delete generated protocol symbols.
+- **Upstream's discretionary bumps**: least ceremony, and no rule a user can rely on.
+- **release-please with conventional commits** (Puppeteer): automates the version arithmetic, but needs a commit convention this repository does not use.
+- **Auto-tag on Roll merge**: hands-off, but an automated pull request would then publish immutable tags to the Go module proxy.
+- **A fixed floor (Chrome >= 136) or the Target Chrome only**: the first goes stale untested; the second disowns the majority of users, who run a system browser (ADR-0005).
+
+## Consequences
+
+- The release is a `workflow_dispatch` workflow the driver runs after a Roll merges (or for a patch): it validates the version, appends the `versions.json` row, commits, tags that commit and creates the GitHub Release (title = tag, first line the three pins, pre-release for `-rc.N`). Merging a Roll never tags; there is no version constant in code (`debug.ReadBuildInfo()` serves consumers).
+- `v0.1.0` is tagged from the last rc's commit once at least 14 days have passed since rc.1, at least 7 since the latest rc, and no release-blocking issue is open; any change makes rc.N+1, including a Roll landing mid-soak.
+- Published tags are never deleted or moved; a bad release gets a `retract` directive in `go.mod` and a fixed patch.
+- The oldest milestone in the support window runs the full suite nightly on linux/amd64; a red nightly opens an issue and never gates a release. Only the Tier 1 suite on the Target Chrome gates one.
+- Every Roll is a minor, so the version number carries no Chrome information; `versions.json` and the release notes do.
+- `v1.0.0` is a decision for the API modernization map, not this one.
