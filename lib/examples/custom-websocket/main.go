@@ -1,0 +1,49 @@
+// Package main ...
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
+	"github.com/headlesslab/wand"
+	"github.com/headlesslab/wand/lib/cdp"
+	"github.com/headlesslab/wand/lib/launcher"
+)
+
+func main() {
+	w := NewWebSocket(launcher.New().MustLaunch())
+
+	client := cdp.New().Start(w)
+
+	p := wand.New().Client(client).MustConnect().MustPage("http://example.com")
+
+	fmt.Println(p.MustInfo().Title)
+}
+
+// WebSocket is a custom websocket that uses gobwas/ws as the transport layer.
+type WebSocket struct {
+	conn net.Conn
+}
+
+// NewWebSocket ...
+func NewWebSocket(u string) *WebSocket {
+	conn, _, _, err := ws.Dial(context.Background(), u)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &WebSocket{conn}
+}
+
+// Send ...
+func (w *WebSocket) Send(b []byte) error {
+	return wsutil.WriteClientText(w.conn, b)
+}
+
+// Read ...
+func (w *WebSocket) Read() ([]byte, error) {
+	return wsutil.ReadServerText(w.conn)
+}
