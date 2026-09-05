@@ -19,3 +19,4 @@ Upstream's `launcher.New()` downloads a pinned Chromium trunk build on every mac
 - `HostPlaywright`, `RevisionPlaywright` and the monthly `check-revision` workflow go; the fastest-host race stays, and whether `fetchup` still implements it is settled with the dependency chain. A user-supplied version or revision has no recorded hash, so its download is not verified and says so in the log.
 - A pre-fetch command (upstream's `lib/utils/get-browser` equivalent) remains for Docker builds and offline bundles.
 - The baseline's first Target Chrome is chosen once Chrome 153 is Stable, so Tier 1 linux/arm64 has a downloadable build from day one.
+- The published container image (`ghcr.io/headlesslab/wand`, linux/amd64 and linux/arm64) ships the Target Chrome pre-fetched at build time on both architectures, not the Companion Chromium, which has no linux/arm64 build; decided with the CI matrix (#20).

@@ -39,7 +39,7 @@ The Go version `go.mod` declares. Anchored to the newest Go the current openEule
 _Avoid_: minimum Go, Go baseline, the go directive
 
 **Support tier**:
-How much wand promises for a `GOOS/GOARCH`. Tier 1: built and tested with a real browser in CI. Tier 2: cross-compiled in CI, runtime best-effort. Tier 3: no promise.
+How much wand promises for a `GOOS/GOARCH`. Tier 1: built and tested with a real browser in CI. Tier 2: built and vetted in CI, natively where a hosted runner exists and cross-compiled otherwise, never tested with a browser; runtime best-effort. Tier 3: no promise.
 _Avoid_: supported platform (without a tier), first-class, best-effort (as a bare label)
 
 ### Chrome alignment
