@@ -31,7 +31,9 @@ Both rulesets list the repository admin role as a bypass actor with mode "always
 Run each line from the wand checkout. The Gates are the check names the reusable workflow in `headlesslab/.github` produces; a satellite that calls it with `cross-platform: true` (today only `fetch`) gets two more. A check is matched by name from any source, so the flag carries no app id.
 
 ```sh
-go run ./internal/tools/repo-settings headlesslab/wand
+go run ./internal/tools/repo-settings \
+  -check "Tier 1 linux/amd64 (Go stable)" \
+  headlesslab/wand
 
 go run ./internal/tools/repo-settings \
   -check "go / test (ubuntu-latest, floor)" \
@@ -50,7 +52,7 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires no checks yet: its Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only after its workflow has run once on `main`.
+wand's `main` ruleset requires the minimal Gate of `.github/workflows/gate.yml` (#36); the remaining Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only after its workflow has run once on `main`.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 
