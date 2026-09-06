@@ -16,10 +16,15 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%v", *e)
 }
 
-// Is stdlib interface.
+// Is stdlib interface. Two errors are the same when their code, data and
+// message agree; the messages of a destroyed execution context count as one.
 func (e Error) Is(target error) bool {
 	err, ok := target.(*Error)
-	return ok && e == *err
+	if !ok || e.Code != err.Code || e.Data != err.Data {
+		return false
+	}
+	return e.Message == err.Message ||
+		(ctxDestroyedMessages[e.Message] && ctxDestroyedMessages[err.Message])
 }
 
 // ErrCtxNotFound type.
@@ -40,10 +45,20 @@ var ErrSearchSessionNotFound = &Error{
 	Message: "No search session with given id found",
 }
 
-// ErrCtxDestroyed type.
+// ErrCtxDestroyed type. It matches every message Chrome uses for an evaluation
+// interrupted by a navigation: Chromium 128 reports "Execution context was
+// destroyed." from V8, Chrome 152 "Inspected target navigated or closed" from
+// the DevTools session, and Puppeteer rewrites the latter into the former too.
+// ErrCtxNotFound, a stale context id, stays a separate error.
 var ErrCtxDestroyed = &Error{
 	Code:    -32000,
 	Message: "Execution context was destroyed.",
+}
+
+// ctxDestroyedMessages are the messages ErrCtxDestroyed matches.
+var ctxDestroyedMessages = map[string]bool{
+	ErrCtxDestroyed.Message:                true,
+	"Inspected target navigated or closed": true,
 }
 
 // ErrObjNotFound type.

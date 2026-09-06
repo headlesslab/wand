@@ -4,6 +4,8 @@ package cdp
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -134,6 +136,7 @@ func (cdp *Client) consumeMessages() {
 	for {
 		data, err := cdp.ws.Read()
 		if err != nil {
+			err = readErr(err)
 			cdp.pending.Range(func(_, val interface{}) bool {
 				val.(func(result))(result{err: err}) //nolint: forcetypeassert
 				return true
@@ -172,4 +175,15 @@ func (cdp *Client) consumeMessages() {
 			val.(func(result))(result{nil, res.Error}) //nolint: forcetypeassert
 		}
 	}
+}
+
+// readErr normalizes the error the transport reports when the browser drops
+// the connection. A browser that dies with its socket open ends the stream
+// with a connection reset on Windows and with EOF elsewhere; callers get
+// io.EOF on every OS, so one sentinel means the browser is gone.
+func readErr(err error) error {
+	if errors.Is(err, errConnReset) {
+		return io.EOF
+	}
+	return err
 }
