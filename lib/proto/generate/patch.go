@@ -15,7 +15,7 @@ type step struct {
 // The steps of a schema path: a domain, one of its sections keyed the way
 // the protocol keys it (types by id, commands and events by name), and one
 // of an entity's lists of fields.
-func inDomain(name string) step        { return step{"domains", "domain", name} }
+func inDomain(name string) step         { return step{"domains", "domain", name} }
 func inSection(section, id string) step { return step{section, sectionKey(section), id} }
 func inList(list, name string) step     { return step{list, "name", name} }
 
