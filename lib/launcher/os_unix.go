@@ -102,10 +102,12 @@ func (l *Launcher) tether(cmd *exec.Cmd) ([]*os.File, error) {
 		// cmd.Args is xvfb-run, its flags, then the browser and its
 		// arguments; the shell goes in front of the browser.
 		browser := 1 + len(xvfb)
-		args := append([]string{}, cmd.Args[:browser]...)
+		args := make([]string, 0, len(cmd.Args)+3)
+		args = append(args, cmd.Args[:browser]...)
 		args = append(args, "sh", "-c", xvfbTether)
-		cmd.Args = append(args, cmd.Args[browser:]...)
-		cmd.ExtraFiles = append(browserEnds, browserEnds...)
+		args = append(args, cmd.Args[browser:]...)
+		cmd.Args = args
+		cmd.ExtraFiles = []*os.File{browserRead, browserWrite, browserRead, browserWrite}
 	}
 
 	return browserEnds, nil
