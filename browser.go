@@ -1,4 +1,5 @@
 //go:generate go run ./internal/tools/setup
+//go:generate go run ./lib/launcher/pins/generate -check
 //go:generate go run ./lib/proto/generate
 //go:generate go run ./lib/js/generate
 //go:generate go run ./internal/assets/generate
