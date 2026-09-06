@@ -9,21 +9,25 @@
 // Stable; with a version argument it is that version (a Security roll, or a
 // Roll forced by hand). From its branch position the tool derives the Protocol
 // roll, the largest devtools-protocol v0.0.<rev> tag not above the position,
-// and the Companion Chromium, the newest Chromium trunk position at or below
-// it whose archive exists for all five bucket prefixes. It then downloads
-// every Managed browser archive from Google's origin bucket, never from a
-// mirror, records each SHA-256 and rewrites lib/launcher/pins/pins.go. An
-// archive Google does not serve is reported and the exit status is 1; what was
-// verified is still written, so the gap shows in the diff instead of hiding.
+// and the Companion Chromium, the newest Chromium trunk build at or below it
+// whose archive exists for all five bucket prefixes. It then downloads every
+// Managed browser archive from Google's origin bucket, never from another
+// Download host, records each SHA-256 and rewrites lib/launcher/pins/pins.go.
+// An archive Google does not serve is reported and the exit status is 1; what
+// was verified is still written, so the gap shows in the diff instead of
+// hiding.
 //
-// -check rewrites nothing: it re-derives the Protocol roll from the recorded
-// branch position and re-renders the file from the recorded pins, and fails
-// when either differs from what is committed. That is the generate Gate's
-// zero-diff check for this package (ADR-0004, ADR-0005, ADR-0009).
+// -check rewrites nothing. It re-derives the Protocol roll from the committed
+// branch position and fails on a mismatch, and it re-renders the file from
+// the committed values and fails when the bytes differ, so a stale roll and
+// any drift in formatting or order are caught before the next Roll's diff
+// carries them. It cannot tell a hand-edited hash from a downloaded one: the
+// reviewed Roll pull request is the trust anchor for the hashes (ADR-0005).
+// go generate runs it, so the generate Gate's zero-diff check covers this
+// package (ADR-0004, ADR-0009).
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -57,20 +61,20 @@ func run(opts options) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	s := newSources()
+	r := newRoller()
 
 	if opts.check {
-		return check(ctx, s)
+		return check(ctx, r)
 	}
-	return roll(ctx, s, opts.version)
+	return roll(ctx, r, opts.version)
 }
 
-func check(ctx context.Context, s *sources) int {
+func check(ctx context.Context, r *roller) int {
 	file, err := os.ReadFile(pinsFile)
 	if err != nil {
 		return fail(err)
 	}
-	if err := s.check(ctx, current(), file); err != nil {
+	if err := r.check(ctx, current(), file); err != nil {
 		return fail(err)
 	}
 
@@ -79,8 +83,8 @@ func check(ctx context.Context, s *sources) int {
 	return 0
 }
 
-func roll(ctx context.Context, s *sources, version string) int {
-	p, missing, err := s.roll(ctx, version)
+func roll(ctx context.Context, r *roller, version string) int {
+	p, missing, err := r.roll(ctx, version)
 	if err != nil {
 		return fail(err)
 	}
@@ -156,22 +160,4 @@ func usage(w io.Writer) {
 	fs := flagSet(&options{})
 	fs.SetOutput(w)
 	fs.PrintDefaults()
-}
-
-// current is what the pins package holds at build time.
-func current() Pins {
-	return Pins{
-		ChromeVersion:    pins.ChromeVersion,
-		ChromePosition:   pins.ChromePosition,
-		ProtocolRoll:     pins.ProtocolRoll,
-		ChromiumPosition: pins.ChromiumPosition,
-		ChromeSHA256:     pins.ChromeSHA256,
-		ChromiumSHA256:   pins.ChromiumSHA256,
-	}
-}
-
-// normalize undoes the CRLF a Windows checkout with autocrlf applies, so the
-// bytes compare to what the Roll writes.
-func normalize(file []byte) []byte {
-	return bytes.ReplaceAll(file, []byte("\r\n"), []byte("\n"))
 }

@@ -44,7 +44,7 @@ var ChromeSHA256 = map[string]map[string]string{
 }
 
 // ChromiumSHA256 is the SHA-256, as lower-case hex, of the Companion Chromium
-// archive under each Chromium snapshots bucket prefix.
+// archive under each prefix of the Chromium trunk build bucket.
 var ChromiumSHA256 = map[string]string{
 	"Linux_x64": "790e8ebbddd97546b49a721e8251fdd06684dcce82bd1c0925b67904aab6c74c",
 	"Mac":       "347600058d49e4cc5a13cd433eb32854cc9022a06add5ed621c6292131c8ee13",

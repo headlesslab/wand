@@ -73,8 +73,9 @@ func TestChromeArchives(t *testing.T) {
 
 // platformGap reports whether the Target Chrome may lack an archive for the
 // platform. Chrome for Testing published its first linux-arm64 build with
-// 153.0.8001.0, so a Target Chrome below 153 has none (ADR-0005). Delete this
-// once the first Roll to 153 or later has landed.
+// 153.0.8001.0, so a Target Chrome below 153 has none (ADR-0005). The first
+// Roll, to 153 or later (spec #33, order of work, step 9), makes this always
+// false; delete it with that Roll.
 func platformGap(platform string) bool {
 	major, err := strconv.Atoi(strings.SplitN(pins.ChromeVersion, ".", 2)[0])
 	if err != nil {

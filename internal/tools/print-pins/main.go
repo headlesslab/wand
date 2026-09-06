@@ -2,8 +2,8 @@
 // workflow, which heads every release with them and appends them to
 // versions.json, so no workflow parses Go source (ADR-0008, ADR-0009):
 //
-//	go run ./internal/tools/print-pins        # Chrome 152.0.7977.82, protocol r1666840, Chromium 1668000
-//	go run ./internal/tools/print-pins -json  # {"chrome":"152.0.7977.82","protocol":1666840,"chromium":1668000}
+//	go run ./internal/tools/print-pins        # Chrome <version>, protocol r<roll>, Chromium <position>
+//	go run ./internal/tools/print-pins -json  # {"chrome":"<version>","protocol":<roll>,"chromium":<position>}
 package main
 
 import (

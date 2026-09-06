@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ysmood/got"
@@ -36,7 +37,9 @@ type bucket struct {
 	positions map[string][]int // Chromium bucket prefix -> positions listed
 	missing   map[string]bool  // URL path -> absent (404)
 	pageSize  int              // listing page size, to exercise pagination
-	requests  []string         // method + path of every request, in order
+
+	mu       sync.Mutex
+	requests []string // method + path of every request, in order
 }
 
 func (b *bucket) handler() http.Handler {
@@ -76,7 +79,9 @@ func (b *bucket) handler() http.Handler {
 	mux.HandleFunc("/snapshots/", archive)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b.mu.Lock()
 		b.requests = append(b.requests, r.Method+" "+r.URL.Path)
+		b.mu.Unlock()
 		mux.ServeHTTP(w, r)
 	})
 }
@@ -117,6 +122,9 @@ func (b *bucket) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b *bucket) count(method, path string) int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	n := 0
 	for _, req := range b.requests {
 		if req == method+" "+path {
@@ -149,21 +157,21 @@ func newBucket() *bucket {
 	}
 }
 
-func testSources(t *testing.T, b *bucket, rolls []int) *sources {
+func testRoller(t *testing.T, b *bucket, rolls []int) *roller {
 	t.Helper()
 
 	srv := httptest.NewServer(b.handler())
 	t.Cleanup(srv.Close)
 
-	return &sources{
-		client:       srv.Client(),
-		cft:          srv.URL + "/cft",
-		cftBucket:    srv.URL + "/cft-bucket",
-		snapshots:    srv.URL + "/snapshots",
-		snapshotsAPI: srv.URL + "/api/o",
-		rolls:        func(context.Context) ([]int, error) { return rolls, nil },
-		parallel:     3,
-		log:          log.New(io.Discard, "", 0),
+	return &roller{
+		client:          srv.Client(),
+		cft:             srv.URL + "/cft",
+		chromeBucket:    srv.URL + "/cft-bucket",
+		chromiumBucket:  srv.URL + "/snapshots",
+		chromiumListing: srv.URL + "/api/o",
+		rolls:           func(context.Context) ([]int, error) { return rolls, nil },
+		parallel:        3,
+		log:             log.New(io.Discard, "", 0),
 	}
 }
 
@@ -176,7 +184,7 @@ func TestRoll(t *testing.T) {
 	g := setup(t)
 
 	b := newBucket()
-	s := testSources(t, b, []int{1669207, 1666840, 1663043})
+	s := testRoller(t, b, []int{1669207, 1666840, 1663043})
 
 	p, missing, err := s.roll(context.Background(), "")
 	g.E(err)
@@ -188,9 +196,9 @@ func TestRoll(t *testing.T) {
 	g.Eq(p.ChromiumPosition, 1668000)
 
 	g.Len(p.ChromeSHA256, 2)
-	for _, binary := range []string{"chrome", "chrome-headless-shell"} {
-		g.Len(p.ChromeSHA256[binary], 6)
-		for _, platform := range []string{"linux64", "linux-arm64", "mac-x64", "mac-arm64", "win32", "win64"} {
+	for _, binary := range chromeBinaries {
+		g.Len(p.ChromeSHA256[binary], len(chromePlatforms))
+		for _, platform := range chromePlatforms {
 			path := fmt.Sprintf("/cft-bucket/152.0.7977.82/%s/%s-%s.zip", platform, binary, platform)
 			g.Desc(path).Eq(p.ChromeSHA256[binary][platform], hashOf(path))
 			g.Desc(path).Eq(b.count(http.MethodGet, path), 1)
@@ -217,7 +225,7 @@ func TestRollMissingArchive(t *testing.T) {
 	b := newBucket()
 	gone := "/cft-bucket/152.0.7977.82/linux-arm64/chrome-headless-shell-linux-arm64.zip"
 	b.missing[gone] = true
-	s := testSources(t, b, []int{1666840})
+	s := testRoller(t, b, []int{1666840})
 
 	p, missing, err := s.roll(context.Background(), "")
 	g.E(err)
@@ -240,7 +248,7 @@ func TestRollVersionArgument(t *testing.T) {
 	for _, prefix := range []string{"Mac", "Mac_Arm", "Win", "Win_x64"} {
 		b.positions[prefix] = append(b.positions[prefix], 1681000)
 	}
-	s := testSources(t, b, []int{1681094, 1681000, 1666840})
+	s := testRoller(t, b, []int{1681094, 1681000, 1666840})
 
 	p, missing, err := s.roll(context.Background(), "153.0.8010.27")
 	g.E(err)
@@ -262,28 +270,31 @@ func TestRollErrors(t *testing.T) {
 	g := setup(t)
 
 	// No roll at or below the branch position.
-	s := testSources(t, newBucket(), []int{1669207})
+	s := testRoller(t, newBucket(), []int{1669207})
 	_, _, err := s.roll(context.Background(), "")
 	g.Err(err)
 	g.Has(err.Error(), "1669021")
 
-	// No trunk build common to the five prefixes.
+	// No Chromium trunk build common to the five prefixes anywhere below the
+	// branch position: the search widens to position zero, then fails.
 	b := newBucket()
-	b.positions["Win"] = []int{1600000}
-	s = testSources(t, b, []int{1666840})
+	b.positions["Win"] = []int{1700000}
+	s = testRoller(t, b, []int{1666840})
 	_, _, err = s.roll(context.Background(), "")
 	g.Err(err)
 	g.Has(err.Error(), "Win")
+	g.Has(err.Error(), "1669021")
+	g.Gt(b.count(http.MethodGet, "/api/o"), 5)
 
 	// The tag source failing.
-	s = testSources(t, newBucket(), nil)
+	s = testRoller(t, newBucket(), nil)
 	s.rolls = func(context.Context) ([]int, error) { return nil, fmt.Errorf("git: boom") }
 	_, _, err = s.roll(context.Background(), "")
 	g.Err(err)
 	g.Has(err.Error(), "boom")
 
 	// Every endpoint unreachable.
-	s = testSources(t, newBucket(), []int{1666840})
+	s = testRoller(t, newBucket(), []int{1666840})
 	s.cft = "http://127.0.0.1:1/cft"
 	_, _, err = s.roll(context.Background(), "")
 	g.Err(err)
@@ -332,10 +343,10 @@ func TestParseRolls(t *testing.T) {
 func TestCommonPositions(t *testing.T) {
 	g := setup(t)
 
-	g.Eq(commonPositions([]int{1, 2, 3, 5}, []int{5, 2, 9}, []int{2, 5, 3}), []int{5, 2})
-	g.Eq(commonPositions([]int{1, 2}, []int{3}), []int{})
-	g.Eq(commonPositions([]int{4, 4, 2}), []int{4, 2})
-	g.Eq(commonPositions(), []int{})
+	g.Eq(commonPositions([][]int{{1, 2, 3, 5}, {5, 2, 9}, {2, 5, 3}}), []int{5, 2})
+	g.Eq(commonPositions([][]int{{1, 2}, {3}}), []int{})
+	g.Eq(commonPositions([][]int{{4, 4, 2}}), []int{4, 2})
+	g.Eq(commonPositions(nil), []int{})
 }
 
 func samplePins() Pins {
@@ -403,7 +414,7 @@ func TestCheck(t *testing.T) {
 	file, err := render(p)
 	g.E(err)
 
-	s := testSources(t, newBucket(), []int{1669207, 1666840, 1663043})
+	s := testRoller(t, newBucket(), []int{1669207, 1666840, 1663043})
 	g.E(s.check(context.Background(), p, file))
 
 	// A Windows checkout with autocrlf must pass too.
@@ -417,9 +428,10 @@ func TestCheck(t *testing.T) {
 	g.Has(err.Error(), "r1666840")
 	g.Has(err.Error(), "r1666022")
 
-	// The file on disk is not what the Roll writes for these pins.
+	// The file on disk is not byte for byte what the Roll writes for its own
+	// values: a hand edit gofmt tolerates, here an extra blank line.
 	s.rolls = func(context.Context) ([]int, error) { return []int{1666840}, nil }
-	edited := bytes.Replace(file, []byte(hashOf("c")), []byte(hashOf("x")), 1)
+	edited := bytes.Replace(file, []byte("\n\n"), []byte("\n\n\n"), 1)
 	err = s.check(context.Background(), p, edited)
 	g.Err(err)
 	g.Has(err.Error(), "pins.go")

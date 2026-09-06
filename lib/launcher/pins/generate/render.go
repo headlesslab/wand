@@ -59,7 +59,7 @@ var ChromeSHA256 = map[string]map[string]string{
 	fmt.Fprintf(b, `}
 
 // ChromiumSHA256 is the SHA-256, as lower-case hex, of the Companion Chromium
-// archive under each Chromium snapshots bucket prefix.
+// archive under each prefix of the Chromium trunk build bucket.
 var ChromiumSHA256 = map[string]string{
 `)
 	for _, prefix := range sortedKeys(p.ChromiumSHA256) {
