@@ -21,6 +21,7 @@ import (
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/devices"
 	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
 )
@@ -146,7 +147,11 @@ func (b *Browser) NoDefaultDevice() *Browser {
 }
 
 // Connect to the browser and start to control it.
-// If fails to connect, try to launch a local browser, if local browser not found try to download one.
+// Without a client or a control URL it launches a browser through
+// [launcher.New], whose Browser resolution takes an explicit path, then a
+// System browser, then a Managed browser, downloaded only as a last resort.
+// Once connected, a browser of another major version than the Target Chrome's
+// gets one line through the logger, and no refusal.
 func (b *Browser) Connect() error {
 	if b.client == nil {
 		u := b.controlURL
@@ -173,7 +178,43 @@ func (b *Browser) Connect() error {
 		launcher.Open(b.ServeMonitor(b.monitor))
 	}
 
-	return proto.TargetSetDiscoverTargets{Discover: true}.Call(b)
+	err := proto.TargetSetDiscoverTargets{Discover: true}.Call(b)
+	if err != nil {
+		return err
+	}
+
+	b.logVersion()
+
+	return nil
+}
+
+// logVersion writes one line through the logger, with both versions, when
+// the browser's major version is not the Target Chrome's. wand is tested on
+// the Target Chrome and works best within the Support window, but it never
+// refuses a browser and has no version floor (ADR-0005), so a browser whose
+// version cannot be read gets a line saying that and stays connected.
+func (b *Browser) logVersion() {
+	res, err := proto.BrowserGetVersion{}.Call(b)
+	if err != nil {
+		b.logger.Println("the browser version could not be read:", err)
+
+		return
+	}
+
+	if majorVersion(res.Product) != majorVersion(pins.ChromeVersion) {
+		b.logger.Println("the browser is", res.Product+",", "the Target Chrome is Chrome/"+pins.ChromeVersion+":",
+			"another major version, outside what wand is tested on")
+	}
+}
+
+// majorVersion of a Browser.getVersion product such as
+// "HeadlessChrome/152.0.7977.82", or of a bare version: the number before
+// the first dot after the last slash.
+func majorVersion(product string) string {
+	version := product[strings.LastIndex(product, "/")+1:]
+	major, _, _ := strings.Cut(version, ".")
+
+	return major
 }
 
 // Close the browser.

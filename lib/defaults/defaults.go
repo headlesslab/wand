@@ -1,5 +1,16 @@
 // Package defaults of commonly used options parsed from environment.
 // Check ResetWith for details.
+//
+// The "-wand" flag is the middle of wand's three configuration surfaces: an
+// option set in code beats it, and it beats the launcher's WAND_BROWSER_*
+// environment variables, which beat the launcher's own discovery. So for the
+// browser binary, Launcher.Bin beats "-wand=bin=", which beats
+// WAND_BROWSER_BIN, which beats the search for a System browser, then a
+// Managed browser, cached or downloaded (Browser resolution, ADR-0005). The
+// six variables, documented with the launcher, are WAND_BROWSER_BIN,
+// WAND_BROWSER_CACHE, WAND_BROWSER_HOSTS, WAND_BROWSER_DOWNLOAD,
+// WAND_BROWSER_SOURCE and WAND_BROWSER_BINARY; only "bin" has a "-wand"
+// option beside it.
 package defaults
 
 import (
@@ -42,8 +53,9 @@ var Dir string
 // Option name is "port".
 var Port string
 
-// Bin is the default of launcher.Launcher.Bin .
-// Option name is "bin".
+// Bin is the default of launcher.Launcher.Bin: the browser binary to launch.
+// Option name is "bin". It beats WAND_BROWSER_BIN and the launcher's search
+// for a System browser; Launcher.Bin in code beats it.
 var Bin string
 
 // Proxy is the default of launcher.Launcher.Proxy

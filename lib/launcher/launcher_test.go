@@ -205,6 +205,9 @@ func TestBrowserValid(t *testing.T) {
 	g.E(exec.Command("go", "build", "-o", b.BinPath(), "./fixtures/chrome-lib-missing").CombinedOutput())
 	g.Nil(b.Validate())
 
+	g.E(exec.Command("go", "build", "-o", b.BinPath(), "./fixtures/chrome-headless").CombinedOutput())
+	g.Nil(b.Validate())
+
 	// A cached browser that validates is used as it is, without a download.
 	p, err := b.Get()
 	g.E(err)

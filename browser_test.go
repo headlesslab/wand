@@ -1,12 +1,15 @@
 package wand_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/devices"
 	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
@@ -503,4 +507,56 @@ func TestBrowserConnectConflict(t *testing.T) {
 	g.Panic(func() {
 		wand.New().Client(&cdp.Client{}).ControlURL("test").MustConnect()
 	})
+}
+
+func TestBrowserVersionMismatch(t *testing.T) {
+	g := setup(t)
+
+	// A browser of its own, so that each connection below is a fresh one
+	// whose Browser.getVersion answer the mock decides.
+	u := launcher.New().MustLaunch()
+
+	// connect a fresh client whose Browser.getVersion answer is stubbed, and
+	// return what the browser logged.
+	connect := func(stub func(mc *MockClient)) string {
+		mc := newMockClient(u)
+		mc.t = t
+		stub(mc)
+
+		logs := &bytes.Buffer{}
+		b := wand.New().Client(mc).Logger(log.New(logs, "", 0))
+		g.E(b.Connect())
+		g.Cleanup(func() { _ = b.Close() })
+
+		return logs.String()
+	}
+	product := func(product string) func(mc *MockClient) {
+		return func(mc *MockClient) {
+			mc.stub(1, proto.BrowserGetVersion{}, func(_ StubSend) (lazyjson.JSON, error) {
+				return lazyjson.New(proto.BrowserGetVersionResult{Product: product}), nil
+			})
+		}
+	}
+
+	// Another major version than the Target Chrome's: one line, both
+	// versions, and the connection stands.
+	line := connect(product("Chrome/1.0.0.0"))
+	g.Has(line, "Chrome/1.0.0.0")
+	g.Has(line, pins.ChromeVersion)
+	g.Eq(strings.Count(line, "\n"), 1)
+
+	// The Target Chrome's major version, headless or not: nothing.
+	g.Eq(connect(product("HeadlessChrome/"+pins.ChromeVersion)), "")
+
+	// A version that cannot be read: one line saying so, and the connection
+	// stands, since wand never refuses a browser.
+	line = connect(func(mc *MockClient) { mc.stubErr(1, proto.BrowserGetVersion{}) })
+	g.Has(line, "could not be read")
+	g.Eq(strings.Count(line, "\n"), 1)
+
+	// Target discovery that cannot be switched on still fails the connection.
+	mc := newMockClient(u)
+	mc.t = t
+	mc.stubErr(1, proto.TargetSetDiscoverTargets{})
+	g.Err(wand.New().Client(mc).Connect())
 }

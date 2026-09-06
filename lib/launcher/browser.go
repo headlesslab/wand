@@ -46,9 +46,15 @@ const (
 	BinaryHeadlessShell Binary = "chrome-headless-shell"
 )
 
-// The environment variables NewBrowser reads. A launcher option set in code
-// overrides them.
+// The WAND_BROWSER_* environment variables: the defaults, for a whole
+// process, of the launcher options of the same name. The order of precedence
+// is the option set in code, then the -wand= flag of lib/defaults, then these
+// variables, then the launcher's own discovery (ADR-0005).
 const (
+	// EnvBrowserBin is the browser binary to launch, as [Launcher.Bin] and
+	// -wand=bin= name one; when set, Browser resolution goes no further.
+	EnvBrowserBin = "WAND_BROWSER_BIN"
+
 	// EnvBrowserCache sets the browser cache, DefaultBrowserDir, when the
 	// process starts.
 	EnvBrowserCache = "WAND_BROWSER_CACHE"
@@ -56,6 +62,11 @@ const (
 	// EnvBrowserHosts overrides the Download hosts: URL templates separated
 	// by commas, in the form DefaultHosts describes.
 	EnvBrowserHosts = "WAND_BROWSER_HOSTS"
+
+	// EnvBrowserDownload set to "0" keeps Browser resolution from downloading
+	// a Managed browser, as [Launcher.Download] does; any other value, or
+	// none, leaves the download on.
+	EnvBrowserDownload = "WAND_BROWSER_DOWNLOAD"
 
 	// EnvBrowserSource selects the Browser source: "chrome" for Chrome for
 	// Testing, the default, or "chromium" for Chromium trunk builds.
@@ -65,6 +76,17 @@ const (
 	// default, or "chrome-headless-shell".
 	EnvBrowserBinary = "WAND_BROWSER_BINARY"
 )
+
+// downloadDefault is the value of flags.Download a new launcher starts with,
+// the default of [Launcher.Download]: "0" when EnvBrowserDownload is "0",
+// which switches the download off, "1" otherwise.
+func downloadDefault() string {
+	if os.Getenv(EnvBrowserDownload) == "0" {
+		return "0"
+	}
+
+	return "1"
+}
 
 // DefaultHosts are the Download hosts of a Browser source: Google's bucket
 // and npmmirror, as URL templates. A template names the archive with three
@@ -456,14 +478,42 @@ func (lc *Browser) Validate() error {
 	return nil
 }
 
-// LookPath searches for the browser executable from often used paths on current operating system.
+// LookPath searches for a System browser at the paths systemBrowsers lists
+// for the current operating system: the first that exists wins, whatever its
+// version.
 func LookPath() (found string, has bool) {
-	list := map[string][]string{
+	return lookPath(systemBrowsers(runtime.GOOS))
+}
+
+// lookPath is the first of the candidates that [exec.LookPath] resolves: a
+// bare name through PATH, a path as it is.
+func lookPath(candidates []string) (string, bool) {
+	for _, candidate := range candidates {
+		if found, err := exec.LookPath(candidate); err == nil {
+			return found, true
+		}
+	}
+
+	return "", false
+}
+
+// systemBrowsers is where a System browser is looked for on goos, in the
+// order LookPath tries them: Google Chrome, Chromium and Microsoft Edge, on
+// PATH and where their packages install them. It is upstream's list plus
+// the Chrome for Testing app bundle and the Homebrew prefixes on macOS, and
+// Google's and Microsoft's install directories on Linux. No Domestic
+// platform browser is listed, since none is verified to accept
+// --remote-debugging-port (ADR-0005); EnvBrowserBin names one.
+func systemBrowsers(goos string) []string {
+	return map[string][]string{
 		"darwin": {
 			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+			"/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
 			"/Applications/Chromium.app/Contents/MacOS/Chromium",
 			"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
 			"/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+			"/opt/homebrew/bin/chromium",
+			"/usr/local/bin/chromium",
 			"/usr/bin/google-chrome-stable",
 			"/usr/bin/google-chrome",
 			"/usr/bin/chromium",
@@ -473,8 +523,12 @@ func LookPath() (found string, has bool) {
 			"chrome",
 			"google-chrome",
 			"/usr/bin/google-chrome",
+			"/opt/google/chrome/chrome",
 			"microsoft-edge",
 			"/usr/bin/microsoft-edge",
+			"microsoft-edge-stable",
+			"/usr/bin/microsoft-edge-stable",
+			"/opt/microsoft/msedge/msedge",
 			"chromium",
 			"chromium-browser",
 			"google-chrome-stable",
@@ -493,18 +547,7 @@ func LookPath() (found string, has bool) {
 			`Chromium\Application\chrome.exe`,
 			`Microsoft\Edge\Application\msedge.exe`,
 		)...),
-	}[runtime.GOOS]
-
-	for _, path := range list {
-		var err error
-		found, err = exec.LookPath(path)
-		has = err == nil
-		if has {
-			break
-		}
-	}
-
-	return
+	}[goos]
 }
 
 // interface for testing.

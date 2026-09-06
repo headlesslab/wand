@@ -51,8 +51,13 @@ const (
 	// Leakless flag.
 	Leakless Flag = "wand-leakless"
 
-	// Bin is the browser executable file path. If it's empty, launcher will automatically search or download the bin.
+	// Bin is the browser executable file path. If it's empty, Browser resolution searches for a System browser,
+	// then takes the Managed browser, cached or downloaded.
 	Bin Flag = "wand-bin"
+
+	// Download is whether Browser resolution may download the Managed browser as its last resort:
+	// "0" for no, anything else or no flag for yes.
+	Download Flag = "wand-download"
 
 	// KeepUserDataDir flag.
 	KeepUserDataDir Flag = "wand-keep-user-data-dir"
