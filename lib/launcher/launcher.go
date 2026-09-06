@@ -38,10 +38,8 @@ type Launcher struct {
 	pid     int
 	exit    chan struct{}
 
-	// download is whether Browser resolution may download the Managed
-	// browser as its last resort; findSystem is its search for a System
-	// browser, LookPath outside the tests.
-	download   bool
+	// findSystem is Browser resolution's search for a System browser,
+	// LookPath outside the tests.
 	findSystem func() (string, bool)
 
 	managed    bool
@@ -66,6 +64,7 @@ func New() *Launcher {
 
 	defaultFlags := map[flags.Flag][]string{
 		flags.Bin:      {defaults.Bin},
+		flags.Download: {downloadDefault()},
 		flags.Leakless: nil,
 
 		flags.UserDataDir: {dir},
@@ -125,7 +124,6 @@ func New() *Launcher {
 		Flags:      defaultFlags,
 		exit:       make(chan struct{}),
 		browser:    NewBrowser(),
-		download:   downloadEnabled(),
 		findSystem: LookPath,
 		parser:     NewURLParser(),
 		logger:     io.Discard,
@@ -147,9 +145,9 @@ func NewUserMode() *Launcher {
 			flags.RemoteDebuggingPort: {"37712"},
 			"no-startup-window":       nil,
 			flags.Bin:                 {defaults.Bin},
+			flags.Download:            {downloadDefault()},
 		},
 		browser:    NewBrowser(),
-		download:   downloadEnabled(),
 		findSystem: LookPath,
 		exit:       make(chan struct{}),
 		parser:     NewURLParser(),
@@ -237,28 +235,33 @@ func (l *Launcher) Bin(path string) *Launcher {
 // browser when no explicit path, System browser or cached Managed browser is
 // found. On by default; WAND_BROWSER_DOWNLOAD=0 switches it off for a whole
 // process. With it off, a launch that finds nothing fails with [ErrNoBrowser].
+// Like [Launcher.Bin] it is a flag, so it reaches a remote launcher too.
 func (l *Launcher) Download(enable bool) *Launcher {
-	l.download = enable
-	return l
+	if enable {
+		return l.Set(flags.Download, "1")
+	}
+
+	return l.Set(flags.Download, "0")
 }
 
-// Source of the Managed browser to auto download when no binary is set:
-// Chrome for Testing at the Target Chrome, the default, or Chromium trunk
-// builds at the Companion Chromium. WAND_BROWSER_SOURCE sets the default.
+// Source of the Managed browser, the last steps of Browser resolution, cached
+// or downloaded: Chrome for Testing at the Target Chrome, the default, or
+// Chromium trunk builds at the Companion Chromium. WAND_BROWSER_SOURCE sets
+// the default.
 func (l *Launcher) Source(source Source) *Launcher {
 	l.browser.Source = source
 	return l
 }
 
-// Binary of the Chrome for Testing archive to auto download: the full
-// browser, the default, or chrome-headless-shell. WAND_BROWSER_BINARY sets
-// the default.
+// Binary of the Chrome for Testing archive the Managed browser comes from:
+// the full browser, the default, or chrome-headless-shell.
+// WAND_BROWSER_BINARY sets the default.
 func (l *Launcher) Binary(binary Binary) *Launcher {
 	l.browser.Binary = binary
 	return l
 }
 
-// Version of Chrome for Testing to auto download, the Target Chrome by
+// Version of Chrome for Testing the Managed browser is, the Target Chrome by
 // default. It selects the Chrome for Testing source. A version other than
 // the Target Chrome has no recorded hash, so its download is not verified.
 func (l *Launcher) Version(version string) *Launcher {
@@ -267,7 +270,7 @@ func (l *Launcher) Version(version string) *Launcher {
 	return l
 }
 
-// Revision of the Chromium trunk build to auto download, the Companion
+// Revision of the Chromium trunk build the Managed browser is, the Companion
 // Chromium by default. It selects the Chromium source. A revision other than
 // the Companion Chromium has no recorded hash, so its download is not
 // verified.
@@ -277,7 +280,7 @@ func (l *Launcher) Revision(rev int) *Launcher {
 	return l
 }
 
-// Hosts to auto download the Managed browser from, as the URL templates
+// Hosts to download the Managed browser from, as the URL templates
 // [DefaultHosts] describes, for Download hosts of your own. WAND_BROWSER_HOSTS
 // sets the default.
 func (l *Launcher) Hosts(templates ...string) *Launcher {
@@ -605,7 +608,7 @@ func (l *Launcher) resolveBin() (string, error) {
 		"no System browser at the paths LookPath searches on " + runtime.GOOS,
 	}
 
-	if l.download {
+	if l.Get(flags.Download) != "0" {
 		bin, err := l.browser.Get()
 		if err != nil {
 			tried = append(tried, "no usable Managed browser at "+l.browser.BinPath())

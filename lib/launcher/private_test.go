@@ -477,20 +477,26 @@ func TestDownloadEnv(t *testing.T) {
 	g := setup(t)
 
 	t.Setenv(EnvBrowserDownload, "")
-	g.True(New().download)
-	g.True(NewUserMode().download)
+	g.Eq(New().Get(flags.Download), "1")
+	g.Eq(NewUserMode().Get(flags.Download), "1")
 
 	t.Setenv(EnvBrowserDownload, "0")
-	g.False(New().download)
-	g.False(NewUserMode().download)
+	g.Eq(New().Get(flags.Download), "0")
+	g.Eq(NewUserMode().Get(flags.Download), "0")
 
 	t.Setenv(EnvBrowserDownload, "1")
-	g.True(New().download)
+	g.Eq(New().Get(flags.Download), "1")
 
-	// The option beats the environment either way.
+	// The option beats the environment either way, and being a flag it
+	// travels to a remote launcher without reaching the browser's command
+	// line.
 	t.Setenv(EnvBrowserDownload, "0")
-	g.True(New().Download(true).download)
-	g.False(New().Download(true).Download(false).download)
+	l := New().Download(true)
+	g.Eq(l.Get(flags.Download), "1")
+	g.Eq(l.Download(false).Get(flags.Download), "0")
+	for _, arg := range l.FormatArgs() {
+		g.False(strings.Contains(arg, string(flags.Download)))
+	}
 }
 
 func TestUserModeBin(t *testing.T) {
@@ -562,11 +568,23 @@ func TestLookPath(t *testing.T) {
 	_, has = lookPath(nil)
 	g.False(has)
 
-	// LookPath is the search over this OS's list.
+	// LookPath is that search over this OS's list. On macOS the list holds
+	// app bundles and fixed paths only, so what it finds, if anything, is a
+	// file that exists; elsewhere the list opens with a bare "chrome", so a
+	// chrome on PATH is what it finds, even beside an installed browser.
+	if runtime.GOOS == "darwin" {
+		if found, has = LookPath(); has {
+			g.PathExists(found)
+		}
+
+		return
+	}
+
+	t.Setenv("PATH", dir)
+	chrome := fakeBrowser(g, dir, "chrome")
 	found, has = LookPath()
-	expected, expectedHas := lookPath(systemBrowsers(runtime.GOOS))
-	g.Eq(has, expectedHas)
-	g.Eq(found, expected)
+	g.True(has)
+	g.Eq(found, chrome)
 }
 
 func TestURLParserErr(t *testing.T) {

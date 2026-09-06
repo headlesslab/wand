@@ -516,12 +516,12 @@ func TestBrowserVersionMismatch(t *testing.T) {
 	// whose Browser.getVersion answer the mock decides.
 	u := launcher.New().MustLaunch()
 
-	connect := func(product string) string {
+	// connect a fresh client whose Browser.getVersion answer is stubbed, and
+	// return what the browser logged.
+	connect := func(stub func(mc *MockClient)) string {
 		mc := newMockClient(u)
 		mc.t = t
-		mc.stub(1, proto.BrowserGetVersion{}, func(_ StubSend) (lazyjson.JSON, error) {
-			return lazyjson.New(proto.BrowserGetVersionResult{Product: product}), nil
-		})
+		stub(mc)
 
 		logs := &bytes.Buffer{}
 		b := wand.New().Client(mc).Logger(log.New(logs, "", 0))
@@ -530,23 +530,33 @@ func TestBrowserVersionMismatch(t *testing.T) {
 
 		return logs.String()
 	}
+	product := func(product string) func(mc *MockClient) {
+		return func(mc *MockClient) {
+			mc.stub(1, proto.BrowserGetVersion{}, func(_ StubSend) (lazyjson.JSON, error) {
+				return lazyjson.New(proto.BrowserGetVersionResult{Product: product}), nil
+			})
+		}
+	}
 
 	// Another major version than the Target Chrome's: one line, both
 	// versions, and the connection stands.
-	line := connect("Chrome/1.0.0.0")
+	line := connect(product("Chrome/1.0.0.0"))
 	g.Has(line, "Chrome/1.0.0.0")
 	g.Has(line, pins.ChromeVersion)
 	g.Eq(strings.Count(line, "\n"), 1)
 
 	// The Target Chrome's major version, headless or not: nothing.
-	g.Eq(connect("HeadlessChrome/"+pins.ChromeVersion), "")
+	g.Eq(connect(product("HeadlessChrome/"+pins.ChromeVersion)), "")
 
-	// The version could not be read, or target discovery could not be
-	// switched on: the connection fails with that error.
-	for _, req := range []proto.Request{proto.BrowserGetVersion{}, proto.TargetSetDiscoverTargets{}} {
-		mc := newMockClient(u)
-		mc.t = t
-		mc.stubErr(1, req)
-		g.Err(wand.New().Client(mc).Connect())
-	}
+	// A version that cannot be read: one line saying so, and the connection
+	// stands, since wand never refuses a browser.
+	line = connect(func(mc *MockClient) { mc.stubErr(1, proto.BrowserGetVersion{}) })
+	g.Has(line, "could not be read")
+	g.Eq(strings.Count(line, "\n"), 1)
+
+	// Target discovery that cannot be switched on still fails the connection.
+	mc := newMockClient(u)
+	mc.t = t
+	mc.stubErr(1, proto.TargetSetDiscoverTargets{})
+	g.Err(wand.New().Client(mc).Connect())
 }

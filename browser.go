@@ -183,25 +183,28 @@ func (b *Browser) Connect() error {
 		return err
 	}
 
-	return b.logVersion()
+	b.logVersion()
+
+	return nil
 }
 
 // logVersion writes one line through the logger, with both versions, when
 // the browser's major version is not the Target Chrome's. wand is tested on
 // the Target Chrome and works best within the Support window, but it never
-// refuses a browser and has no version floor (ADR-0005).
-func (b *Browser) logVersion() error {
+// refuses a browser and has no version floor (ADR-0005), so a browser whose
+// version cannot be read gets a line saying that and stays connected.
+func (b *Browser) logVersion() {
 	res, err := proto.BrowserGetVersion{}.Call(b)
 	if err != nil {
-		return err
+		b.logger.Println("the browser version could not be read:", err)
+
+		return
 	}
 
 	if majorVersion(res.Product) != majorVersion(pins.ChromeVersion) {
 		b.logger.Println("the browser is", res.Product+",", "the Target Chrome is Chrome/"+pins.ChromeVersion+":",
 			"another major version, outside what wand is tested on")
 	}
-
-	return nil
 }
 
 // majorVersion of a Browser.getVersion product such as

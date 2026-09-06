@@ -77,10 +77,15 @@ const (
 	EnvBrowserBinary = "WAND_BROWSER_BINARY"
 )
 
-// downloadEnabled is the default of [Launcher.Download]: on, unless
-// EnvBrowserDownload is "0".
-func downloadEnabled() bool {
-	return os.Getenv(EnvBrowserDownload) != "0"
+// downloadDefault is the value of flags.Download a new launcher starts with,
+// the default of [Launcher.Download]: "0" when EnvBrowserDownload is "0",
+// which switches the download off, "1" otherwise.
+func downloadDefault() string {
+	if os.Getenv(EnvBrowserDownload) == "0" {
+		return "0"
+	}
+
+	return "1"
 }
 
 // DefaultHosts are the Download hosts of a Browser source: Google's bucket
