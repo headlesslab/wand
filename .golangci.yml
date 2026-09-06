@@ -108,3 +108,8 @@ issues:
     - path: internal/assets/
       linters:
         - lll
+
+    # The Roll tool writes the table of README.zh-CN.md in Chinese
+    - path: lib/launcher/pins/generate/readme.go
+      linters:
+        - gosmopolitan

@@ -407,55 +407,120 @@ func TestRender(t *testing.T) {
 	g.Regex(`"Win": +"`+hashOf("e")+`",`, src)
 }
 
+// writeOutputs gives a temporary module root the three outputs for p: pins.go
+// as rendered, and two READMEs whose block the Roll owns.
+func writeOutputs(t *testing.T, p Pins) string {
+	t.Helper()
+
+	root := t.TempDir()
+	g := setup(t)
+
+	g.E(os.MkdirAll(filepath.Join(root, "lib", "launcher", "pins"), 0o755))
+	skeleton := "# wand\n\nprose\n\n<!-- pins:begin -->\n<!-- pins:end -->\n\n## Roadmap\n"
+	g.E(os.WriteFile(filepath.Join(root, "README.md"), []byte(skeleton), 0o644))
+	g.E(os.WriteFile(filepath.Join(root, "README.zh-CN.md"), []byte(skeleton), 0o644))
+	g.E(os.WriteFile(filepath.Join(root, pinsFile), []byte("placeholder"), 0o644))
+
+	r := &roller{root: root}
+	g.E(r.write(p))
+
+	return root
+}
+
+func TestWrite(t *testing.T) {
+	g := setup(t)
+
+	p := samplePins()
+	root := writeOutputs(t, p)
+
+	file, err := os.ReadFile(filepath.Join(root, pinsFile))
+	g.E(err)
+	want, err := render(p)
+	g.E(err)
+	g.Eq(string(file), string(want))
+
+	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
+	g.E(err)
+	block, err := readmeBlock(p, "README.md")
+	g.E(err)
+	g.Eq(string(readme), "# wand\n\nprose\n\n<!-- pins:begin -->\n"+block+"<!-- pins:end -->\n\n## Roadmap\n")
+
+	// Writing again changes nothing.
+	r := &roller{root: root}
+	g.E(r.write(p))
+	again, err := os.ReadFile(filepath.Join(root, "README.md"))
+	g.E(err)
+	g.Eq(string(again), string(readme))
+
+	// A README without the markers cannot take the table.
+	g.E(os.WriteFile(filepath.Join(root, "README.zh-CN.md"), []byte("no markers\n"), 0o644))
+	err = r.write(p)
+	g.Err(err)
+	g.Has(err.Error(), "README.zh-CN.md")
+}
+
 func TestCheck(t *testing.T) {
 	g := setup(t)
 
 	p := samplePins()
-	file, err := render(p)
-	g.E(err)
+	root := writeOutputs(t, p)
 
 	s := testRoller(t, newBucket(), []int{1669207, 1666840, 1663043})
-	g.E(s.check(context.Background(), p, file))
+	s.root = root
+	g.E(s.check(context.Background(), p))
 
 	// A Windows checkout with autocrlf must pass too.
-	crlf := bytes.ReplaceAll(file, []byte("\n"), []byte("\r\n"))
-	g.E(s.check(context.Background(), p, crlf))
+	for _, name := range []string{pinsFile, "README.md"} {
+		file, err := os.ReadFile(filepath.Join(root, name))
+		g.E(err)
+		crlf := bytes.ReplaceAll(file, []byte("\n"), []byte("\r\n"))
+		g.E(os.WriteFile(filepath.Join(root, name), crlf, 0o644))
+	}
+	g.E(s.check(context.Background(), p))
 
 	// The branch position derives another roll than the one recorded.
 	s.rolls = func(context.Context) ([]int, error) { return []int{1666022, 1669207}, nil }
-	err = s.check(context.Background(), p, file)
+	err := s.check(context.Background(), p)
 	g.Err(err)
 	g.Has(err.Error(), "r1666840")
 	g.Has(err.Error(), "r1666022")
-
-	// The file on disk is not byte for byte what the Roll writes for its own
-	// values: a hand edit gofmt tolerates, here an extra blank line.
 	s.rolls = func(context.Context) ([]int, error) { return []int{1666840}, nil }
-	edited := bytes.Replace(file, []byte("\n\n"), []byte("\n\n\n"), 1)
-	err = s.check(context.Background(), p, edited)
+
+	// pins.go is not byte for byte what the Roll writes for its own values:
+	// a hand edit gofmt tolerates, here an extra blank line.
+	file, err := os.ReadFile(filepath.Join(root, pinsFile))
+	g.E(err)
+	edited := bytes.Replace(file, []byte("\r\n\r\n"), []byte("\r\n\r\n\r\n"), 1)
+	g.E(os.WriteFile(filepath.Join(root, pinsFile), edited, 0o644))
+	err = s.check(context.Background(), p)
 	g.Err(err)
-	g.Has(err.Error(), "pins.go")
+	g.Has(err.Error(), pinsFile)
+	g.E(os.WriteFile(filepath.Join(root, pinsFile), file, 0o644))
+	g.E(s.check(context.Background(), p))
+
+	// A README table edited by hand.
+	readme, err := os.ReadFile(filepath.Join(root, "README.zh-CN.md"))
+	g.E(err)
+	g.E(os.WriteFile(filepath.Join(root, "README.zh-CN.md"), bytes.Replace(readme, []byte("✅"), []byte("❌"), 1), 0o644))
+	err = s.check(context.Background(), p)
+	g.Err(err)
+	g.Has(err.Error(), "README.zh-CN.md")
 
 	// The tag source failing.
 	s.rolls = func(context.Context) ([]int, error) { return nil, fmt.Errorf("git: boom") }
-	err = s.check(context.Background(), p, file)
+	err = s.check(context.Background(), p)
 	g.Err(err)
 	g.Has(err.Error(), "boom")
 }
 
-// TestCommittedFile is the zero-diff property on the file actually committed:
-// rendering the pins package's own values reproduces lib/launcher/pins/pins.go
-// byte for byte.
-func TestCommittedFile(t *testing.T) {
+// TestCommittedOutputs is the zero-diff property on the files actually
+// committed: rendering the pins package's own values reproduces pins.go and
+// both README tables byte for byte.
+func TestCommittedOutputs(t *testing.T) {
 	g := setup(t)
 
-	file, err := os.ReadFile(filepath.Join("..", "pins.go"))
-	g.E(err)
-
-	want, err := render(current())
-	g.E(err)
-
-	g.Eq(string(normalize(file)), string(want))
+	r := &roller{root: filepath.Join("..", "..", "..", "..")}
+	g.E(r.verify(current()))
 }
 
 func TestParseArgs(t *testing.T) {
@@ -474,9 +539,17 @@ func TestParseArgs(t *testing.T) {
 	opts, err = parseArgs([]string{"-check"})
 	g.E(err)
 	g.True(opts.check)
+	g.False(opts.render)
+
+	opts, err = parseArgs([]string{"-render"})
+	g.E(err)
+	g.True(opts.render)
+	g.False(opts.check)
 
 	for _, bad := range [][]string{
 		{"-check", "152.0.7977.82"},
+		{"-render", "152.0.7977.82"},
+		{"-check", "-render"},
 		{"152.0.7977.82", "153.0.8010.27"},
 		{"152.0.7977"},
 		{"v152.0.7977.82"},
@@ -494,4 +567,5 @@ func TestUsage(t *testing.T) {
 	usage(out)
 	g.Has(out.String(), "go run ./lib/launcher/pins/generate")
 	g.Has(out.String(), "-check")
+	g.Has(out.String(), "-render")
 }
