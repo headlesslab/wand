@@ -326,14 +326,14 @@ func TestCleanup(t *testing.T) {
 	// the preferences into, and leaves a directory the caller named alone.
 	l := New().Preferences("{}")
 	l.setupUserPreferences()
-	g.PathExists(l.Get(flags.UserDataDir))
+	g.True(g.PathExists(l.Get(flags.UserDataDir)))
 	l.Cleanup()
 	_, err := os.Stat(l.Get(flags.UserDataDir))
 	g.True(os.IsNotExist(err))
 
 	named := t.TempDir()
 	New().UserDataDir(named).Cleanup()
-	g.PathExists(named)
+	g.True(g.PathExists(named))
 
 	// A directory that cannot be removed yet, as one a helper process of the
 	// browser still holds, is retried until it can be. Here a file of it is
@@ -378,7 +378,7 @@ func TestCleanupKills(t *testing.T) {
 	l := New()
 	l.MustLaunch()
 	dir := l.Get(flags.UserDataDir)
-	g.PathExists(dir)
+	g.True(g.PathExists(dir))
 
 	l.Cleanup()
 
@@ -556,7 +556,7 @@ func TestResolveBinDownload(t *testing.T) {
 	bin, err := l.ResolveBin()
 	g.E(err)
 	g.Eq(bin, l.browser.BinPath())
-	g.PathExists(bin)
+	g.True(g.PathExists(bin))
 }
 
 func TestDownloadEnv(t *testing.T) {
@@ -597,6 +597,22 @@ func TestUserModeBin(t *testing.T) {
 
 	defaults.ResetWith("")
 	g.Eq(NewUserMode().Get(flags.Bin), "")
+}
+
+// TestUserModeDirFallback: the User mode profile follows the platform's
+// configuration directory, and a user without one gets the temporary
+// directory, as the browser cache does.
+func TestUserModeDirFallback(t *testing.T) {
+	g := setup(t)
+
+	g.Eq(userModeDir(), DefaultUserModeDir)
+	g.True(strings.HasSuffix(userModeDir(), filepath.Join("wand", "user-mode")))
+	g.Neq(filepath.Dir(filepath.Dir(userModeDir())), os.TempDir())
+
+	for _, name := range []string{"XDG_CONFIG_HOME", "HOME", "AppData"} {
+		t.Setenv(name, "")
+	}
+	g.Eq(userModeDir(), filepath.Join(os.TempDir(), "wand", "user-mode"))
 }
 
 func TestSystemBrowsers(t *testing.T) {
@@ -660,7 +676,7 @@ func TestLookPath(t *testing.T) {
 	// chrome on PATH is what it finds, even beside an installed browser.
 	if runtime.GOOS == "darwin" {
 		if found, has = LookPath(); has {
-			g.PathExists(found)
+			g.True(g.PathExists(found))
 		}
 
 		return
