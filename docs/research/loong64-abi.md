@@ -1,7 +1,7 @@
 # loong64 ABI and kernel on the target distributions
 
 - **Date:** 2026-09-05
-- **Ticket:** [headlesslab/wand#28](https://github.com/headlesslab/wand/issues/28) — *Establish which target loong64 builds run official Go binaries (new-world ABI, kernel)*
+- **Ticket:** [headlesslab/wand#28](https://github.com/headlesslab/wand/issues/28) — _Establish which target loong64 builds run official Go binaries (new-world ABI, kernel)_
 - **Parent:** [headlesslab/wand#1](https://github.com/headlesslab/wand/issues/1)
 - **Scope:** facts only, each with a source. No decision is made here. Anything that could not be
   confirmed against a primary source is written as **not found**.
@@ -16,7 +16,7 @@
 >
 > Go's `linux/loong64` port targets the LoongArch new-world ABI (LP64D) and, per the Go 1.19 release notes, needs kernel >= 5.19; the same notes warn that "most existing commercial Linux distributions for LoongArch come with older kernels, with a historical incompatible system call ABI", where even statically linked binaries fail. Before wand promises cross-compiled `loong64` binaries, establish, for each target distribution with a `loongarch64` build:
 >
-> - **Kylin V10 SP3 server**, **Kylin V10 desktop 10.1**, **openEuler 22.03 LTS (GA)**, **openEuler 24.03 LTS (SP1+)**, and **UOS 20** if any public source exists: the kernel version shipped, old-world vs new-world ABI, and whether binaries built by the *official* Go toolchain (`GOOS=linux GOARCH=loong64`) are reported to run there (distro docs, Loongson community wiki, the Go issue tracker, openEuler / Kylin bug trackers, Loongnix documentation on "新世界 / 旧世界").
+> - **Kylin V10 SP3 server**, **Kylin V10 desktop 10.1**, **openEuler 22.03 LTS (GA)**, **openEuler 24.03 LTS (SP1+)**, and **UOS 20** if any public source exists: the kernel version shipped, old-world vs new-world ABI, and whether binaries built by the _official_ Go toolchain (`GOOS=linux GOARCH=loong64`) are reported to run there (distro docs, Loongson community wiki, the Go issue tracker, openEuler / Kylin bug trackers, Loongnix documentation on "新世界 / 旧世界").
 > - Whether each distro's own `golang` package is upstream Go or a Loongson-patched fork (the `golang-1.15.7-*.a.ky10.loongarch64` and `golang-1.17.3-*.oe2203.loongarch64` packages predate upstream loong64 support in Go 1.19), which decides whether Go-1.21-level code compiles with the system Go at all.
 > - Whether Go's documented kernel requirement (5.19) is a hard runtime requirement or a "tested on" statement (check the Go issue tracker and `src/runtime` for loong64 syscall usage).
 >
@@ -31,13 +31,13 @@ the dynamic loader path shipped by the distribution's `glibc` / `libc6` package 
 per Loongson community documentation this is the decisive test of which world a system belongs to
 (see §1).
 
-| Distribution (loongarch64) | Kernel shipped | glibc / ELF interpreter | World / ABI | Official Go `linux/loong64` binaries run? | Distro `golang` package |
-|---|---|---|---|---|---|
-| **Kylin V10 SP3 server** | `4.19.90-52.22.v2207.a.ky10` (base) … `4.19.90-52.66` (updates) | 2.28 · `/lib64/ld.so.1` | **Old world (ABI 1.0)** | **No** (Loongson: upstream Go "无法在4.19版本内核的操作系统上运行"; a Kylin V10 report exists on the Go tracker, though for SP1) | Go **1.15.7** + Kylin-authored `0001-Kylin-add-golang1.15.7-9-loong64-support.patch` → **patched fork**, not upstream |
-| **Kylin V10 desktop 10.1** | `linux-image-4.19.0-loongson-3` = **4.19.167-rc5.lnd.1** | `libc6` 2.28-10.kylin.26k1 · `/lib64/ld.so.1` → `ld-2.28.so` | **Old world (ABI 1.0)** | **No** (same Loongson statement; `麒麟` named explicitly as ABI 1.0) | `golang-1.15` **1.15.6-1.lnd.9** — `.lnd` = Loongnix/Loongson revision → **Loongson-patched**, not upstream |
-| **openEuler 22.03 LTS (GA)** | `5.10.0-60.116.0.143.oe2203` | 2.34 · `/lib64/ld-linux-loongarch-lp64d.so.1` | **New world (ABI 2.0)** — despite the 5.10 version number, Loongson states it is 5.19-UAPI-compatible | **Yes** — Loongson names openEuler 22.03 as an ABI 2.0 system on which the community (official) Go runs | Go **1.17.3** + a **99-patch Loongson LoongArch backport** (`loongarch64.tar.gz` / `loongarch64.conf`) → **patched fork** (upstream 1.17.3 has no loong64 at all) |
-| **openEuler 24.03 LTS SP1+** | SP1 `6.6.0-72.0.0.76.oe2403sp1`; SP4 `6.6.0-159.4.2.153…oe2403sp4` | 2.38 · `/lib64/ld-linux-loongarch-lp64d.so.1` | **New world (ABI 2.0)** (kernel ≥ 5.19, new-world interpreter) | **Not found** as a direct report; kernel and interpreter meet every documented condition | Go **1.21.4** built from upstream `go1.21.4.src.tar.gz` with **no LoongArch backport series** — only small Loongson fixes → **essentially upstream** |
-| **UOS 20** | **not found** for `loongarch64` specifically. Uniontech states UOS 20 desktop ships a dual 4.19 / 5.10 kernel line | **not found** (repos return HTTP 401, see `domestic-platforms.md` §1.3) | **Old world (ABI 1.0)** — named as such by both Loongson and the community wiki | **No** (Loongson names `UOS` as ABI 1.0) | **not found** |
+| Distribution (loongarch64)   | Kernel shipped                                                                                                     | glibc / ELF interpreter                                                 | World / ABI                                                                                           | Official Go `linux/loong64` binaries run?                                                                                          | Distro `golang` package                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Kylin V10 SP3 server**     | `4.19.90-52.22.v2207.a.ky10` (base) … `4.19.90-52.66` (updates)                                                    | 2.28 · `/lib64/ld.so.1`                                                 | **Old world (ABI 1.0)**                                                                               | **No** (Loongson: upstream Go "无法在 4.19 版本内核的操作系统上运行"; a Kylin V10 report exists on the Go tracker, though for SP1) | Go **1.15.7** + Kylin-authored `0001-Kylin-add-golang1.15.7-9-loong64-support.patch` → **patched fork**, not upstream                                             |
+| **Kylin V10 desktop 10.1**   | `linux-image-4.19.0-loongson-3` = **4.19.167-rc5.lnd.1**                                                           | `libc6` 2.28-10.kylin.26k1 · `/lib64/ld.so.1` → `ld-2.28.so`            | **Old world (ABI 1.0)**                                                                               | **No** (same Loongson statement; `麒麟` named explicitly as ABI 1.0)                                                               | `golang-1.15` **1.15.6-1.lnd.9** — `.lnd` = Loongnix/Loongson revision → **Loongson-patched**, not upstream                                                       |
+| **openEuler 22.03 LTS (GA)** | `5.10.0-60.116.0.143.oe2203`                                                                                       | 2.34 · `/lib64/ld-linux-loongarch-lp64d.so.1`                           | **New world (ABI 2.0)** — despite the 5.10 version number, Loongson states it is 5.19-UAPI-compatible | **Yes** — Loongson names openEuler 22.03 as an ABI 2.0 system on which the community (official) Go runs                            | Go **1.17.3** + a **99-patch Loongson LoongArch backport** (`loongarch64.tar.gz` / `loongarch64.conf`) → **patched fork** (upstream 1.17.3 has no loong64 at all) |
+| **openEuler 24.03 LTS SP1+** | SP1 `6.6.0-72.0.0.76.oe2403sp1`; SP4 `6.6.0-159.4.2.153…oe2403sp4`                                                 | 2.38 · `/lib64/ld-linux-loongarch-lp64d.so.1`                           | **New world (ABI 2.0)** (kernel ≥ 5.19, new-world interpreter)                                        | **Not found** as a direct report; kernel and interpreter meet every documented condition                                           | Go **1.21.4** built from upstream `go1.21.4.src.tar.gz` with **no LoongArch backport series** — only small Loongson fixes → **essentially upstream**              |
+| **UOS 20**                   | **not found** for `loongarch64` specifically. Uniontech states UOS 20 desktop ships a dual 4.19 / 5.10 kernel line | **not found** (repos return HTTP 401, see `domestic-platforms.md` §1.3) | **Old world (ABI 1.0)** — named as such by both Loongson and the community wiki                       | **No** (Loongson names `UOS` as ABI 1.0)                                                                                           | **not found**                                                                                                                                                     |
 
 ---
 
@@ -46,22 +46,22 @@ per Loongson community documentation this is the decisive test of which world a 
 Loongson's own Go documentation (`docs.loongnix.cn`, page updated 2026-06-12) states the criterion
 in terms of the kernel **UAPI**, not the kernel version string. Verbatim, question 5:
 
-> 因Linux内核社区在5.19版本正式合入了对LoongArch64架构的支持，所以上游社区的Loong64上Golang对内核最小需求是5.19，
-> 这导致上游社区的Loong64上的Golang无法在4.19版本内核的操作系统上运行．这里发布的ABI1.0版本二进制是指可以运行在以４.19内核UAPI为基础的操作系统上的程序，
-> 如Loongnix server 8.4, Loongnix 20，UOS，麒麟等；ABI2.0版本指的是可以运行在以５.19内核UAPI为基础的操作系统上的程序，
-> 如OpenEuler 22.03 (虽然Openeuler 22.03的内核版本为5.10,但是兼容5.19内核的UAPI, 所以ABI2.0版本的Golang也可以在OpenEuler 22.03上运行).
+> 因 Linux 内核社区在 5.19 版本正式合入了对 LoongArch64 架构的支持，所以上游社区的 Loong64 上 Golang 对内核最小需求是 5.19，
+> 这导致上游社区的 Loong64 上的 Golang 无法在 4.19 版本内核的操作系统上运行．这里发布的 ABI1.0 版本二进制是指可以运行在以４.19 内核 UAPI 为基础的操作系统上的程序，
+> 如 Loongnix server 8.4, Loongnix 20，UOS，麒麟等；ABI2.0 版本指的是可以运行在以５.19 内核 UAPI 为基础的操作系统上的程序，
+> 如 OpenEuler 22.03 (虽然 Openeuler 22.03 的内核版本为 5.10,但是兼容 5.19 内核的 UAPI, 所以 ABI2.0 版本的 Golang 也可以在 OpenEuler 22.03 上运行).
 
 Translated in substance: because the LoongArch64 port landed in mainline Linux at 5.19, upstream Go
 for loong64 has a minimum kernel requirement of 5.19, and it therefore **cannot run on a
 4.19-kernel OS**. Loongson's "ABI 1.0" builds target systems based on the **4.19 kernel UAPI** —
 named examples: **Loongnix server 8.4, Loongnix 20, UOS, 麒麟 (Kylin)**. "ABI 2.0" builds target
 systems based on the **5.19 kernel UAPI** — named example: **openEuler 22.03**, and Loongson
-explicitly notes that although openEuler 22.03's kernel is *numbered* 5.10, it is compatible with
+explicitly notes that although openEuler 22.03's kernel is _numbered_ 5.10, it is compatible with
 the 5.19 UAPI, so ABI 2.0 Go runs on it.
 
 The same page, question 4:
 
-> 从Go1.21开始，Golang社区提供LoongArch64平台上的二进制，可以直接下载使用，需要注意的是Golang社区提供的二进制是ABI2.0的版本，只能在内核版本为5.10及以上的操作系统上运行.
+> 从 Go1.21 开始，Golang 社区提供 LoongArch64 平台上的二进制，可以直接下载使用，需要注意的是 Golang 社区提供的二进制是 ABI2.0 的版本，只能在内核版本为 5.10 及以上的操作系统上运行.
 
 i.e. the Go community's own loong64 binaries (Go 1.21+) are **ABI 2.0** builds.
 
@@ -71,10 +71,11 @@ The community reference site AREWELOONGYET (maintained by LoongArch kernel/toolc
 gives a matching, more operational definition:
 
 > 如果符合以下任一条件，你就在用 旧世界：
+>
 > - 系统是麒麟 V10、Loongnix 20、UOS V20 其中之一
 > - 内核版本以 4.19、5.4 或 5.10 开头
 > - 有 WPS 用但没有安装过 libLoL 等旧世界兼容方案
-> 如果一条都没中，你就在用 新世界。
+>   如果一条都没中，你就在用 新世界。
 
 and the decisive per-binary test:
 
@@ -110,12 +111,12 @@ Sources: <https://areweloongyet.com/docs/old-and-new-worlds/> ·
 **The `glibc` interpreter test applied to each target repository** (this document's own
 verification, reading each distro's package payload / file list on 2026-09-05):
 
-| Distribution | `glibc` / `libc6` version | Interpreter shipped | Verdict |
-|---|---|---|---|
-| Kylin V10 SP3 server, loongarch64 | `glibc-2.28-12.p04.01.a.ky10` | `/lib64/ld.so.1`, `/lib64/ld-2.28.so` | old world |
-| Kylin V10 desktop 10.1, loongarch64 | `libc6 2.28-10.kylin.26k1` | `/lib64/ld.so.1` → `/lib/loongarch64-linux-gnu/ld-2.28.so` | old world |
-| openEuler 22.03 LTS, loongarch64 | `glibc-2.34-122.oe2203` | `/lib64/ld-linux-loongarch-lp64d.so.1` | new world |
-| openEuler 24.03 LTS SP1, loongarch64 | `glibc-2.38-47.oe2403sp1` | `/lib64/ld-linux-loongarch-lp64d.so.1` | new world |
+| Distribution                         | `glibc` / `libc6` version     | Interpreter shipped                                        | Verdict   |
+| ------------------------------------ | ----------------------------- | ---------------------------------------------------------- | --------- |
+| Kylin V10 SP3 server, loongarch64    | `glibc-2.28-12.p04.01.a.ky10` | `/lib64/ld.so.1`, `/lib64/ld-2.28.so`                      | old world |
+| Kylin V10 desktop 10.1, loongarch64  | `libc6 2.28-10.kylin.26k1`    | `/lib64/ld.so.1` → `/lib/loongarch64-linux-gnu/ld-2.28.so` | old world |
+| openEuler 22.03 LTS, loongarch64     | `glibc-2.34-122.oe2203`       | `/lib64/ld-linux-loongarch-lp64d.so.1`                     | new world |
+| openEuler 24.03 LTS SP1, loongarch64 | `glibc-2.38-47.oe2403sp1`     | `/lib64/ld-linux-loongarch-lp64d.so.1`                     | new world |
 
 Sources (repository metadata read directly):
 <https://update.cs2c.com.cn/NS/V10/V10SP3/os/adv/lic/base/loongarch64/repodata/> ·
@@ -137,7 +138,7 @@ own boundary), the interpreter is `/lib64/ld.so.1` (the old-world path), and bot
 ("如…UOS，麒麟等" under ABI 1.0) and AREWELOONGYET (麒麟 V10 listed as 旧世界) name Kylin V10
 directly.
 
-**Do official Go binaries run?** No. Loongson states upstream loong64 Go "无法在4.19版本内核的操作
+**Do official Go binaries run?** No. Loongson states upstream loong64 Go "无法在 4.19 版本内核的操作
 系统上运行". The closest first-hand report on the Go issue tracker is
 [golang/go#68867](https://github.com/golang/go/issues/68867), filed against **Kylin V10 SP1** on
 LoongArch (`Linux dev1-pc 5.4.18-55-generic #44-KYLINOS SMP … loongarch64`) with official Go 1.19
@@ -223,9 +224,9 @@ Sources:
 
 **World: new world / ABI 2.0**, notwithstanding the 5.10 version number. Two lines of evidence:
 
-1. Loongson states it directly: "ABI2.0版本指的是可以运行在以５.19内核UAPI为基础的操作系统上的程序，
-   如OpenEuler 22.03 (虽然Openeuler 22.03的内核版本为5.10,但是兼容5.19内核的UAPI, 所以ABI2.0版本的
-   Golang也可以在OpenEuler 22.03上运行)."
+1. Loongson states it directly: "ABI2.0 版本指的是可以运行在以５.19 内核 UAPI 为基础的操作系统上的程序，
+   如 OpenEuler 22.03 (虽然 Openeuler 22.03 的内核版本为 5.10,但是兼容 5.19 内核的 UAPI, 所以 ABI2.0 版本的
+   Golang 也可以在 OpenEuler 22.03 上运行)."
 2. Its `glibc` ships `/lib64/ld-linux-loongarch-lp64d.so.1` — the new-world interpreter — and not
    `/lib64/ld.so.1`.
 
@@ -272,9 +273,11 @@ sh ./apply-patches
 Loongson:
 
 > \* Thu Dec 15 2022 chenguoqi \<chenguoqi@loongson.cn\> - 1.17.3-13
+>
 > - Add loongarch64 base support
 >
 > \* Thu Apr 20 2023 huangqiqi \<huangqiqi@loongson.cn\> - 1.17.3-17
+>
 > - Added support for shared, plugin, disassembly, etc. in long64, and fixed known bugs
 
 So the system Go on openEuler 22.03 `loongarch64` is Go **1.17.3 language level** with a LoongArch
@@ -317,9 +320,11 @@ which is correct because upstream Go 1.21.4 already carries the loong64 port. Th
 changelog entries on this branch are incremental fixes rather than a port:
 
 > \* Thu Apr 18 2024 Huang Yang \<huangyang@loongson.cn\> - 1.21.4-8
+>
 > - enable external_linker and cgo on loongarch64
 >
 > \* Tue Mar 26 2024 Wenlong Zhang \<zhangwenlong@loongson.cn\> - 1.21.4-4
+>
 > - fix build error for loongarch64
 
 Per `domestic-platforms.md` §1.4, SP3/SP4 additionally ship a parallel `golang-1.24` (Go 1.24.6),
@@ -343,16 +348,16 @@ numbers are below 5.19 in any case.
 
 **World: old world / ABI 1.0.** Named as such by two sources:
 
-- Loongson's Go FAQ lists `UOS` among ABI 1.0 systems ("如Loongnix server 8.4, Loongnix 20，UOS，麒麟等").
+- Loongson's Go FAQ lists `UOS` among ABI 1.0 systems ("如 Loongnix server 8.4, Loongnix 20，UOS，麒麟等").
 - AREWELOONGYET lists `UOS V20` under 旧世界发行版, and `UOS V25` under 新世界发行版.
 
 **Do official Go binaries run?** No, per the Loongson statement (UOS named under ABI 1.0). The same
 FAQ's question 9 is written specifically about this class of system:
 
-> 问题9: Loongnix、UOS、keylin等ABI1.0的系统上有些Go的项目中执行Go命令时段错误.
-> 在一些Go实现的项目中在go.mod中指定了Go编译器的最低版本需求，如果当前系统中的Go版本低于go.mod中指定的版本，
-> 则自动从go.dev下载go.mod中指定的go版本并使用该版本编译当前项目，但是因为从go.dev下载的二进制只能在ABI2.0系统上运行，所以出现段错误。
-> 解决方法是从Loongnix站点下载go.mod指定的版本.
+> 问题 9: Loongnix、UOS、keylin 等 ABI1.0 的系统上有些 Go 的项目中执行 Go 命令时段错误.
+> 在一些 Go 实现的项目中在 go.mod 中指定了 Go 编译器的最低版本需求，如果当前系统中的 Go 版本低于 go.mod 中指定的版本，
+> 则自动从 go.dev 下载 go.mod 中指定的 go 版本并使用该版本编译当前项目，但是因为从 go.dev 下载的二进制只能在 ABI2.0 系统上运行，所以出现段错误。
+> 解决方法是从 Loongnix 站点下载 go.mod 指定的版本.
 
 That is, on an ABI 1.0 system, `GOTOOLCHAIN` auto-download from go.dev fetches an ABI 2.0 toolchain
 and the build segfaults; the documented workaround is to install the matching version from
@@ -457,7 +462,7 @@ LoongArch UAPI, not on the version string**. Concretely:
    crash written into the assembly — not a soft degradation. Go performs **no** kernel-version
    detection and has no fallback path for loong64.
 2. The number "5.19" is shorthand for "the LoongArch UAPI that was merged into mainline Linux at
-   5.19". A kernel *numbered* below 5.19 that carries that UAPI does run official binaries —
+   5.19". A kernel _numbered_ below 5.19 that carries that UAPI does run official binaries —
    openEuler 22.03's 5.10 kernel is the documented example (§4). Conversely, nothing at runtime
    reads `uname`, so a kernel numbered ≥ 5.19 that somehow kept the old UAPI would still fail. The
    `glibc` interpreter path (§1) is the reliable proxy, not the version number.

@@ -10,7 +10,9 @@ This domain is deprecated.
 
 */
 
-// SchemaDomain Description of the protocol domain.
+// SchemaDomain (deprecated) Description of the protocol domain.
+//
+// Deprecated: the Schema domain is deprecated in the Chrome DevTools Protocol.
 type SchemaDomain struct {
 	// Name Domain name.
 	Name string `json:"name"`
@@ -19,7 +21,9 @@ type SchemaDomain struct {
 	Version string `json:"version"`
 }
 
-// SchemaGetDomains Returns supported domains.
+// SchemaGetDomains (deprecated) Returns supported domains.
+//
+// Deprecated: the Schema domain is deprecated in the Chrome DevTools Protocol.
 type SchemaGetDomains struct{}
 
 // ProtoReq name.
@@ -31,7 +35,9 @@ func (m SchemaGetDomains) Call(c Client) (*SchemaGetDomainsResult, error) {
 	return &res, call(m.ProtoReq(), m, &res, c)
 }
 
-// SchemaGetDomainsResult ...
+// SchemaGetDomainsResult (deprecated) ...
+//
+// Deprecated: the Schema domain is deprecated in the Chrome DevTools Protocol.
 type SchemaGetDomainsResult struct {
 	// Domains List of supported domains.
 	Domains []*SchemaDomain `json:"domains"`

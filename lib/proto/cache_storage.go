@@ -42,7 +42,7 @@ type CacheStorageDataEntry struct {
 	// RequestMethod Request method.
 	RequestMethod string `json:"requestMethod"`
 
-	// RequestHeaders Request headers
+	// RequestHeaders Request headers.
 	RequestHeaders []*CacheStorageHeader `json:"requestHeaders"`
 
 	// ResponseTime Number of seconds since epoch.
@@ -54,10 +54,10 @@ type CacheStorageDataEntry struct {
 	// ResponseStatusText HTTP response status text.
 	ResponseStatusText string `json:"responseStatusText"`
 
-	// ResponseType HTTP response type
+	// ResponseType HTTP response type.
 	ResponseType CacheStorageCachedResponseType `json:"responseType"`
 
-	// ResponseHeaders Response headers
+	// ResponseHeaders Response headers.
 	ResponseHeaders []*CacheStorageHeader `json:"responseHeaders"`
 }
 
@@ -90,7 +90,7 @@ type CacheStorageHeader struct {
 
 // CacheStorageCachedResponse Cached response.
 type CacheStorageCachedResponse struct {
-	// Body Entry content, base64-encoded.
+	// Body Entry content, base64-encoded. (Encoded as a base64 string when passed over JSON).
 	Body []byte `json:"body"`
 }
 
@@ -193,7 +193,7 @@ type CacheStorageRequestEntries struct {
 	// PageSize (optional) Number of records to fetch.
 	PageSize *int `json:"pageSize,omitempty"`
 
-	// PathFilter (optional) If present, only return the entries containing this substring in the path
+	// PathFilter (optional) If present, only return the entries containing this substring in the path.
 	PathFilter string `json:"pathFilter,omitempty"`
 }
 

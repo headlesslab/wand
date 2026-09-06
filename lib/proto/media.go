@@ -10,7 +10,7 @@ import (
 
 Media
 
-This domain allows detailed inspection of media elements
+This domain allows detailed inspection of media elements.
 
 */
 
@@ -89,18 +89,27 @@ type MediaPlayerError struct {
 	ErrorType string `json:"errorType"`
 
 	// Code is the numeric enum entry for a specific set of error codes, such
-	// as PipelineStatusCodes in media/base/pipeline_status.h
+	// as PipelineStatusCodes in media/base/pipeline_status.h.
 	Code int `json:"code"`
 
 	// Stack A trace of where this error was caused / where it passed through.
 	Stack []*MediaPlayerErrorSourceLocation `json:"stack"`
 
 	// Cause Errors potentially have a root cause error, ie, a DecoderError might be
-	// caused by an WindowsError
+	// caused by an WindowsError.
 	Cause []*MediaPlayerError `json:"cause"`
 
 	// Data Extra data attached to an error, such as an HRESULT, Video Codec, etc.
 	Data map[string]lazyjson.JSON `json:"data"`
+}
+
+// MediaPlayer ...
+type MediaPlayer struct {
+	// PlayerID ...
+	PlayerID MediaPlayerID `json:"playerId"`
+
+	// DomNodeID (optional) ...
+	DomNodeID DOMBackendNodeID `json:"domNodeId,omitempty"`
 }
 
 // MediaEnable Enables the Media domain.
@@ -183,15 +192,15 @@ func (evt MediaPlayerErrorsRaised) ProtoEvent() string {
 	return "Media.playerErrorsRaised"
 }
 
-// MediaPlayersCreated Called whenever a player is created, or when a new agent joins and receives
-// a list of active players. If an agent is restored, it will receive the full
-// list of player ids and all events again.
-type MediaPlayersCreated struct {
-	// Players ...
-	Players []MediaPlayerID `json:"players"`
+// MediaPlayerCreated Called whenever a player is created, or when a new agent joins and receives
+// a list of active players. If an agent is restored, it will receive one
+// event for each active player.
+type MediaPlayerCreated struct {
+	// Player ...
+	Player *MediaPlayer `json:"player"`
 }
 
 // ProtoEvent name.
-func (evt MediaPlayersCreated) ProtoEvent() string {
-	return "Media.playersCreated"
+func (evt MediaPlayerCreated) ProtoEvent() string {
+	return "Media.playerCreated"
 }

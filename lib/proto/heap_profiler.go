@@ -169,6 +169,9 @@ type HeapProfilerStartSampling struct {
 	// default value is 32768 bytes.
 	SamplingInterval *float64 `json:"samplingInterval,omitempty"`
 
+	// StackDepth (optional) Maximum stack depth. The default value is 128.
+	StackDepth *float64 `json:"stackDepth,omitempty"`
+
 	// IncludeObjectsCollectedByMajorGC (optional) By default, the sampling heap profiler reports only objects which are
 	// still alive when the profile is returned via getSamplingProfile or
 	// stopSampling, which is useful for determining what functions contribute
@@ -237,9 +240,11 @@ type HeapProfilerStopTrackingHeapObjects struct {
 	ReportProgress bool `json:"reportProgress,omitempty"`
 
 	// TreatGlobalObjectsAsRoots (deprecated) (optional) Deprecated in favor of `exposeInternals`.
+	//
+	// Deprecated: HeapProfiler.stopTrackingHeapObjects.treatGlobalObjectsAsRoots is deprecated in the Chrome DevTools Protocol.
 	TreatGlobalObjectsAsRoots bool `json:"treatGlobalObjectsAsRoots,omitempty"`
 
-	// CaptureNumericValue (optional) If true, numerical values are included in the snapshot
+	// CaptureNumericValue (optional) If true, numerical values are included in the snapshot.
 	CaptureNumericValue bool `json:"captureNumericValue,omitempty"`
 
 	// ExposeInternals (experimental) (optional) If true, exposes internals of the snapshot.
@@ -263,9 +268,11 @@ type HeapProfilerTakeHeapSnapshot struct {
 
 	// TreatGlobalObjectsAsRoots (deprecated) (optional) If true, a raw snapshot without artificial roots will be generated.
 	// Deprecated in favor of `exposeInternals`.
+	//
+	// Deprecated: HeapProfiler.takeHeapSnapshot.treatGlobalObjectsAsRoots is deprecated in the Chrome DevTools Protocol.
 	TreatGlobalObjectsAsRoots bool `json:"treatGlobalObjectsAsRoots,omitempty"`
 
-	// CaptureNumericValue (optional) If true, numerical values are included in the snapshot
+	// CaptureNumericValue (optional) If true, numerical values are included in the snapshot.
 	CaptureNumericValue bool `json:"captureNumericValue,omitempty"`
 
 	// ExposeInternals (experimental) (optional) If true, exposes internals of the snapshot.

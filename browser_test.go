@@ -381,7 +381,7 @@ func TestWaitDownloadCancel(t *testing.T) {
 	g := setup(t)
 
 	wait := g.browser.Context(g.Timeout(0)).WaitDownload(os.TempDir())
-	g.Eq(wait(), (*proto.PageDownloadWillBegin)(nil))
+	g.Eq(wait(), (*proto.PageDownloadWillBegin)(nil)) //nolint:staticcheck // what WaitDownload returns
 }
 
 func TestWaitDownloadFromNewPage(t *testing.T) {

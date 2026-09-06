@@ -2,40 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/headlesslab/lazyjson"
-	"github.com/headlesslab/wand/lib/launcher"
-	"github.com/headlesslab/wand/lib/utils"
 )
-
-func getSchema() lazyjson.JSON {
-	l := launcher.New().Bin(launcher.NewBrowser().MustGet())
-	defer l.Kill()
-
-	u := l.MustLaunch()
-	parsed, err := url.Parse(u)
-	utils.E(err)
-	parsed.Scheme = "http"
-	parsed.Path = "/json/protocol"
-
-	res, err := http.Get(parsed.String()) //nolint: noctx
-	utils.E(err)
-	defer func() { _ = res.Body.Close() }()
-
-	data, err := io.ReadAll(res.Body)
-	utils.E(err)
-
-	obj := lazyjson.New(data)
-
-	utils.E(utils.OutputFile("tmp/proto.json", obj.JSON("", "  ")))
-
-	return obj
-}
 
 func mapType(n string) string {
 	return map[string]string{
@@ -49,6 +20,18 @@ func mapType(n string) string {
 	}[n]
 }
 
+// binaryMarker is what devtools-protocol's JSON appends to the description
+// of a PDL binary field, whose type it lowers to string
+// (--map_binary_to_string in its roll script). A browser's own /json/protocol
+// keeps binary, so the generator restores []byte from the marker (ADR-0004);
+// fields without a description have no marker and are listed in
+// binaryFields by hand.
+const binaryMarker = "Encoded as a base64 string when passed over JSON"
+
+func binaryMarked(schema lazyjson.JSON) bool {
+	return schema.Has("description") && strings.Contains(schema.Get("description").Str(), binaryMarker)
+}
+
 func typeName(domain *domain, schema lazyjson.JSON) string {
 	typeName := ""
 	if schema.Has("type") {
@@ -60,6 +43,9 @@ func typeName(domain *domain, schema lazyjson.JSON) string {
 
 		if item.Has("type") {
 			typeName = "[]" + mapType(item.Get("type").Str())
+			if typeName == "[]string" && binaryMarked(schema) {
+				typeName = "[][]byte"
+			}
 		} else {
 			ref := item.Get("$ref").Str()
 			if domain.ref(ref) {
@@ -76,6 +62,9 @@ func typeName(domain *domain, schema lazyjson.JSON) string {
 		typeName += refName(domain.name, ref)
 	} else {
 		typeName = mapType(typeName)
+		if typeName == "string" && binaryMarked(schema) {
+			typeName = "[]byte"
+		}
 	}
 
 	switch typeName {
@@ -155,7 +144,7 @@ func symbol(n string) string {
 	n = replaceLower(n, "Ui")
 	n = replaceLower(n, "Https")
 
-	n = strings.Replace(n, "Ids", "IDs", -1)
+	n = strings.ReplaceAll(n, "Ids", "IDs")
 
 	return n
 }

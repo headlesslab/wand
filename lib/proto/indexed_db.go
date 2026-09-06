@@ -14,7 +14,7 @@ type IndexedDBDatabaseWithObjectStores struct {
 	Name string `json:"name"`
 
 	// Version Database version (type is not 'integer', as the standard
-	// requires the version number to be 'unsigned long long')
+	// requires the version number to be 'unsigned long long').
 	Version float64 `json:"version"`
 
 	// ObjectStores Object stores in this database.
@@ -208,7 +208,7 @@ type IndexedDBDeleteObjectStoreEntries struct {
 	// ObjectStoreName ...
 	ObjectStoreName string `json:"objectStoreName"`
 
-	// KeyRange Range of entry keys to delete
+	// KeyRange Range of entry keys to delete.
 	KeyRange *IndexedDBKeyRange `json:"keyRange"`
 }
 
@@ -262,8 +262,8 @@ type IndexedDBRequestData struct {
 	// ObjectStoreName Object store name.
 	ObjectStoreName string `json:"objectStoreName"`
 
-	// IndexName Index name, empty string for object store data requests.
-	IndexName string `json:"indexName"`
+	// IndexName (optional) Index name. If not specified, it performs an object store data request.
+	IndexName string `json:"indexName,omitempty"`
 
 	// SkipCount Number of records to skip.
 	SkipCount int `json:"skipCount"`
@@ -323,7 +323,7 @@ func (m IndexedDBGetMetadata) Call(c Client) (*IndexedDBGetMetadataResult, error
 
 // IndexedDBGetMetadataResult ...
 type IndexedDBGetMetadataResult struct {
-	// EntriesCount the entries count
+	// EntriesCount the entries count.
 	EntriesCount float64 `json:"entriesCount"`
 
 	// KeyGeneratorValue the current value of key generator, to become the next inserted

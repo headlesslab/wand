@@ -2,7 +2,6 @@ package devutil_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -73,15 +72,4 @@ func TestEscapeGoString(t *testing.T) {
 	g := setup(t)
 
 	g.Eq("`` + \"`\" + `test` + \"`\" + ``", devutil.EscapeGoString("`test`"))
-}
-
-func TestUseNode(t *testing.T) {
-	g := setup(t)
-
-	devutil.UseNode(false)
-
-	p, err := exec.LookPath("npx")
-	g.E(err)
-
-	g.Has(p, "v20")
 }

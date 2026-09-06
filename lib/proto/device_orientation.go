@@ -23,13 +23,13 @@ func (m DeviceOrientationClearDeviceOrientationOverride) Call(c Client) error {
 
 // DeviceOrientationSetDeviceOrientationOverride Overrides the Device Orientation.
 type DeviceOrientationSetDeviceOrientationOverride struct {
-	// Alpha Mock alpha
+	// Alpha Mock alpha.
 	Alpha float64 `json:"alpha"`
 
-	// Beta Mock beta
+	// Beta Mock beta.
 	Beta float64 `json:"beta"`
 
-	// Gamma Mock gamma
+	// Gamma Mock gamma.
 	Gamma float64 `json:"gamma"`
 }
 

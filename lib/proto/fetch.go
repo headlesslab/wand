@@ -11,6 +11,8 @@ A domain for letting clients substitute browser's network layer with client code
 */
 
 // FetchRequestID Unique request identifier.
+// Note that this does not identify individual HTTP requests that are part of
+// a network request.
 type FetchRequestID string
 
 // FetchRequestStage Stages of the request to handle. Request will intercept before the request is
@@ -67,7 +69,7 @@ type FetchAuthChallenge struct {
 	// Origin of the challenger.
 	Origin string `json:"origin"`
 
-	// Scheme The authentication scheme used, such as basic or digest
+	// Scheme The authentication scheme used, such as basic or digest.
 	Scheme string `json:"scheme"`
 
 	// Realm The realm of the challenge. May be empty.
@@ -167,12 +169,12 @@ type FetchFulfillRequest struct {
 	// BinaryResponseHeaders (optional) Alternative way of specifying response headers as a \0-separated
 	// series of name: value pairs. Prefer the above method unless you
 	// need to represent some non-UTF8 values that can't be transmitted
-	// over the protocol as text.
+	// over the protocol as text. (Encoded as a base64 string when passed over JSON).
 	BinaryResponseHeaders []byte `json:"binaryResponseHeaders,omitempty"`
 
 	// Body A response body. If absent, original response body will be used if
 	// the request is intercepted at the response stage and empty body
-	// will be used if the request is intercepted at the request stage.
+	// will be used if the request is intercepted at the request stage. (Encoded as a base64 string when passed over JSON).
 	Body []byte `json:"body"`
 
 	// ResponsePhrase (optional) A textual representation of responseCode.
@@ -199,7 +201,7 @@ type FetchContinueRequest struct {
 	// Method (optional) If set, the request method is overridden.
 	Method string `json:"method,omitempty"`
 
-	// PostData (optional) If set, overrides the post data in the request.
+	// PostData (optional) If set, overrides the post data in the request. (Encoded as a base64 string when passed over JSON).
 	PostData []byte `json:"postData,omitempty"`
 
 	// Headers (optional) If set, overrides the request headers. Note that the overrides do not
@@ -256,7 +258,7 @@ type FetchContinueResponse struct {
 	// BinaryResponseHeaders (optional) Alternative way of specifying response headers as a \0-separated
 	// series of name: value pairs. Prefer the above method unless you
 	// need to represent some non-UTF8 values that can't be transmitted
-	// over the protocol as text.
+	// over the protocol as text. (Encoded as a base64 string when passed over JSON).
 	BinaryResponseHeaders []byte `json:"binaryResponseHeaders,omitempty"`
 }
 

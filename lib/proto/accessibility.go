@@ -200,10 +200,14 @@ type AccessibilityAXValue struct {
 // - from 'live' to 'root': attributes which apply to nodes in live regions
 // - from 'autocomplete' to 'valuetext': attributes which apply to widgets
 // - from 'checked' to 'selected': states which apply to widgets
-// - from 'activedescendant' to 'owns' - relationships between elements other than parent/child/sibling.
+// - from 'activedescendant' to 'owns': relationships between elements other than parent/child/sibling
+// - from 'activeFullscreenElement' to 'uninteresting': reasons why this noode is hidden.
 type AccessibilityAXPropertyName string
 
 const (
+	// AccessibilityAXPropertyNameActions enum const.
+	AccessibilityAXPropertyNameActions AccessibilityAXPropertyName = "actions"
+
 	// AccessibilityAXPropertyNameBusy enum const.
 	AccessibilityAXPropertyNameBusy AccessibilityAXPropertyName = "busy"
 
@@ -323,6 +327,57 @@ const (
 
 	// AccessibilityAXPropertyNameURL enum const.
 	AccessibilityAXPropertyNameURL AccessibilityAXPropertyName = "url"
+
+	// AccessibilityAXPropertyNameActiveFullscreenElement enum const.
+	AccessibilityAXPropertyNameActiveFullscreenElement AccessibilityAXPropertyName = "activeFullscreenElement"
+
+	// AccessibilityAXPropertyNameActiveModalDialog enum const.
+	AccessibilityAXPropertyNameActiveModalDialog AccessibilityAXPropertyName = "activeModalDialog"
+
+	// AccessibilityAXPropertyNameActiveAriaModalDialog enum const.
+	AccessibilityAXPropertyNameActiveAriaModalDialog AccessibilityAXPropertyName = "activeAriaModalDialog"
+
+	// AccessibilityAXPropertyNameAriaHiddenElement enum const.
+	AccessibilityAXPropertyNameAriaHiddenElement AccessibilityAXPropertyName = "ariaHiddenElement"
+
+	// AccessibilityAXPropertyNameAriaHiddenSubtree enum const.
+	AccessibilityAXPropertyNameAriaHiddenSubtree AccessibilityAXPropertyName = "ariaHiddenSubtree"
+
+	// AccessibilityAXPropertyNameEmptyAlt enum const.
+	AccessibilityAXPropertyNameEmptyAlt AccessibilityAXPropertyName = "emptyAlt"
+
+	// AccessibilityAXPropertyNameEmptyText enum const.
+	AccessibilityAXPropertyNameEmptyText AccessibilityAXPropertyName = "emptyText"
+
+	// AccessibilityAXPropertyNameInertElement enum const.
+	AccessibilityAXPropertyNameInertElement AccessibilityAXPropertyName = "inertElement"
+
+	// AccessibilityAXPropertyNameInertSubtree enum const.
+	AccessibilityAXPropertyNameInertSubtree AccessibilityAXPropertyName = "inertSubtree"
+
+	// AccessibilityAXPropertyNameLabelContainer enum const.
+	AccessibilityAXPropertyNameLabelContainer AccessibilityAXPropertyName = "labelContainer"
+
+	// AccessibilityAXPropertyNameLabelFor enum const.
+	AccessibilityAXPropertyNameLabelFor AccessibilityAXPropertyName = "labelFor"
+
+	// AccessibilityAXPropertyNameNotRendered enum const.
+	AccessibilityAXPropertyNameNotRendered AccessibilityAXPropertyName = "notRendered"
+
+	// AccessibilityAXPropertyNameNotVisible enum const.
+	AccessibilityAXPropertyNameNotVisible AccessibilityAXPropertyName = "notVisible"
+
+	// AccessibilityAXPropertyNamePresentationalRole enum const.
+	AccessibilityAXPropertyNamePresentationalRole AccessibilityAXPropertyName = "presentationalRole"
+
+	// AccessibilityAXPropertyNameProbablyPresentational enum const.
+	AccessibilityAXPropertyNameProbablyPresentational AccessibilityAXPropertyName = "probablyPresentational"
+
+	// AccessibilityAXPropertyNameInactiveCarouselTabContent enum const.
+	AccessibilityAXPropertyNameInactiveCarouselTabContent AccessibilityAXPropertyName = "inactiveCarouselTabContent"
+
+	// AccessibilityAXPropertyNameUninteresting enum const.
+	AccessibilityAXPropertyNameUninteresting AccessibilityAXPropertyName = "uninteresting"
 )
 
 // AccessibilityAXNode A node in the accessibility tree.
@@ -330,7 +385,7 @@ type AccessibilityAXNode struct {
 	// NodeID Unique identifier for this node.
 	NodeID AccessibilityAXNodeID `json:"nodeId"`
 
-	// Ignored Whether this node is ignored for accessibility
+	// Ignored Whether this node is ignored for accessibility.
 	Ignored bool `json:"ignored"`
 
 	// IgnoredReasons (optional) Collection of reasons why this node is hidden.
@@ -351,7 +406,7 @@ type AccessibilityAXNode struct {
 	// Value (optional) The value for this `Node`.
 	Value *AccessibilityAXValue `json:"value,omitempty"`
 
-	// Properties (optional) All other properties
+	// Properties (optional) All other properties.
 	Properties []*AccessibilityAXProperty `json:"properties,omitempty"`
 
 	// ParentID (optional) ID for this node's parent.

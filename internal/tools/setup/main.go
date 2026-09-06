@@ -1,4 +1,8 @@
-// Package main ...
+// Package main is the setup step of go generate and of the generate Gate:
+// the Go modules, the Node tools of internal/tools/package.json from their
+// lockfile (Node must be on PATH; golangci-lint needs no install, go run
+// builds it at the pinned version), and the .dockerignore mirrored from
+// .gitignore.
 package main
 
 import (
@@ -11,22 +15,11 @@ import (
 func main() {
 	log.Println("setup project...")
 
-	golangDeps()
+	devutil.Exec("go mod download")
 
-	nodejsDeps()
+	devutil.InstallNodeTools()
 
 	genDockerIgnore()
-}
-
-func golangDeps() {
-	devutil.Exec("go mod download")
-	devutil.Exec("go install mvdan.cc/gofumpt@latest")
-}
-
-func nodejsDeps() {
-	devutil.UseNode(true)
-
-	devutil.Exec("npm i -s eslint-plugin-html")
 }
 
 func genDockerIgnore() {

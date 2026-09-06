@@ -50,17 +50,6 @@ type PageAdFrameStatus struct {
 	Explanations []PageAdFrameExplanation `json:"explanations,omitempty"`
 }
 
-// PageAdScriptID (experimental) Identifies the bottom-most script which caused the frame to be labelled
-// as an ad.
-type PageAdScriptID struct {
-	// ScriptID Script Id of the bottom-most script which caused the frame to be labelled
-	// as an ad.
-	ScriptID RuntimeScriptID `json:"scriptId"`
-
-	// DebuggerID Id of adScriptId's debugger.
-	DebuggerID RuntimeUniqueDebuggerID `json:"debuggerId"`
-}
-
 // PageSecureContextType (experimental) Indicates whether the frame is a secure context and why it is the case.
 type PageSecureContextType string
 
@@ -110,18 +99,25 @@ const (
 )
 
 // PagePermissionsPolicyFeature (experimental) All Permissions Policy features. This enum should match the one defined
-// in third_party/blink/renderer/core/permissions_policy/permissions_policy_features.json5.
+// in services/network/public/cpp/permissions_policy/permissions_policy_features.json5.
+// LINT.IfChange(PermissionsPolicyFeature).
 type PagePermissionsPolicyFeature string
 
 const (
 	// PagePermissionsPolicyFeatureAccelerometer enum const.
 	PagePermissionsPolicyFeatureAccelerometer PagePermissionsPolicyFeature = "accelerometer"
 
+	// PagePermissionsPolicyFeatureAllScreensCapture enum const.
+	PagePermissionsPolicyFeatureAllScreensCapture PagePermissionsPolicyFeature = "all-screens-capture"
+
 	// PagePermissionsPolicyFeatureAmbientLightSensor enum const.
 	PagePermissionsPolicyFeatureAmbientLightSensor PagePermissionsPolicyFeature = "ambient-light-sensor"
 
-	// PagePermissionsPolicyFeatureAttributionReporting enum const.
-	PagePermissionsPolicyFeatureAttributionReporting PagePermissionsPolicyFeature = "attribution-reporting"
+	// PagePermissionsPolicyFeatureAriaNotify enum const.
+	PagePermissionsPolicyFeatureAriaNotify PagePermissionsPolicyFeature = "aria-notify"
+
+	// PagePermissionsPolicyFeatureAutofill enum const.
+	PagePermissionsPolicyFeatureAutofill PagePermissionsPolicyFeature = "autofill"
 
 	// PagePermissionsPolicyFeatureAutoplay enum const.
 	PagePermissionsPolicyFeatureAutoplay PagePermissionsPolicyFeature = "autoplay"
@@ -148,7 +144,7 @@ const (
 	PagePermissionsPolicyFeatureChDownlink PagePermissionsPolicyFeature = "ch-downlink"
 
 	// PagePermissionsPolicyFeatureChEct enum const.
-	PagePermissionsPolicyFeatureChEct PagePermissionsPolicyFeature = "ch-etc"
+	PagePermissionsPolicyFeatureChEct PagePermissionsPolicyFeature = "ch-ect"
 
 	// PagePermissionsPolicyFeatureChPrefersColorScheme enum const.
 	PagePermissionsPolicyFeatureChPrefersColorScheme PagePermissionsPolicyFeature = "ch-prefers-color-scheme"
@@ -173,6 +169,9 @@ const (
 
 	// PagePermissionsPolicyFeatureChUaBitness enum const.
 	PagePermissionsPolicyFeatureChUaBitness PagePermissionsPolicyFeature = "ch-ua-bitness"
+
+	// PagePermissionsPolicyFeatureChUaHighEntropyValues enum const.
+	PagePermissionsPolicyFeatureChUaHighEntropyValues PagePermissionsPolicyFeature = "ch-ua-high-entropy-values"
 
 	// PagePermissionsPolicyFeatureChUaPlatform enum const.
 	PagePermissionsPolicyFeatureChUaPlatform PagePermissionsPolicyFeature = "ch-ua-platform"
@@ -216,14 +215,32 @@ const (
 	// PagePermissionsPolicyFeatureComputePressure enum const.
 	PagePermissionsPolicyFeatureComputePressure PagePermissionsPolicyFeature = "compute-pressure"
 
+	// PagePermissionsPolicyFeatureControlledFrame enum const.
+	PagePermissionsPolicyFeatureControlledFrame PagePermissionsPolicyFeature = "controlled-frame"
+
 	// PagePermissionsPolicyFeatureCrossOriginIsolated enum const.
 	PagePermissionsPolicyFeatureCrossOriginIsolated PagePermissionsPolicyFeature = "cross-origin-isolated"
 
 	// PagePermissionsPolicyFeatureDeferredFetch enum const.
 	PagePermissionsPolicyFeatureDeferredFetch PagePermissionsPolicyFeature = "deferred-fetch"
 
+	// PagePermissionsPolicyFeatureDeferredFetchMinimal enum const.
+	PagePermissionsPolicyFeatureDeferredFetchMinimal PagePermissionsPolicyFeature = "deferred-fetch-minimal"
+
+	// PagePermissionsPolicyFeatureDeviceAttributes enum const.
+	PagePermissionsPolicyFeatureDeviceAttributes PagePermissionsPolicyFeature = "device-attributes"
+
+	// PagePermissionsPolicyFeatureDigitalCredentialsCreate enum const.
+	PagePermissionsPolicyFeatureDigitalCredentialsCreate PagePermissionsPolicyFeature = "digital-credentials-create"
+
+	// PagePermissionsPolicyFeatureDigitalCredentialsGet enum const.
+	PagePermissionsPolicyFeatureDigitalCredentialsGet PagePermissionsPolicyFeature = "digital-credentials-get"
+
 	// PagePermissionsPolicyFeatureDirectSockets enum const.
 	PagePermissionsPolicyFeatureDirectSockets PagePermissionsPolicyFeature = "direct-sockets"
+
+	// PagePermissionsPolicyFeatureDirectSocketsMulticast enum const.
+	PagePermissionsPolicyFeatureDirectSocketsMulticast PagePermissionsPolicyFeature = "direct-sockets-multicast"
 
 	// PagePermissionsPolicyFeatureDisplayCapture enum const.
 	PagePermissionsPolicyFeatureDisplayCapture PagePermissionsPolicyFeature = "display-capture"
@@ -276,17 +293,41 @@ const (
 	// PagePermissionsPolicyFeatureKeyboardMap enum const.
 	PagePermissionsPolicyFeatureKeyboardMap PagePermissionsPolicyFeature = "keyboard-map"
 
+	// PagePermissionsPolicyFeatureLanguageDetector enum const.
+	PagePermissionsPolicyFeatureLanguageDetector PagePermissionsPolicyFeature = "language-detector"
+
+	// PagePermissionsPolicyFeatureLanguageModel enum const.
+	PagePermissionsPolicyFeatureLanguageModel PagePermissionsPolicyFeature = "language-model"
+
 	// PagePermissionsPolicyFeatureLocalFonts enum const.
 	PagePermissionsPolicyFeatureLocalFonts PagePermissionsPolicyFeature = "local-fonts"
 
+	// PagePermissionsPolicyFeatureLocalNetwork enum const.
+	PagePermissionsPolicyFeatureLocalNetwork PagePermissionsPolicyFeature = "local-network"
+
+	// PagePermissionsPolicyFeatureLocalNetworkAccess enum const.
+	PagePermissionsPolicyFeatureLocalNetworkAccess PagePermissionsPolicyFeature = "local-network-access"
+
+	// PagePermissionsPolicyFeatureLoopbackNetwork enum const.
+	PagePermissionsPolicyFeatureLoopbackNetwork PagePermissionsPolicyFeature = "loopback-network"
+
 	// PagePermissionsPolicyFeatureMagnetometer enum const.
 	PagePermissionsPolicyFeatureMagnetometer PagePermissionsPolicyFeature = "magnetometer"
+
+	// PagePermissionsPolicyFeatureManualText enum const.
+	PagePermissionsPolicyFeatureManualText PagePermissionsPolicyFeature = "manual-text"
+
+	// PagePermissionsPolicyFeatureMediaPlaybackWhileNotVisible enum const.
+	PagePermissionsPolicyFeatureMediaPlaybackWhileNotVisible PagePermissionsPolicyFeature = "media-playback-while-not-visible"
 
 	// PagePermissionsPolicyFeatureMicrophone enum const.
 	PagePermissionsPolicyFeatureMicrophone PagePermissionsPolicyFeature = "microphone"
 
 	// PagePermissionsPolicyFeatureMidi enum const.
 	PagePermissionsPolicyFeatureMidi PagePermissionsPolicyFeature = "midi"
+
+	// PagePermissionsPolicyFeatureOnDeviceSpeechRecognition enum const.
+	PagePermissionsPolicyFeatureOnDeviceSpeechRecognition PagePermissionsPolicyFeature = "on-device-speech-recognition"
 
 	// PagePermissionsPolicyFeatureOtpCredentials enum const.
 	PagePermissionsPolicyFeatureOtpCredentials PagePermissionsPolicyFeature = "otp-credentials"
@@ -312,6 +353,12 @@ const (
 	// PagePermissionsPolicyFeaturePublickeyCredentialsGet enum const.
 	PagePermissionsPolicyFeaturePublickeyCredentialsGet PagePermissionsPolicyFeature = "publickey-credentials-get"
 
+	// PagePermissionsPolicyFeatureRecordAdAuctionEvents enum const.
+	PagePermissionsPolicyFeatureRecordAdAuctionEvents PagePermissionsPolicyFeature = "record-ad-auction-events"
+
+	// PagePermissionsPolicyFeatureRewriter enum const.
+	PagePermissionsPolicyFeatureRewriter PagePermissionsPolicyFeature = "rewriter"
+
 	// PagePermissionsPolicyFeatureRunAdAuction enum const.
 	PagePermissionsPolicyFeatureRunAdAuction PagePermissionsPolicyFeature = "run-ad-auction"
 
@@ -320,9 +367,6 @@ const (
 
 	// PagePermissionsPolicyFeatureSerial enum const.
 	PagePermissionsPolicyFeatureSerial PagePermissionsPolicyFeature = "serial"
-
-	// PagePermissionsPolicyFeatureSharedAutofill enum const.
-	PagePermissionsPolicyFeatureSharedAutofill PagePermissionsPolicyFeature = "shared-autofill"
 
 	// PagePermissionsPolicyFeatureSharedStorage enum const.
 	PagePermissionsPolicyFeatureSharedStorage PagePermissionsPolicyFeature = "shared-storage"
@@ -342,8 +386,17 @@ const (
 	// PagePermissionsPolicyFeatureSubApps enum const.
 	PagePermissionsPolicyFeatureSubApps PagePermissionsPolicyFeature = "sub-apps"
 
+	// PagePermissionsPolicyFeatureSummarizer enum const.
+	PagePermissionsPolicyFeatureSummarizer PagePermissionsPolicyFeature = "summarizer"
+
 	// PagePermissionsPolicyFeatureSyncXhr enum const.
 	PagePermissionsPolicyFeatureSyncXhr PagePermissionsPolicyFeature = "sync-xhr"
+
+	// PagePermissionsPolicyFeatureTools enum const.
+	PagePermissionsPolicyFeatureTools PagePermissionsPolicyFeature = "tools"
+
+	// PagePermissionsPolicyFeatureTranslator enum const.
+	PagePermissionsPolicyFeatureTranslator PagePermissionsPolicyFeature = "translator"
 
 	// PagePermissionsPolicyFeatureUnload enum const.
 	PagePermissionsPolicyFeatureUnload PagePermissionsPolicyFeature = "unload"
@@ -357,6 +410,12 @@ const (
 	// PagePermissionsPolicyFeatureVerticalScroll enum const.
 	PagePermissionsPolicyFeatureVerticalScroll PagePermissionsPolicyFeature = "vertical-scroll"
 
+	// PagePermissionsPolicyFeatureWebAppInstallation enum const.
+	PagePermissionsPolicyFeatureWebAppInstallation PagePermissionsPolicyFeature = "web-app-installation"
+
+	// PagePermissionsPolicyFeatureWebnn enum const.
+	PagePermissionsPolicyFeatureWebnn PagePermissionsPolicyFeature = "webnn"
+
 	// PagePermissionsPolicyFeatureWebPrinting enum const.
 	PagePermissionsPolicyFeatureWebPrinting PagePermissionsPolicyFeature = "web-printing"
 
@@ -365,6 +424,9 @@ const (
 
 	// PagePermissionsPolicyFeatureWindowManagement enum const.
 	PagePermissionsPolicyFeatureWindowManagement PagePermissionsPolicyFeature = "window-management"
+
+	// PagePermissionsPolicyFeatureWriter enum const.
+	PagePermissionsPolicyFeatureWriter PagePermissionsPolicyFeature = "writer"
 
 	// PagePermissionsPolicyFeatureXrSpatialTracking enum const.
 	PagePermissionsPolicyFeatureXrSpatialTracking PagePermissionsPolicyFeature = "xr-spatial-tracking"
@@ -524,6 +586,14 @@ type PageOriginTrial struct {
 	TokensWithStatus []*PageOriginTrialTokenWithStatus `json:"tokensWithStatus"`
 }
 
+// PageSecurityOriginDetails (experimental) Additional information about the frame document's security origin.
+type PageSecurityOriginDetails struct {
+	// IsLocalhost Indicates whether the frame document's security origin is one
+	// of the local hostnames (e.g. "localhost") or IP addresses (IPv4
+	// 127.0.0.0/8 or IPv6 ::1).
+	IsLocalhost bool `json:"isLocalhost"`
+}
+
 // PageFrame Information about the Frame on the page.
 type PageFrame struct {
 	// ID Frame unique identifier.
@@ -547,11 +617,14 @@ type PageFrame struct {
 	// DomainAndRegistry (experimental) Frame document's registered domain, taking the public suffixes list into account.
 	// Extracted from the Frame's url.
 	// Example URLs: http://www.google.com/file.html -> "google.com"
-	//               http://a.b.co.uk/file.html      -> "b.co.uk"
+	//               http://a.b.co.uk/file.html      -> "b.co.uk".
 	DomainAndRegistry string `json:"domainAndRegistry"`
 
 	// SecurityOrigin Frame document's security origin.
 	SecurityOrigin string `json:"securityOrigin"`
+
+	// SecurityOriginDetails (experimental) (optional) Additional details about the frame document's security origin.
+	SecurityOriginDetails *PageSecurityOriginDetails `json:"securityOriginDetails,omitempty"`
 
 	// MIMEType Frame document's mimeType as determined by the browser.
 	MIMEType string `json:"mimeType"`
@@ -740,7 +813,7 @@ type PageAppManifestError struct {
 
 // PageAppManifestParsedProperties (experimental) Parsed app manifest properties.
 type PageAppManifestParsedProperties struct {
-	// Scope Computed scope value
+	// Scope Computed scope value.
 	Scope string `json:"scope"`
 }
 
@@ -850,6 +923,9 @@ type PageFontSizes struct {
 type PageClientNavigationReason string
 
 const (
+	// PageClientNavigationReasonAnchorClick enum const.
+	PageClientNavigationReasonAnchorClick PageClientNavigationReason = "anchorClick"
+
 	// PageClientNavigationReasonFormSubmissionGet enum const.
 	PageClientNavigationReasonFormSubmissionGet PageClientNavigationReason = "formSubmissionGet"
 
@@ -859,11 +935,14 @@ const (
 	// PageClientNavigationReasonHTTPHeaderRefresh enum const.
 	PageClientNavigationReasonHTTPHeaderRefresh PageClientNavigationReason = "httpHeaderRefresh"
 
-	// PageClientNavigationReasonScriptInitiated enum const.
-	PageClientNavigationReasonScriptInitiated PageClientNavigationReason = "scriptInitiated"
+	// PageClientNavigationReasonInitialFrameNavigation enum const.
+	PageClientNavigationReasonInitialFrameNavigation PageClientNavigationReason = "initialFrameNavigation"
 
 	// PageClientNavigationReasonMetaTagRefresh enum const.
 	PageClientNavigationReasonMetaTagRefresh PageClientNavigationReason = "metaTagRefresh"
+
+	// PageClientNavigationReasonOther enum const.
+	PageClientNavigationReasonOther PageClientNavigationReason = "other"
 
 	// PageClientNavigationReasonPageBlockInterstitial enum const.
 	PageClientNavigationReasonPageBlockInterstitial PageClientNavigationReason = "pageBlockInterstitial"
@@ -871,8 +950,8 @@ const (
 	// PageClientNavigationReasonReload enum const.
 	PageClientNavigationReasonReload PageClientNavigationReason = "reload"
 
-	// PageClientNavigationReasonAnchorClick enum const.
-	PageClientNavigationReasonAnchorClick PageClientNavigationReason = "anchorClick"
+	// PageClientNavigationReasonScriptInitiated enum const.
+	PageClientNavigationReasonScriptInitiated PageClientNavigationReason = "scriptInitiated"
 )
 
 // PageClientNavigationDisposition (experimental) ...
@@ -1047,7 +1126,7 @@ type PageShareTarget struct {
 	// Enctype ...
 	Enctype string `json:"enctype"`
 
-	// Title (optional) Embed the ShareTargetParams
+	// Title (optional) Embed the ShareTargetParams.
 	Title string `json:"title,omitempty"`
 
 	// Text (optional) ...
@@ -1100,7 +1179,7 @@ type PageWebAppManifest struct {
 
 	// LaunchHandler (optional) TODO(crbug.com/1231886): This field is non-standard and part of a Chrome
 	// experiment. See:
-	// https://github.com/WICG/web-app-launch/blob/main/launch_handler.md
+	// https://github.com/WICG/web-app-launch/blob/main/launch_handler.md.
 	LaunchHandler *PageLaunchHandler `json:"launchHandler,omitempty"`
 
 	// Name (optional) ...
@@ -1122,7 +1201,7 @@ type PageWebAppManifest struct {
 	Scope string `json:"scope,omitempty"`
 
 	// ScopeExtensions (optional) Non-standard, see
-	// https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
+	// https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md.
 	ScopeExtensions []*PageScopeExtension `json:"scopeExtensions,omitempty"`
 
 	// Screenshots (optional) The screenshots used by chromium.
@@ -1143,23 +1222,6 @@ type PageWebAppManifest struct {
 	// ThemeColor (optional) ...
 	ThemeColor string `json:"themeColor,omitempty"`
 }
-
-// PageAutoResponseMode (experimental) Enum of possible auto-response for permission / prompt dialogs.
-type PageAutoResponseMode string
-
-const (
-	// PageAutoResponseModeNone enum const.
-	PageAutoResponseModeNone PageAutoResponseMode = "none"
-
-	// PageAutoResponseModeAutoAccept enum const.
-	PageAutoResponseModeAutoAccept PageAutoResponseMode = "autoAccept"
-
-	// PageAutoResponseModeAutoReject enum const.
-	PageAutoResponseModeAutoReject PageAutoResponseMode = "autoReject"
-
-	// PageAutoResponseModeAutoOptOut enum const.
-	PageAutoResponseModeAutoOptOut PageAutoResponseMode = "autoOptOut"
-)
 
 // PageNavigationType (experimental) The type of a frameNavigated event.
 type PageNavigationType string
@@ -1296,6 +1358,9 @@ const (
 	// PageBackForwardCacheNotRestoredReasonForegroundCacheLimit enum const.
 	PageBackForwardCacheNotRestoredReasonForegroundCacheLimit PageBackForwardCacheNotRestoredReason = "ForegroundCacheLimit"
 
+	// PageBackForwardCacheNotRestoredReasonForwardCacheDisabled enum const.
+	PageBackForwardCacheNotRestoredReasonForwardCacheDisabled PageBackForwardCacheNotRestoredReason = "ForwardCacheDisabled"
+
 	// PageBackForwardCacheNotRestoredReasonBrowsingInstanceNotSwapped enum const.
 	PageBackForwardCacheNotRestoredReasonBrowsingInstanceNotSwapped PageBackForwardCacheNotRestoredReason = "BrowsingInstanceNotSwapped"
 
@@ -1416,11 +1481,23 @@ const (
 	// PageBackForwardCacheNotRestoredReasonSharedWorker enum const.
 	PageBackForwardCacheNotRestoredReasonSharedWorker PageBackForwardCacheNotRestoredReason = "SharedWorker"
 
+	// PageBackForwardCacheNotRestoredReasonSharedWorkerMessage enum const.
+	PageBackForwardCacheNotRestoredReasonSharedWorkerMessage PageBackForwardCacheNotRestoredReason = "SharedWorkerMessage"
+
+	// PageBackForwardCacheNotRestoredReasonSharedWorkerWithNoActiveClient enum const.
+	PageBackForwardCacheNotRestoredReasonSharedWorkerWithNoActiveClient PageBackForwardCacheNotRestoredReason = "SharedWorkerWithNoActiveClient"
+
 	// PageBackForwardCacheNotRestoredReasonWebLocks enum const.
 	PageBackForwardCacheNotRestoredReasonWebLocks PageBackForwardCacheNotRestoredReason = "WebLocks"
 
+	// PageBackForwardCacheNotRestoredReasonWebLocksContention enum const.
+	PageBackForwardCacheNotRestoredReasonWebLocksContention PageBackForwardCacheNotRestoredReason = "WebLocksContention"
+
 	// PageBackForwardCacheNotRestoredReasonWebHID enum const.
 	PageBackForwardCacheNotRestoredReasonWebHID PageBackForwardCacheNotRestoredReason = "WebHID"
+
+	// PageBackForwardCacheNotRestoredReasonWebBluetooth enum const.
+	PageBackForwardCacheNotRestoredReasonWebBluetooth PageBackForwardCacheNotRestoredReason = "WebBluetooth"
 
 	// PageBackForwardCacheNotRestoredReasonWebShare enum const.
 	PageBackForwardCacheNotRestoredReasonWebShare PageBackForwardCacheNotRestoredReason = "WebShare"
@@ -1448,9 +1525,6 @@ const (
 
 	// PageBackForwardCacheNotRestoredReasonPictureInPicture enum const.
 	PageBackForwardCacheNotRestoredReasonPictureInPicture PageBackForwardCacheNotRestoredReason = "PictureInPicture"
-
-	// PageBackForwardCacheNotRestoredReasonPortal enum const.
-	PageBackForwardCacheNotRestoredReasonPortal PageBackForwardCacheNotRestoredReason = "Portal"
 
 	// PageBackForwardCacheNotRestoredReasonSpeechRecognizer enum const.
 	PageBackForwardCacheNotRestoredReasonSpeechRecognizer PageBackForwardCacheNotRestoredReason = "SpeechRecognizer"
@@ -1491,14 +1565,14 @@ const (
 	// PageBackForwardCacheNotRestoredReasonJsNetworkRequestReceivedCacheControlNoStoreResource enum const.
 	PageBackForwardCacheNotRestoredReasonJsNetworkRequestReceivedCacheControlNoStoreResource PageBackForwardCacheNotRestoredReason = "JsNetworkRequestReceivedCacheControlNoStoreResource"
 
-	// PageBackForwardCacheNotRestoredReasonWebRTCSticky enum const.
-	PageBackForwardCacheNotRestoredReasonWebRTCSticky PageBackForwardCacheNotRestoredReason = "WebRTCSticky"
+	// PageBackForwardCacheNotRestoredReasonWebRTCUsedWithCCNS enum const.
+	PageBackForwardCacheNotRestoredReasonWebRTCUsedWithCCNS PageBackForwardCacheNotRestoredReason = "WebRTCUsedWithCCNS"
 
-	// PageBackForwardCacheNotRestoredReasonWebTransportSticky enum const.
-	PageBackForwardCacheNotRestoredReasonWebTransportSticky PageBackForwardCacheNotRestoredReason = "WebTransportSticky"
+	// PageBackForwardCacheNotRestoredReasonWebTransportUsedWithCCNS enum const.
+	PageBackForwardCacheNotRestoredReasonWebTransportUsedWithCCNS PageBackForwardCacheNotRestoredReason = "WebTransportUsedWithCCNS"
 
-	// PageBackForwardCacheNotRestoredReasonWebSocketSticky enum const.
-	PageBackForwardCacheNotRestoredReasonWebSocketSticky PageBackForwardCacheNotRestoredReason = "WebSocketSticky"
+	// PageBackForwardCacheNotRestoredReasonWebSocketUsedWithCCNS enum const.
+	PageBackForwardCacheNotRestoredReasonWebSocketUsedWithCCNS PageBackForwardCacheNotRestoredReason = "WebSocketUsedWithCCNS"
 
 	// PageBackForwardCacheNotRestoredReasonSmartCard enum const.
 	PageBackForwardCacheNotRestoredReasonSmartCard PageBackForwardCacheNotRestoredReason = "SmartCard"
@@ -1541,6 +1615,9 @@ const (
 
 	// PageBackForwardCacheNotRestoredReasonContentScreenReader enum const.
 	PageBackForwardCacheNotRestoredReasonContentScreenReader PageBackForwardCacheNotRestoredReason = "ContentScreenReader"
+
+	// PageBackForwardCacheNotRestoredReasonContentDiscarded enum const.
+	PageBackForwardCacheNotRestoredReasonContentDiscarded PageBackForwardCacheNotRestoredReason = "ContentDiscarded"
 
 	// PageBackForwardCacheNotRestoredReasonEmbedderPopupBlockerTabHelper enum const.
 	PageBackForwardCacheNotRestoredReasonEmbedderPopupBlockerTabHelper PageBackForwardCacheNotRestoredReason = "EmbedderPopupBlockerTabHelper"
@@ -1587,8 +1664,23 @@ const (
 	// PageBackForwardCacheNotRestoredReasonEmbedderExtensionSentMessageToCachedFrame enum const.
 	PageBackForwardCacheNotRestoredReasonEmbedderExtensionSentMessageToCachedFrame PageBackForwardCacheNotRestoredReason = "EmbedderExtensionSentMessageToCachedFrame"
 
+	// PageBackForwardCacheNotRestoredReasonEmbedderExtensionFrame enum const.
+	PageBackForwardCacheNotRestoredReasonEmbedderExtensionFrame PageBackForwardCacheNotRestoredReason = "EmbedderExtensionFrame"
+
 	// PageBackForwardCacheNotRestoredReasonRequestedByWebViewClient enum const.
 	PageBackForwardCacheNotRestoredReasonRequestedByWebViewClient PageBackForwardCacheNotRestoredReason = "RequestedByWebViewClient"
+
+	// PageBackForwardCacheNotRestoredReasonPostMessageByWebViewClient enum const.
+	PageBackForwardCacheNotRestoredReasonPostMessageByWebViewClient PageBackForwardCacheNotRestoredReason = "PostMessageByWebViewClient"
+
+	// PageBackForwardCacheNotRestoredReasonCacheControlNoStoreDeviceBoundSessionTerminated enum const.
+	PageBackForwardCacheNotRestoredReasonCacheControlNoStoreDeviceBoundSessionTerminated PageBackForwardCacheNotRestoredReason = "CacheControlNoStoreDeviceBoundSessionTerminated"
+
+	// PageBackForwardCacheNotRestoredReasonCacheLimitPrunedOnModerateMemoryPressure enum const.
+	PageBackForwardCacheNotRestoredReasonCacheLimitPrunedOnModerateMemoryPressure PageBackForwardCacheNotRestoredReason = "CacheLimitPrunedOnModerateMemoryPressure"
+
+	// PageBackForwardCacheNotRestoredReasonCacheLimitPrunedOnCriticalMemoryPressure enum const.
+	PageBackForwardCacheNotRestoredReasonCacheLimitPrunedOnCriticalMemoryPressure PageBackForwardCacheNotRestoredReason = "CacheLimitPrunedOnCriticalMemoryPressure"
 )
 
 // PageBackForwardCacheNotRestoredReasonType (experimental) Types of not restored reasons for back-forward cache.
@@ -1622,10 +1714,10 @@ type PageBackForwardCacheBlockingDetails struct {
 
 // PageBackForwardCacheNotRestoredExplanation (experimental) ...
 type PageBackForwardCacheNotRestoredExplanation struct {
-	// Type of the reason
+	// Type of the reason.
 	Type PageBackForwardCacheNotRestoredReasonType `json:"type"`
 
-	// Reason Not restored reason
+	// Reason Not restored reason.
 	Reason PageBackForwardCacheNotRestoredReason `json:"reason"`
 
 	// Context (optional) Context associated with the reason. The meaning of this context is
@@ -1639,17 +1731,19 @@ type PageBackForwardCacheNotRestoredExplanation struct {
 
 // PageBackForwardCacheNotRestoredExplanationTree (experimental) ...
 type PageBackForwardCacheNotRestoredExplanationTree struct {
-	// URL of each frame
+	// URL of each frame.
 	URL string `json:"url"`
 
-	// Explanations Not restored reasons of each frame
+	// Explanations Not restored reasons of each frame.
 	Explanations []*PageBackForwardCacheNotRestoredExplanation `json:"explanations"`
 
-	// Children Array of children frame
+	// Children Array of children frame.
 	Children []*PageBackForwardCacheNotRestoredExplanationTree `json:"children"`
 }
 
 // PageAddScriptToEvaluateOnLoad (deprecated) (experimental) Deprecated, please use addScriptToEvaluateOnNewDocument instead.
+//
+// Deprecated: Page.addScriptToEvaluateOnLoad is deprecated in the Chrome DevTools Protocol.
 type PageAddScriptToEvaluateOnLoad struct {
 	// ScriptSource ...
 	ScriptSource string `json:"scriptSource"`
@@ -1665,6 +1759,8 @@ func (m PageAddScriptToEvaluateOnLoad) Call(c Client) (*PageAddScriptToEvaluateO
 }
 
 // PageAddScriptToEvaluateOnLoadResult (deprecated) (experimental) ...
+//
+// Deprecated: Page.addScriptToEvaluateOnLoad is deprecated in the Chrome DevTools Protocol.
 type PageAddScriptToEvaluateOnLoadResult struct {
 	// Identifier of the added script.
 	Identifier PageScriptIdentifier `json:"identifier"`
@@ -1748,7 +1844,7 @@ type PageCaptureScreenshot struct {
 	// CaptureBeyondViewport (experimental) (optional) Capture the screenshot beyond the viewport. Defaults to false.
 	CaptureBeyondViewport bool `json:"captureBeyondViewport,omitempty"`
 
-	// OptimizeForSpeed (experimental) (optional) Optimize image encoding for speed, not for resulting size (defaults to false)
+	// OptimizeForSpeed (experimental) (optional) Optimize image encoding for speed, not for resulting size (defaults to false).
 	OptimizeForSpeed bool `json:"optimizeForSpeed,omitempty"`
 }
 
@@ -1763,7 +1859,7 @@ func (m PageCaptureScreenshot) Call(c Client) (*PageCaptureScreenshotResult, err
 
 // PageCaptureScreenshotResult ...
 type PageCaptureScreenshotResult struct {
-	// Data Base64-encoded image data.
+	// Data Base64-encoded image data. (Encoded as a base64 string when passed over JSON).
 	Data []byte `json:"data"`
 }
 
@@ -1798,6 +1894,8 @@ type PageCaptureSnapshotResult struct {
 }
 
 // PageClearDeviceMetricsOverride (deprecated) (experimental) Clears the overridden device metrics.
+//
+// Deprecated: Page.clearDeviceMetricsOverride is deprecated in the Chrome DevTools Protocol.
 type PageClearDeviceMetricsOverride struct{}
 
 // ProtoReq name.
@@ -1809,6 +1907,8 @@ func (m PageClearDeviceMetricsOverride) Call(c Client) error {
 }
 
 // PageClearDeviceOrientationOverride (deprecated) (experimental) Clears the overridden Device Orientation.
+//
+// Deprecated: Page.clearDeviceOrientationOverride is deprecated in the Chrome DevTools Protocol.
 type PageClearDeviceOrientationOverride struct{}
 
 // ProtoReq name.
@@ -1822,6 +1922,8 @@ func (m PageClearDeviceOrientationOverride) Call(c Client) error {
 }
 
 // PageClearGeolocationOverride (deprecated) Clears the overridden Geolocation Position and Error.
+//
+// Deprecated: Page.clearGeolocationOverride is deprecated in the Chrome DevTools Protocol.
 type PageClearGeolocationOverride struct{}
 
 // ProtoReq name.
@@ -1843,6 +1945,14 @@ type PageCreateIsolatedWorld struct {
 	// GrantUniveralAccess (optional) Whether or not universal access should be granted to the isolated world. This is a powerful
 	// option, use with caution.
 	GrantUniveralAccess bool `json:"grantUniveralAccess,omitempty"`
+
+	// ContentSecurityPolicy (optional) An optional content security policy to set for the isolated world.
+	// If omitted, any existing CSP for the world will be cleared.
+	// Note that clearing or updating the CSP does not immediately affect the active
+	// context in the same document because LocalDOMWindow caches the
+	// ContentSecurityPolicy object. The change takes effect on subsequent
+	// navigations when a new window context is created.
+	ContentSecurityPolicy string `json:"contentSecurityPolicy,omitempty"`
 }
 
 // ProtoReq name.
@@ -1861,6 +1971,8 @@ type PageCreateIsolatedWorldResult struct {
 }
 
 // PageDeleteCookie (deprecated) (experimental) Deletes browser cookie with given name, domain and path.
+//
+// Deprecated: Page.deleteCookie is deprecated in the Chrome DevTools Protocol.
 type PageDeleteCookie struct {
 	// CookieName Name of the cookie to remove.
 	CookieName string `json:"cookieName"`
@@ -1889,7 +2001,11 @@ func (m PageDisable) Call(c Client) error {
 }
 
 // PageEnable Enables page domain notifications.
-type PageEnable struct{}
+type PageEnable struct {
+	// EnableFileChooserOpenedEvent (experimental) (optional) If true, the `Page.fileChooserOpened` event will be emitted regardless of the state set by
+	// `Page.setInterceptFileChooserDialog` command (default: false).
+	EnableFileChooserOpenedEvent bool `json:"enableFileChooserOpenedEvent,omitempty"`
+}
 
 // ProtoReq name.
 func (m PageEnable) ProtoReq() string { return "Page.enable" }
@@ -1931,6 +2047,8 @@ type PageGetAppManifestResult struct {
 	Data string `json:"data,omitempty"`
 
 	// Parsed (deprecated) (experimental) (optional) Parsed manifest properties. Deprecated, use manifest instead.
+	//
+	// Deprecated: Page.getAppManifest.parsed is deprecated in the Chrome DevTools Protocol.
 	Parsed *PageAppManifestParsedProperties `json:"parsed,omitempty"`
 
 	// Manifest (experimental) ...
@@ -1956,6 +2074,8 @@ type PageGetInstallabilityErrorsResult struct {
 }
 
 // PageGetManifestIcons (deprecated) (experimental) Deprecated because it's not guaranteed that the returned icon is in fact the one used for PWA installation.
+//
+// Deprecated: Page.getManifestIcons is deprecated in the Chrome DevTools Protocol.
 type PageGetManifestIcons struct{}
 
 // ProtoReq name.
@@ -1968,6 +2088,8 @@ func (m PageGetManifestIcons) Call(c Client) (*PageGetManifestIconsResult, error
 }
 
 // PageGetManifestIconsResult (deprecated) (experimental) ...
+//
+// Deprecated: Page.getManifestIcons is deprecated in the Chrome DevTools Protocol.
 type PageGetManifestIconsResult struct {
 	// PrimaryIcon (optional) ...
 	PrimaryIcon []byte `json:"primaryIcon,omitempty"`
@@ -1988,33 +2110,36 @@ func (m PageGetAppID) Call(c Client) (*PageGetAppIDResult, error) {
 
 // PageGetAppIDResult (experimental) ...
 type PageGetAppIDResult struct {
-	// AppID (optional) App id, either from manifest's id attribute or computed from start_url
+	// AppID (optional) App id, either from manifest's id attribute or computed from start_url.
 	AppID string `json:"appId,omitempty"`
 
-	// RecommendedID (optional) Recommendation for manifest's id attribute to match current id computed from start_url
+	// RecommendedID (optional) Recommendation for manifest's id attribute to match current id computed from start_url.
 	RecommendedID string `json:"recommendedId,omitempty"`
 }
 
-// PageGetAdScriptID (experimental) ...
-type PageGetAdScriptID struct {
+// PageGetAdScriptAncestry (experimental) ...
+type PageGetAdScriptAncestry struct {
 	// FrameID ...
 	FrameID PageFrameID `json:"frameId"`
 }
 
 // ProtoReq name.
-func (m PageGetAdScriptID) ProtoReq() string { return "Page.getAdScriptId" }
+func (m PageGetAdScriptAncestry) ProtoReq() string { return "Page.getAdScriptAncestry" }
 
 // Call the request.
-func (m PageGetAdScriptID) Call(c Client) (*PageGetAdScriptIDResult, error) {
-	var res PageGetAdScriptIDResult
+func (m PageGetAdScriptAncestry) Call(c Client) (*PageGetAdScriptAncestryResult, error) {
+	var res PageGetAdScriptAncestryResult
 	return &res, call(m.ProtoReq(), m, &res, c)
 }
 
-// PageGetAdScriptIDResult (experimental) ...
-type PageGetAdScriptIDResult struct {
-	// AdScriptID (optional) Identifies the bottom-most script which caused the frame to be labelled
-	// as an ad. Only sent if frame is labelled as an ad and id is available.
-	AdScriptID *PageAdScriptID `json:"adScriptId,omitempty"`
+// PageGetAdScriptAncestryResult (experimental) ...
+type PageGetAdScriptAncestryResult struct {
+	// AdScriptAncestry (optional) The ancestry chain of ad script identifiers leading to this frame's
+	// creation, along with the root script's filterlist rule. The ancestry
+	// chain is ordered from the most immediate script (in the frame creation
+	// stack) to more distant ancestors (that created the immediately preceding
+	// script). Only sent if frame is labelled as an ad and ids are available.
+	AdScriptAncestry *NetworkAdAncestry `json:"adScriptAncestry,omitempty"`
 }
 
 // PageGetFrameTree Returns present frame tree structure.
@@ -2050,12 +2175,18 @@ func (m PageGetLayoutMetrics) Call(c Client) (*PageGetLayoutMetricsResult, error
 // PageGetLayoutMetricsResult ...
 type PageGetLayoutMetricsResult struct {
 	// LayoutViewport (deprecated) Deprecated metrics relating to the layout viewport. Is in device pixels. Use `cssLayoutViewport` instead.
+	//
+	// Deprecated: Page.getLayoutMetrics.layoutViewport is deprecated in the Chrome DevTools Protocol.
 	LayoutViewport *PageLayoutViewport `json:"layoutViewport"`
 
 	// VisualViewport (deprecated) Deprecated metrics relating to the visual viewport. Is in device pixels. Use `cssVisualViewport` instead.
+	//
+	// Deprecated: Page.getLayoutMetrics.visualViewport is deprecated in the Chrome DevTools Protocol.
 	VisualViewport *PageVisualViewport `json:"visualViewport"`
 
 	// ContentSize (deprecated) Deprecated size of scrollable area. Is in DP. Use `cssContentSize` instead.
+	//
+	// Deprecated: Page.getLayoutMetrics.contentSize is deprecated in the Chrome DevTools Protocol.
 	ContentSize *DOMRect `json:"contentSize"`
 
 	// CSSLayoutViewport Metrics relating to the layout viewport in CSS pixels.
@@ -2192,7 +2323,7 @@ func (m PageNavigate) Call(c Client) (*PageNavigateResult, error) {
 
 // PageNavigateResult ...
 type PageNavigateResult struct {
-	// FrameID Frame id that has navigated (or failed to navigate)
+	// FrameID Frame id that has navigated (or failed to navigate).
 	FrameID PageFrameID `json:"frameId"`
 
 	// LoaderID (optional) Loader identifier. This is omitted in case of same-document navigation,
@@ -2201,6 +2332,9 @@ type PageNavigateResult struct {
 
 	// ErrorText (optional) User friendly error message, present if and only if navigation has failed.
 	ErrorText string `json:"errorText,omitempty"`
+
+	// IsDownload (experimental) (optional) Whether the navigation resulted in a download.
+	IsDownload bool `json:"isDownload,omitempty"`
 }
 
 // PageNavigateToHistoryEntry Navigates current page to the given history entry.
@@ -2288,7 +2422,7 @@ type PagePrintToPDF struct {
 	// in which case the content will be scaled to fit the paper size.
 	PreferCSSPageSize bool `json:"preferCSSPageSize,omitempty"`
 
-	// TransferMode (experimental) (optional) return as stream
+	// TransferMode (experimental) (optional) return as stream.
 	TransferMode PagePrintToPDFTransferMode `json:"transferMode,omitempty"`
 
 	// GenerateTaggedPDF (experimental) (optional) Whether or not to generate tagged (accessible) PDF. Defaults to embedder choice.
@@ -2309,7 +2443,7 @@ func (m PagePrintToPDF) Call(c Client) (*PagePrintToPDFResult, error) {
 
 // PagePrintToPDFResult ...
 type PagePrintToPDFResult struct {
-	// Data Base64-encoded pdf data. Empty if |returnAsStream| is specified.
+	// Data Base64-encoded pdf data. Empty if |returnAsStream| is specified. (Encoded as a base64 string when passed over JSON).
 	Data []byte `json:"data"`
 
 	// Stream (experimental) (optional) A handle of the stream that holds resulting PDF data.
@@ -2340,6 +2474,8 @@ func (m PageReload) Call(c Client) error {
 }
 
 // PageRemoveScriptToEvaluateOnLoad (deprecated) (experimental) Deprecated, please use removeScriptToEvaluateOnNewDocument instead.
+//
+// Deprecated: Page.removeScriptToEvaluateOnLoad is deprecated in the Chrome DevTools Protocol.
 type PageRemoveScriptToEvaluateOnLoad struct {
 	// Identifier ...
 	Identifier PageScriptIdentifier `json:"identifier"`
@@ -2491,6 +2627,8 @@ type PageGetOriginTrialsResult struct {
 // PageSetDeviceMetricsOverride (deprecated) (experimental) Overrides the values of device screen dimensions (window.screen.width, window.screen.height,
 // window.innerWidth, window.innerHeight, and "device-width"/"device-height"-related CSS media
 // query results).
+//
+// Deprecated: Page.setDeviceMetricsOverride is deprecated in the Chrome DevTools Protocol.
 type PageSetDeviceMetricsOverride struct {
 	// Width Overriding width value in pixels (minimum 0, maximum 10000000). 0 disables the override.
 	Width int `json:"width"`
@@ -2539,14 +2677,16 @@ func (m PageSetDeviceMetricsOverride) Call(c Client) error {
 }
 
 // PageSetDeviceOrientationOverride (deprecated) (experimental) Overrides the Device Orientation.
+//
+// Deprecated: Page.setDeviceOrientationOverride is deprecated in the Chrome DevTools Protocol.
 type PageSetDeviceOrientationOverride struct {
-	// Alpha Mock alpha
+	// Alpha Mock alpha.
 	Alpha float64 `json:"alpha"`
 
-	// Beta Mock beta
+	// Beta Mock beta.
 	Beta float64 `json:"beta"`
 
-	// Gamma Mock gamma
+	// Gamma Mock gamma.
 	Gamma float64 `json:"gamma"`
 }
 
@@ -2623,12 +2763,14 @@ const (
 )
 
 // PageSetDownloadBehavior (deprecated) (experimental) Set the behavior when downloading a file.
+//
+// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.
 type PageSetDownloadBehavior struct {
 	// Behavior Whether to allow all or deny all download requests, or use default Chrome behavior if
 	// available (otherwise deny).
 	Behavior PageSetDownloadBehaviorBehavior `json:"behavior"`
 
-	// DownloadPath (optional) The default path to save downloaded files to. This is required if behavior is set to 'allow'
+	// DownloadPath (optional) The default path to save downloaded files to. This is required if behavior is set to 'allow'.
 	DownloadPath string `json:"downloadPath,omitempty"`
 }
 
@@ -2642,14 +2784,16 @@ func (m PageSetDownloadBehavior) Call(c Client) error {
 
 // PageSetGeolocationOverride (deprecated) Overrides the Geolocation Position or Error. Omitting any of the parameters emulates position
 // unavailable.
+//
+// Deprecated: Page.setGeolocationOverride is deprecated in the Chrome DevTools Protocol.
 type PageSetGeolocationOverride struct {
-	// Latitude (optional) Mock latitude
+	// Latitude (optional) Mock latitude.
 	Latitude *float64 `json:"latitude,omitempty"`
 
-	// Longitude (optional) Mock longitude
+	// Longitude (optional) Mock longitude.
 	Longitude *float64 `json:"longitude,omitempty"`
 
-	// Accuracy (optional) Mock accuracy
+	// Accuracy (optional) Mock accuracy.
 	Accuracy *float64 `json:"accuracy,omitempty"`
 }
 
@@ -2687,6 +2831,8 @@ const (
 )
 
 // PageSetTouchEmulationEnabled (deprecated) (experimental) Toggles mouse event-based touch event emulation.
+//
+// Deprecated: Page.setTouchEmulationEnabled is deprecated in the Chrome DevTools Protocol.
 type PageSetTouchEmulationEnabled struct {
 	// Enabled Whether the touch event emulation should be enabled.
 	Enabled bool `json:"enabled"`
@@ -2786,9 +2932,9 @@ const (
 
 // PageSetWebLifecycleState (experimental) Tries to update the web lifecycle state of the page.
 // It will transition the page to the given state according to:
-// https://github.com/WICG/web-lifecycle/
+// https://github.com/WICG/web-lifecycle/.
 type PageSetWebLifecycleState struct {
-	// State Target lifecycle state
+	// State Target lifecycle state.
 	State PageSetWebLifecycleStateState `json:"state"`
 }
 
@@ -2836,7 +2982,7 @@ type PageAddCompilationCache struct {
 	// URL ...
 	URL string `json:"url"`
 
-	// Data Base64-encoded data
+	// Data Base64-encoded data (Encoded as a base64 string when passed over JSON).
 	Data []byte `json:"data"`
 }
 
@@ -2859,11 +3005,31 @@ func (m PageClearCompilationCache) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// PageSetSPCTransactionModeMode enum.
+type PageSetSPCTransactionModeMode string
+
+const (
+	// PageSetSPCTransactionModeModeNone enum const.
+	PageSetSPCTransactionModeModeNone PageSetSPCTransactionModeMode = "none"
+
+	// PageSetSPCTransactionModeModeAutoAccept enum const.
+	PageSetSPCTransactionModeModeAutoAccept PageSetSPCTransactionModeMode = "autoAccept"
+
+	// PageSetSPCTransactionModeModeAutoChooseToAuthAnotherWay enum const.
+	PageSetSPCTransactionModeModeAutoChooseToAuthAnotherWay PageSetSPCTransactionModeMode = "autoChooseToAuthAnotherWay"
+
+	// PageSetSPCTransactionModeModeAutoReject enum const.
+	PageSetSPCTransactionModeModeAutoReject PageSetSPCTransactionModeMode = "autoReject"
+
+	// PageSetSPCTransactionModeModeAutoOptOut enum const.
+	PageSetSPCTransactionModeModeAutoOptOut PageSetSPCTransactionModeMode = "autoOptOut"
+)
+
 // PageSetSPCTransactionMode (experimental) Sets the Secure Payment Confirmation transaction mode.
-// https://w3c.github.io/secure-payment-confirmation/#sctn-automation-set-spc-transaction-mode
+// https://w3c.github.io/secure-payment-confirmation/#sctn-automation-set-spc-transaction-mode.
 type PageSetSPCTransactionMode struct {
 	// Mode ...
-	Mode PageAutoResponseMode `json:"mode"`
+	Mode PageSetSPCTransactionModeMode `json:"mode"`
 }
 
 // ProtoReq name.
@@ -2874,11 +3040,25 @@ func (m PageSetSPCTransactionMode) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// PageSetRPHRegistrationModeMode enum.
+type PageSetRPHRegistrationModeMode string
+
+const (
+	// PageSetRPHRegistrationModeModeNone enum const.
+	PageSetRPHRegistrationModeModeNone PageSetRPHRegistrationModeMode = "none"
+
+	// PageSetRPHRegistrationModeModeAutoAccept enum const.
+	PageSetRPHRegistrationModeModeAutoAccept PageSetRPHRegistrationModeMode = "autoAccept"
+
+	// PageSetRPHRegistrationModeModeAutoReject enum const.
+	PageSetRPHRegistrationModeModeAutoReject PageSetRPHRegistrationModeMode = "autoReject"
+)
+
 // PageSetRPHRegistrationMode (experimental) Extensions for Custom Handlers API:
-// https://html.spec.whatwg.org/multipage/system-state.html#rph-automation
+// https://html.spec.whatwg.org/multipage/system-state.html#rph-automation.
 type PageSetRPHRegistrationMode struct {
 	// Mode ...
-	Mode PageAutoResponseMode `json:"mode"`
+	Mode PageSetRPHRegistrationModeMode `json:"mode"`
 }
 
 // ProtoReq name.
@@ -2923,6 +3103,11 @@ func (m PageWaitForDebugger) Call(c Client) error {
 type PageSetInterceptFileChooserDialog struct {
 	// Enabled ...
 	Enabled bool `json:"enabled"`
+
+	// Cancel (experimental) (optional) If true, cancels the dialog by emitting relevant events (if any)
+	// in addition to not showing it if the interception is enabled
+	// (default: false).
+	Cancel bool `json:"cancel,omitempty"`
 }
 
 // ProtoReq name.
@@ -2953,6 +3138,30 @@ func (m PageSetPrerenderingAllowed) ProtoReq() string { return "Page.setPrerende
 // Call sends the request.
 func (m PageSetPrerenderingAllowed) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
+}
+
+// PageGetAnnotatedPageContent (experimental) Get the annotated page content for the main frame.
+// This is an experimental command that is subject to change.
+type PageGetAnnotatedPageContent struct {
+	// IncludeActionableInformation (optional) Whether to include actionable information. Defaults to true.
+	IncludeActionableInformation bool `json:"includeActionableInformation,omitempty"`
+}
+
+// ProtoReq name.
+func (m PageGetAnnotatedPageContent) ProtoReq() string { return "Page.getAnnotatedPageContent" }
+
+// Call the request.
+func (m PageGetAnnotatedPageContent) Call(c Client) (*PageGetAnnotatedPageContentResult, error) {
+	var res PageGetAnnotatedPageContentResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageGetAnnotatedPageContentResult (experimental) ...
+type PageGetAnnotatedPageContentResult struct {
+	// Content The annotated page content as a base64 encoded protobuf.
+	// The format is defined by the `AnnotatedPageContent` message in
+	// components/optimization_guide/proto/features/common_quality_data.proto (Encoded as a base64 string when passed over JSON).
+	Content []byte `json:"content"`
 }
 
 // PageDomContentEventFired ...
@@ -3012,6 +3221,8 @@ func (evt PageFrameAttached) ProtoEvent() string {
 }
 
 // PageFrameClearedScheduledNavigation (deprecated) Fired when frame no longer has a scheduled navigation.
+//
+// Deprecated: Page.frameClearedScheduledNavigation is deprecated in the Chrome DevTools Protocol.
 type PageFrameClearedScheduledNavigation struct {
 	// FrameID Id of the frame that has cleared its scheduled navigation.
 	FrameID PageFrameID `json:"frameId"`
@@ -3047,6 +3258,18 @@ func (evt PageFrameDetached) ProtoEvent() string {
 	return "Page.frameDetached"
 }
 
+// PageFrameSubtreeWillBeDetached (experimental) Fired before frame subtree is detached. Emitted before any frame of the
+// subtree is actually detached.
+type PageFrameSubtreeWillBeDetached struct {
+	// FrameID Id of the frame that is the root of the subtree that will be detached.
+	FrameID PageFrameID `json:"frameId"`
+}
+
+// ProtoEvent name.
+func (evt PageFrameSubtreeWillBeDetached) ProtoEvent() string {
+	return "Page.frameSubtreeWillBeDetached"
+}
+
 // PageFrameNavigated Fired once navigation of the frame has completed. Frame is now associated with the new loader.
 type PageFrameNavigated struct {
 	// Frame object.
@@ -3080,6 +3303,64 @@ func (evt PageFrameResized) ProtoEvent() string {
 	return "Page.frameResized"
 }
 
+// PageFrameStartedNavigatingNavigationType enum.
+type PageFrameStartedNavigatingNavigationType string
+
+const (
+	// PageFrameStartedNavigatingNavigationTypeReload enum const.
+	PageFrameStartedNavigatingNavigationTypeReload PageFrameStartedNavigatingNavigationType = "reload"
+
+	// PageFrameStartedNavigatingNavigationTypeReloadBypassingCache enum const.
+	PageFrameStartedNavigatingNavigationTypeReloadBypassingCache PageFrameStartedNavigatingNavigationType = "reloadBypassingCache"
+
+	// PageFrameStartedNavigatingNavigationTypeRestore enum const.
+	PageFrameStartedNavigatingNavigationTypeRestore PageFrameStartedNavigatingNavigationType = "restore"
+
+	// PageFrameStartedNavigatingNavigationTypeRestoreWithPost enum const.
+	PageFrameStartedNavigatingNavigationTypeRestoreWithPost PageFrameStartedNavigatingNavigationType = "restoreWithPost"
+
+	// PageFrameStartedNavigatingNavigationTypeHistorySameDocument enum const.
+	PageFrameStartedNavigatingNavigationTypeHistorySameDocument PageFrameStartedNavigatingNavigationType = "historySameDocument"
+
+	// PageFrameStartedNavigatingNavigationTypeHistoryDifferentDocument enum const.
+	PageFrameStartedNavigatingNavigationTypeHistoryDifferentDocument PageFrameStartedNavigatingNavigationType = "historyDifferentDocument"
+
+	// PageFrameStartedNavigatingNavigationTypeSameDocument enum const.
+	PageFrameStartedNavigatingNavigationTypeSameDocument PageFrameStartedNavigatingNavigationType = "sameDocument"
+
+	// PageFrameStartedNavigatingNavigationTypeDifferentDocument enum const.
+	PageFrameStartedNavigatingNavigationTypeDifferentDocument PageFrameStartedNavigatingNavigationType = "differentDocument"
+)
+
+// PageFrameStartedNavigating (experimental) Fired when a navigation starts. This event is fired for both
+// renderer-initiated and browser-initiated navigations. For renderer-initiated
+// navigations, the event is fired after `frameRequestedNavigation`.
+// Navigation may still be cancelled after the event is issued. Multiple events
+// can be fired for a single navigation, for example, when a same-document
+// navigation becomes a cross-document navigation (such as in the case of a
+// frameset).
+type PageFrameStartedNavigating struct {
+	// FrameID ID of the frame that is being navigated.
+	FrameID PageFrameID `json:"frameId"`
+
+	// URL The URL the navigation started with. The final URL can be different.
+	URL string `json:"url"`
+
+	// LoaderID Loader identifier. Even though it is present in case of same-document
+	// navigation, the previously committed loaderId would not change unless
+	// the navigation changes from a same-document to a cross-document
+	// navigation.
+	LoaderID NetworkLoaderID `json:"loaderId"`
+
+	// NavigationType ...
+	NavigationType PageFrameStartedNavigatingNavigationType `json:"navigationType"`
+}
+
+// ProtoEvent name.
+func (evt PageFrameStartedNavigating) ProtoEvent() string {
+	return "Page.frameStartedNavigating"
+}
+
 // PageFrameRequestedNavigation (experimental) Fired when a renderer-initiated navigation is requested.
 // Navigation may still be cancelled after the event is issued.
 type PageFrameRequestedNavigation struct {
@@ -3102,6 +3383,8 @@ func (evt PageFrameRequestedNavigation) ProtoEvent() string {
 }
 
 // PageFrameScheduledNavigation (deprecated) Fired when frame schedules a potential navigation.
+//
+// Deprecated: Page.frameScheduledNavigation is deprecated in the Chrome DevTools Protocol.
 type PageFrameScheduledNavigation struct {
 	// FrameID Id of the frame that has scheduled a navigation.
 	FrameID PageFrameID `json:"frameId"`
@@ -3146,6 +3429,8 @@ func (evt PageFrameStoppedLoading) ProtoEvent() string {
 
 // PageDownloadWillBegin (deprecated) (experimental) Fired when page is about to start a download.
 // Deprecated. Use Browser.downloadWillBegin instead.
+//
+// Deprecated: Page.downloadWillBegin is deprecated in the Chrome DevTools Protocol.
 type PageDownloadWillBegin struct {
 	// FrameID Id of the frame that caused download to begin.
 	FrameID PageFrameID `json:"frameId"`
@@ -3181,6 +3466,8 @@ const (
 
 // PageDownloadProgress (deprecated) (experimental) Fired when download makes progress. Last call has |done| == true.
 // Deprecated. Use Browser.downloadProgress instead.
+//
+// Deprecated: Page.downloadProgress is deprecated in the Chrome DevTools Protocol.
 type PageDownloadProgress struct {
 	// GUID Global unique identifier of the download.
 	GUID string `json:"guid"`
@@ -3219,6 +3506,9 @@ func (evt PageInterstitialShown) ProtoEvent() string {
 // PageJavascriptDialogClosed Fired when a JavaScript initiated dialog (alert, confirm, prompt, or onbeforeunload) has been
 // closed.
 type PageJavascriptDialogClosed struct {
+	// FrameID (experimental) Frame id.
+	FrameID PageFrameID `json:"frameId"`
+
 	// Result Whether dialog was confirmed.
 	Result bool `json:"result"`
 
@@ -3236,6 +3526,9 @@ func (evt PageJavascriptDialogClosed) ProtoEvent() string {
 type PageJavascriptDialogOpening struct {
 	// URL Frame url.
 	URL string `json:"url"`
+
+	// FrameID (experimental) Frame id.
+	FrameID PageFrameID `json:"frameId"`
 
 	// Message that will be displayed by the dialog.
 	Message string `json:"message"`
@@ -3292,7 +3585,8 @@ const (
 	PageLifecycleEventNameNetworkIdle PageLifecycleEventName = "networkIdle"
 )
 
-// PageLifecycleEvent Fired for top level page lifecycle events such as navigation, load, paint, etc.
+// PageLifecycleEvent Fired for lifecycle events (navigation, load, paint, etc) in the current
+// target (including local frames).
 type PageLifecycleEvent struct {
 	// FrameID Id of the frame.
 	FrameID PageFrameID `json:"frameId"`
@@ -3346,6 +3640,20 @@ func (evt PageLoadEventFired) ProtoEvent() string {
 	return "Page.loadEventFired"
 }
 
+// PageNavigatedWithinDocumentNavigationType enum.
+type PageNavigatedWithinDocumentNavigationType string
+
+const (
+	// PageNavigatedWithinDocumentNavigationTypeFragment enum const.
+	PageNavigatedWithinDocumentNavigationTypeFragment PageNavigatedWithinDocumentNavigationType = "fragment"
+
+	// PageNavigatedWithinDocumentNavigationTypeHistoryAPI enum const.
+	PageNavigatedWithinDocumentNavigationTypeHistoryAPI PageNavigatedWithinDocumentNavigationType = "historyApi"
+
+	// PageNavigatedWithinDocumentNavigationTypeOther enum const.
+	PageNavigatedWithinDocumentNavigationTypeOther PageNavigatedWithinDocumentNavigationType = "other"
+)
+
 // PageNavigatedWithinDocument (experimental) Fired when same-document navigation happens, e.g. due to history API usage or anchor navigation.
 type PageNavigatedWithinDocument struct {
 	// FrameID Id of the frame.
@@ -3353,6 +3661,9 @@ type PageNavigatedWithinDocument struct {
 
 	// URL Frame's new url.
 	URL string `json:"url"`
+
+	// NavigationType Navigation type.
+	NavigationType PageNavigatedWithinDocumentNavigationType `json:"navigationType"`
 }
 
 // ProtoEvent name.
@@ -3362,7 +3673,7 @@ func (evt PageNavigatedWithinDocument) ProtoEvent() string {
 
 // PageScreencastFrame (experimental) Compressed image data requested by the `startScreencast`.
 type PageScreencastFrame struct {
-	// Data Base64-encoded compressed image.
+	// Data Base64-encoded compressed image. (Encoded as a base64 string when passed over JSON).
 	Data []byte `json:"data"`
 
 	// Metadata Screencast frame metadata.
@@ -3409,13 +3720,12 @@ func (evt PageWindowOpen) ProtoEvent() string {
 	return "Page.windowOpen"
 }
 
-// PageCompilationCacheProduced (experimental) Issued for every compilation cache generated. Is only available
-// if Page.setGenerateCompilationCache is enabled.
+// PageCompilationCacheProduced (experimental) Issued for every compilation cache generated.
 type PageCompilationCacheProduced struct {
 	// URL ...
 	URL string `json:"url"`
 
-	// Data Base64-encoded data
+	// Data Base64-encoded data (Encoded as a base64 string when passed over JSON).
 	Data []byte `json:"data"`
 }
 

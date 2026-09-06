@@ -31,8 +31,8 @@ func (e *MaxSleepCountError) Error() string {
 // Is interface.
 func (e *MaxSleepCountError) Is(err error) bool { _, ok := err.(*MaxSleepCountError); return ok }
 
-// CountSleeper wakes immediately. When counts to the max returns *ErrMaxSleepCount.
-func CountSleeper(max int) Sleeper {
+// CountSleeper wakes immediately. When counts to the limit returns *ErrMaxSleepCount.
+func CountSleeper(limit int) Sleeper {
 	l := sync.Mutex{}
 	count := 0
 
@@ -44,8 +44,8 @@ func CountSleeper(max int) Sleeper {
 			return ctx.Err()
 		}
 
-		if count == max {
-			return &MaxSleepCountError{max}
+		if count == limit {
+			return &MaxSleepCountError{limit}
 		}
 		count++
 		return nil

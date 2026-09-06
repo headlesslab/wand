@@ -25,27 +25,27 @@ Base URL for all of them: https://raw.githubusercontent.com/go-rod/rod/main/
 
 `hostConf` is keyed by `runtime.GOOS + "_" + runtime.GOARCH` and has exactly five entries:
 
-| GOOS_GOARCH | bucket prefix | zip name |
-|---|---|---|
-| `darwin_amd64` | `Mac` | `chrome-mac.zip` |
-| `darwin_arm64` | `Mac_Arm` | `chrome-mac.zip` |
-| `linux_amd64` | `Linux_x64` | `chrome-linux.zip` |
-| `windows_386` | `Win` | `chrome-win.zip` |
-| `windows_amd64` | `Win_x64` | `chrome-win.zip` |
+| GOOS_GOARCH     | bucket prefix | zip name           |
+| --------------- | ------------- | ------------------ |
+| `darwin_amd64`  | `Mac`         | `chrome-mac.zip`   |
+| `darwin_arm64`  | `Mac_Arm`     | `chrome-mac.zip`   |
+| `linux_amd64`   | `Linux_x64`   | `chrome-linux.zip` |
+| `windows_386`   | `Win`         | `chrome-win.zip`   |
+| `windows_amd64` | `Win_x64`     | `chrome-win.zip`   |
 
 There is no `linux_arm64` and no `windows_arm64` entry; on those platforms `hostConf` is the zero value, so `HostGoogle`/`HostNPM` produce URLs with empty prefix and zip name.
 
 Three `Host func(revision int) string` implementations, in the default order `[]Host{HostGoogle, HostNPM, HostPlaywright}`:
 
-| Host | URL template |
-|---|---|
-| `HostGoogle` | `https://storage.googleapis.com/chromium-browser-snapshots/<prefix>/<revision>/<zip>` |
-| `HostNPM` | `https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/<prefix>/<revision>/<zip>` |
+| Host             | URL template                                                                                                                                                                                                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HostGoogle`     | `https://storage.googleapis.com/chromium-browser-snapshots/<prefix>/<revision>/<zip>`                                                                                                                                                                             |
+| `HostNPM`        | `https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/<prefix>/<revision>/<zip>`                                                                                                                                                                    |
 | `HostPlaywright` | `https://playwright.azureedge.net/builds/chromium/<rev>/chromium-linux-arm64.zip`, where `rev = RevisionPlaywright` only when `GOOS=linux && GOARCH=arm64`; on every other platform `rev` is the Chromium revision, and the URL still names the `linux-arm64` zip |
 
 `Browser.Download()` hands all candidate URLs to `fetchup.New(dir, urls...)`, which "will race downloading a TCP packet from each host and use the fastest host", then `fetchup.StripFirstDir(dir)`. On failure the error points to https://go-rod.github.io/#/compatibility?id=os.
 
-Cache layout: `DefaultBrowserDir` is `%APPDATA%\rod\browser` on Windows and `$HOME/.cache/rod/browser` on darwin/linux; `Browser.Dir()` is `<RootDir>/chromium-<revision>`; `BinPath()` is `Chromium.app/Contents/MacOS/Chromium` (darwin), `chrome` (linux), `chrome.exe` (windows) under that dir. `Browser.Get()` holds `leakless.LockPort(LockPort)` (default `defaults.LockPort = 2978`; the field comment says 2968) and calls `Validate()`, which executes the binary with `--headless --no-sandbox --use-mock-keychain --disable-dev-shm-usage --disable-gpu --dump-dom about:blank` and treats an output containing `error while loading shared libraries` as a *valid* binary (missing OS dependencies are not the downloader's problem).
+Cache layout: `DefaultBrowserDir` is `%APPDATA%\rod\browser` on Windows and `$HOME/.cache/rod/browser` on darwin/linux; `Browser.Dir()` is `<RootDir>/chromium-<revision>`; `BinPath()` is `Chromium.app/Contents/MacOS/Chromium` (darwin), `chrome` (linux), `chrome.exe` (windows) under that dir. `Browser.Get()` holds `leakless.LockPort(LockPort)` (default `defaults.LockPort = 2978`; the field comment says 2968) and calls `Validate()`, which executes the binary with `--headless --no-sandbox --use-mock-keychain --disable-dev-shm-usage --disable-gpu --dump-dom about:blank` and treats an output containing `error while loading shared libraries` as a _valid_ binary (missing OS dependencies are not the downloader's problem).
 
 ### 1.2 Pinned revision (`lib/launcher/revision.go`, `revision/main.go`, `check-revision.yml`)
 
@@ -54,7 +54,7 @@ const RevisionDefault = 1321438
 const RevisionPlaywright = 1124
 ```
 
-The generator (`go run ./lib/launcher/revision`) lists directories on `https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/` (skipping `Win`), parses every revision directory name per platform, and picks the *largest revision present on all platforms* (`largestCommonRevision`); it fails if the result is `< 969819`. `RevisionPlaywright` comes from `npm show playwright version` followed by `browsers.json` of that Playwright tag (`browsers.0.revision`). `check-revision.yml` runs this monthly (`cron: '0 0 1 * *'`) followed by `go generate`; per #2 it has produced no commit in two years.
+The generator (`go run ./lib/launcher/revision`) lists directories on `https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/` (skipping `Win`), parses every revision directory name per platform, and picks the _largest revision present on all platforms_ (`largestCommonRevision`); it fails if the result is `< 969819`. `RevisionPlaywright` comes from `npm show playwright version` followed by `browsers.json` of that Playwright tag (`browsers.0.revision`). `check-revision.yml` runs this monthly (`cron: '0 0 1 * *'`) followed by `go generate`; per #2 it has produced no commit in two years.
 
 What r1321438 is: the bucket's `Linux_x64/1321438/REVISIONS` file reports `got_revision_cp: refs/heads/main@{#1321438}` and `got_v8_revision_cp: refs/heads/12.8.168@{#1}`; the zips carry `Last-Modified: Sun, 30 Jun 2024`. chromiumdash gives M127's branch point as position 1313161 (branch 6533) and M128's as 1331488 (branch 6613), so r1321438 sits between them, i.e. a Chromium 128.0.65xx.0 canary-era trunk build. Chrome for Testing's known-good list for 128 runs from 128.0.6534.0 (r1313756) to 128.0.6613.137 (r1331488).
 Sources: https://commondatastorage.googleapis.com/chromium-browser-snapshots/Linux_x64/1321438/REVISIONS · https://chromiumdash.appspot.com/fetch_milestones?mstone=127 · https://chromiumdash.appspot.com/fetch_milestones?mstone=128 · https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json
@@ -62,7 +62,7 @@ Sources: https://commondatastorage.googleapis.com/chromium-browser-snapshots/Lin
 ### 1.3 How the binary is chosen at launch (`launcher.go`, `defaults.go`)
 
 - `launcher.New()` sets `flags.Bin = defaults.Bin`. `defaults.Bin` is filled only from the `-rod=bin=<path>` CLI flag (parsed from `os.Args` in `defaults.ResetWith`; disable with env `DISABLE_ROD_FLAG`). There is no environment variable for the binary path.
-- If `Bin` is empty, `getBin()` calls `l.browser.Get()`, i.e. **download**. `launcher.New()` does *not* call `LookPath()`; only `launcher.NewUserMode()` does (`bin, _ := LookPath()`).
+- If `Bin` is empty, `getBin()` calls `l.browser.Get()`, i.e. **download**. `launcher.New()` does _not_ call `LookPath()`; only `launcher.NewUserMode()` does (`bin, _ := LookPath()`).
 - `Launcher.Bin(path)` documents: "if the path is not empty the auto download will be disabled". `Launcher.Revision(rev)` sets `browser.Revision`.
 - Docs (custom-launch.md): "By default, the launcher will automatically download and use a statically versioned browser so that the browser behavior is consistent." and show `launcher.New().Bin(path)` / `launcher.LookPath()` as the opt-out.
 - `inContainer` (`utils.InContainer`) adds `--no-sandbox` automatically.
@@ -71,12 +71,12 @@ Sources: https://raw.githubusercontent.com/go-rod/rod/main/lib/launcher/launcher
 
 ### 1.4 `LookPath()` search list (system browsers)
 
-| GOOS | candidates (in order) |
-|---|---|
-| darwin | `/Applications/Google Chrome.app/…/Google Chrome`, `/Applications/Chromium.app/…/Chromium`, `/Applications/Microsoft Edge.app/…/Microsoft Edge`, `/Applications/Google Chrome Canary.app/…`, `/usr/bin/google-chrome-stable`, `/usr/bin/google-chrome`, `/usr/bin/chromium`, `/usr/bin/chromium-browser` |
-| linux | `chrome`, `google-chrome`, `/usr/bin/google-chrome`, `microsoft-edge`, `/usr/bin/microsoft-edge`, `chromium`, `chromium-browser`, `google-chrome-stable` (added 2024-11-25 for NixOS, #1136), `/usr/bin/google-chrome-stable`, `/usr/bin/chromium`, `/usr/bin/chromium-browser`, `/snap/bin/chromium`, `/data/data/com.termux/files/usr/bin/chromium-browser` |
-| openbsd | `chrome`, `chromium` |
-| windows | `chrome`, `edge` on `PATH`, then `%ProgramFiles%`, `%ProgramFiles(x86)%`, `%LocalAppData%` × `Google\Chrome\Application\chrome.exe`, `Chromium\Application\chrome.exe`, `Microsoft\Edge\Application\msedge.exe` |
+| GOOS    | candidates (in order)                                                                                                                                                                                                                                                                                                                                         |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| darwin  | `/Applications/Google Chrome.app/…/Google Chrome`, `/Applications/Chromium.app/…/Chromium`, `/Applications/Microsoft Edge.app/…/Microsoft Edge`, `/Applications/Google Chrome Canary.app/…`, `/usr/bin/google-chrome-stable`, `/usr/bin/google-chrome`, `/usr/bin/chromium`, `/usr/bin/chromium-browser`                                                      |
+| linux   | `chrome`, `google-chrome`, `/usr/bin/google-chrome`, `microsoft-edge`, `/usr/bin/microsoft-edge`, `chromium`, `chromium-browser`, `google-chrome-stable` (added 2024-11-25 for NixOS, #1136), `/usr/bin/google-chrome-stable`, `/usr/bin/chromium`, `/usr/bin/chromium-browser`, `/snap/bin/chromium`, `/data/data/com.termux/files/usr/bin/chromium-browser` |
+| openbsd | `chrome`, `chromium`                                                                                                                                                                                                                                                                                                                                          |
+| windows | `chrome`, `edge` on `PATH`, then `%ProgramFiles%`, `%ProgramFiles(x86)%`, `%LocalAppData%` × `Google\Chrome\Application\chrome.exe`, `Chromium\Application\chrome.exe`, `Microsoft\Edge\Application\msedge.exe`                                                                                                                                               |
 
 Each candidate goes through `exec.LookPath`. No env var, no registry lookup, no `Chrome for Testing.app`, no Homebrew prefix, no `/opt/google/chrome`.
 Source: https://raw.githubusercontent.com/go-rod/rod/main/lib/launcher/browser.go · https://github.com/go-rod/rod/commit/73907a8616
@@ -90,7 +90,7 @@ Sources: https://raw.githubusercontent.com/go-rod/rod/main/lib/docker/Dockerfile
 
 ### 1.6 Upstream #1114 (Alpine)
 
-"Chromium version in Alpine 3.20 is causing timeout issues" — open since 2024-09-19, 7 thumbs-up, 2 comments (a bot asking for the version and one "Any updates?"). The reporter launches the **system** Alpine Chromium via `launcher.New().Bin(browserPath).Set("no-sandbox")`; page creation hangs 10–30 % of the time; `--disable-gpu` helps. It cites Puppeteer's troubleshooting page, which says "Chrome does not support Alpine out of the box" and "The current Chromium version in Alpine 3.20 is causing timeout issues with Puppeteer. Downgrading to Alpine 3.19 fixes the issue." The issue is about the musl Chromium *package*, not about the downloader; none of the download strategies below apply to it directly.
+"Chromium version in Alpine 3.20 is causing timeout issues" — open since 2024-09-19, 7 thumbs-up, 2 comments (a bot asking for the version and one "Any updates?"). The reporter launches the **system** Alpine Chromium via `launcher.New().Bin(browserPath).Set("no-sandbox")`; page creation hangs 10–30 % of the time; `--disable-gpu` helps. It cites Puppeteer's troubleshooting page, which says "Chrome does not support Alpine out of the box" and "The current Chromium version in Alpine 3.20 is causing timeout issues with Puppeteer. Downgrading to Alpine 3.19 fixes the issue." The issue is about the musl Chromium _package_, not about the downloader; none of the download strategies below apply to it directly.
 Sources: https://github.com/go-rod/rod/issues/1114 · https://pptr.dev/troubleshooting
 
 ---
@@ -99,23 +99,23 @@ Sources: https://github.com/go-rod/rod/issues/1114 · https://pptr.dev/troublesh
 
 All facts as observed 2026-09-05. "Verified" means HEAD 200 or present in an index listing today.
 
-| Dimension | (a) Chromium snapshots (bumped revision) | (b) Chrome for Testing | (c) System browser only, download optional | (d) Playwright browser builds |
-|---|---|---|---|---|
-| linux/amd64 | yes (`Linux_x64`) | yes (`linux64`) | whatever is installed | yes — now re-hosted CfT (`builds/cft/<ver>/linux64/`) |
-| linux/arm64 | **no** (only stale `Linux_ARM_Cross-Compile`, LAST_CHANGE 270195, 32-bit) | **Beta/Dev/Canary only**: `linux-arm64` since 153.0.8001.0; Stable 152 has none (HEAD 404) | yes if distro ships one (Alpine, Debian, Ubuntu do) | yes — Playwright-built `builds/chromium/<pwrev>/chromium-linux-arm64.zip` (+ headless-shell), still published at r1243 |
-| darwin/amd64 | yes (`Mac`) | yes (`mac-x64`) | yes | yes (CfT re-host) |
-| darwin/arm64 | yes (`Mac_Arm`) | yes (`mac-arm64`) | yes | yes (CfT re-host) |
-| windows/amd64 | yes (`Win_x64`) | yes (`win64`) | yes | yes (CfT re-host, `win64` only) |
-| windows/386 | yes (`Win`) | yes (`win32`) | yes | no |
-| windows/arm64 | yes (`Win_Arm64`, verified at r1321438 and current) | no (runZeroInc runs `win64` under emulation) | yes (native Chrome/Edge exist) | no |
-| Alpine / musl | no — glibc builds | no — glibc builds | **only viable path**: `apk add chromium` (152.0.7977.64-r0 on edge, x86_64 + aarch64; 142.0.7444.59-r0 on v3.22) | no — glibc builds |
-| Primary host | `storage.googleapis.com` / `commondatastorage.googleapis.com` bucket `chromium-browser-snapshots` | `storage.googleapis.com` bucket `chrome-for-testing-public`; index on `googlechromelabs.github.io` | n/a | `cdn.playwright.dev` → Microsoft ESRP CDN (`playwright.download.prss.microsoft.com`); legacy `playwright.azureedge.net` still redirects |
-| Mirror reachable from mainland China | npmmirror mirrors `Linux_x64, Mac, Mac_Arm, Win, Win_x64` (not `Win_Arm64`, no `LAST_CHANGE`), ~1 day behind | npmmirror `chrome-for-testing/` mirrors all 2506 versions incl. `linux-arm64`, ~21 h behind | n/a (OS package mirrors) | npmmirror `playwright/builds/` partial: `chromium/` up to r1243, `cft/` only 8 versions (latest 153.0.8010.12), `chromium-headless-shell/` only r1155 |
-| Pinning granularity | integer trunk commit position (e.g. 1321438); **not** a Chrome version; per-platform sets differ | full Chrome version `MAJOR.MINOR.BUILD.PATCH` (+ its `revision`), or channel, or milestone, or `MAJOR.MINOR.BUILD` | none (whatever is installed); version drift is the user's | Playwright's own integer roll number (1124, 1202, 1244 …) which maps to one `browserVersion` per Playwright release |
-| Programmable metadata | `LAST_CHANGE` text per platform; `REVISIONS` JSON per dir; bucket XML listing (`?delimiter=/&prefix=`); chromiumdash for version→position | 8 JSON endpoints (known-good / last-known-good / per-build / per-milestone, each ± downloads) + per-version JSON + text endpoints | n/a | `browsers.json` on a git tag/branch only; no index of all revisions |
-| Oldest available | bucket history to 2010s; upstream tool refuses `< 969819` | 113.0.5672.0 (r1121455); `chrome-headless-shell` since 120.0.6098.0 | n/a | whatever is still on the CDN; npmmirror `builds/chromium/` has 64 revisions |
-| Binary licence | Chromium, BSD-3-Clause | Google Chrome build → Google Chrome ToS; CfT tooling repo Apache-2.0; no separate CfT licence text published | depends on what is installed (Chromium BSD / Chrome ToS / Edge EULA) | Playwright tooling Apache-2.0; binaries: CfT (Chrome) since 1.57 on x64/mac/win; Chromium (BSD) on linux-arm64 |
-| Who else uses it | `@puppeteer/browsers` `chromium` browser type (maps `LINUX_ARM` to `Linux_x64`) | Puppeteer default since CfT launch; Playwright ≥ 1.57; runZeroInc/go-rod | chromedp (never downloads) | Playwright only |
+| Dimension                            | (a) Chromium snapshots (bumped revision)                                                                                                  | (b) Chrome for Testing                                                                                                            | (c) System browser only, download optional                                                                       | (d) Playwright browser builds                                                                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| linux/amd64                          | yes (`Linux_x64`)                                                                                                                         | yes (`linux64`)                                                                                                                   | whatever is installed                                                                                            | yes — now re-hosted CfT (`builds/cft/<ver>/linux64/`)                                                                                                 |
+| linux/arm64                          | **no** (only stale `Linux_ARM_Cross-Compile`, LAST_CHANGE 270195, 32-bit)                                                                 | **Beta/Dev/Canary only**: `linux-arm64` since 153.0.8001.0; Stable 152 has none (HEAD 404)                                        | yes if distro ships one (Alpine, Debian, Ubuntu do)                                                              | yes — Playwright-built `builds/chromium/<pwrev>/chromium-linux-arm64.zip` (+ headless-shell), still published at r1243                                |
+| darwin/amd64                         | yes (`Mac`)                                                                                                                               | yes (`mac-x64`)                                                                                                                   | yes                                                                                                              | yes (CfT re-host)                                                                                                                                     |
+| darwin/arm64                         | yes (`Mac_Arm`)                                                                                                                           | yes (`mac-arm64`)                                                                                                                 | yes                                                                                                              | yes (CfT re-host)                                                                                                                                     |
+| windows/amd64                        | yes (`Win_x64`)                                                                                                                           | yes (`win64`)                                                                                                                     | yes                                                                                                              | yes (CfT re-host, `win64` only)                                                                                                                       |
+| windows/386                          | yes (`Win`)                                                                                                                               | yes (`win32`)                                                                                                                     | yes                                                                                                              | no                                                                                                                                                    |
+| windows/arm64                        | yes (`Win_Arm64`, verified at r1321438 and current)                                                                                       | no (runZeroInc runs `win64` under emulation)                                                                                      | yes (native Chrome/Edge exist)                                                                                   | no                                                                                                                                                    |
+| Alpine / musl                        | no — glibc builds                                                                                                                         | no — glibc builds                                                                                                                 | **only viable path**: `apk add chromium` (152.0.7977.64-r0 on edge, x86_64 + aarch64; 142.0.7444.59-r0 on v3.22) | no — glibc builds                                                                                                                                     |
+| Primary host                         | `storage.googleapis.com` / `commondatastorage.googleapis.com` bucket `chromium-browser-snapshots`                                         | `storage.googleapis.com` bucket `chrome-for-testing-public`; index on `googlechromelabs.github.io`                                | n/a                                                                                                              | `cdn.playwright.dev` → Microsoft ESRP CDN (`playwright.download.prss.microsoft.com`); legacy `playwright.azureedge.net` still redirects               |
+| Mirror reachable from mainland China | npmmirror mirrors `Linux_x64, Mac, Mac_Arm, Win, Win_x64` (not `Win_Arm64`, no `LAST_CHANGE`), ~1 day behind                              | npmmirror `chrome-for-testing/` mirrors all 2506 versions incl. `linux-arm64`, ~21 h behind                                       | n/a (OS package mirrors)                                                                                         | npmmirror `playwright/builds/` partial: `chromium/` up to r1243, `cft/` only 8 versions (latest 153.0.8010.12), `chromium-headless-shell/` only r1155 |
+| Pinning granularity                  | integer trunk commit position (e.g. 1321438); **not** a Chrome version; per-platform sets differ                                          | full Chrome version `MAJOR.MINOR.BUILD.PATCH` (+ its `revision`), or channel, or milestone, or `MAJOR.MINOR.BUILD`                | none (whatever is installed); version drift is the user's                                                        | Playwright's own integer roll number (1124, 1202, 1244 …) which maps to one `browserVersion` per Playwright release                                   |
+| Programmable metadata                | `LAST_CHANGE` text per platform; `REVISIONS` JSON per dir; bucket XML listing (`?delimiter=/&prefix=`); chromiumdash for version→position | 8 JSON endpoints (known-good / last-known-good / per-build / per-milestone, each ± downloads) + per-version JSON + text endpoints | n/a                                                                                                              | `browsers.json` on a git tag/branch only; no index of all revisions                                                                                   |
+| Oldest available                     | bucket history to 2010s; upstream tool refuses `< 969819`                                                                                 | 113.0.5672.0 (r1121455); `chrome-headless-shell` since 120.0.6098.0                                                               | n/a                                                                                                              | whatever is still on the CDN; npmmirror `builds/chromium/` has 64 revisions                                                                           |
+| Binary licence                       | Chromium, BSD-3-Clause                                                                                                                    | Google Chrome build → Google Chrome ToS; CfT tooling repo Apache-2.0; no separate CfT licence text published                      | depends on what is installed (Chromium BSD / Chrome ToS / Edge EULA)                                             | Playwright tooling Apache-2.0; binaries: CfT (Chrome) since 1.57 on x64/mac/win; Chromium (BSD) on linux-arm64                                        |
+| Who else uses it                     | `@puppeteer/browsers` `chromium` browser type (maps `LINUX_ARM` to `Linux_x64`)                                                           | Puppeteer default since CfT launch; Playwright ≥ 1.57; runZeroInc/go-rod                                                          | chromedp (never downloads)                                                                                       | Playwright only                                                                                                                                       |
 
 ---
 
@@ -129,18 +129,18 @@ Source: https://commondatastorage.googleapis.com/chromium-browser-snapshots/?del
 
 **`LAST_CHANGE` on 2026-09-05.**
 
-| prefix | LAST_CHANGE |
-|---|---|
-| `Linux_x64` | 1692927 |
-| `Mac` | 1692917 |
-| `Mac_Arm` | 1692927 |
-| `Win` | 1692910 |
-| `Win_x64` | 1692911 |
-| `Win_Arm64` | 1692910 |
-| `Linux` (32-bit) | 382086 (stale) |
+| prefix                    | LAST_CHANGE                |
+| ------------------------- | -------------------------- |
+| `Linux_x64`               | 1692927                    |
+| `Mac`                     | 1692917                    |
+| `Mac_Arm`                 | 1692927                    |
+| `Win`                     | 1692910                    |
+| `Win_x64`                 | 1692911                    |
+| `Win_Arm64`               | 1692910                    |
+| `Linux` (32-bit)          | 382086 (stale)             |
 | `Linux_ARM_Cross-Compile` | 270195 (stale, 32-bit ARM) |
 
-Because the per-platform heads differ, a revision that exists for one platform may be missing for another; this is why upstream's generator computes the largest *common* revision. There is **no Linux arm64 directory** in this bucket. `Win_Arm64` exists and had r1321438 (`chrome-win.zip`), so Windows-on-ARM could be added to the current scheme with one more `hostConf` row.
+Because the per-platform heads differ, a revision that exists for one platform may be missing for another; this is why upstream's generator computes the largest _common_ revision. There is **no Linux arm64 directory** in this bucket. `Win_Arm64` exists and had r1321438 (`chrome-win.zip`), so Windows-on-ARM could be added to the current scheme with one more `hostConf` row.
 Source: `https://commondatastorage.googleapis.com/chromium-browser-snapshots/<prefix>/LAST_CHANGE`
 
 **r1321438 availability (HEAD, Google).** `Linux_x64/chrome-linux.zip` 190,157,449 B; `Mac/chrome-mac.zip` 149,328,540 B; `Mac_Arm/chrome-mac.zip` 135,605,548 B; `Win/chrome-win.zip` 244,547,786 B; `Win_x64/chrome-win.zip` 267,483,258 B — all 200, `Last-Modified: 30 Jun 2024`. `Linux/1321438/chrome-linux.zip` is 404.
@@ -148,7 +148,7 @@ Source: `https://commondatastorage.googleapis.com/chromium-browser-snapshots/<pr
 **Mirror: npmmirror (`registry.npmmirror.com/-/binary/chromium-browser-snapshots/`).** JSON directory listing API. Top level has exactly `Linux_x64/, Mac/, Mac_Arm/, Win/, Win_x64/` — no `Win_Arm64`, and `LAST_CHANGE` files are not mirrored (`[NOT_FOUND]`). `Linux_x64/` lists 132,388 revision directories; the newest is 1692111 (synced 2026-09-04T02:03Z), versus Google's 1692927, i.e. roughly one day / ~800 positions behind. r1321438 is present for all five platforms and redirects (302) to `https://cdn.npmmirror.com/binaries/chromium-browser-snapshots/<prefix>/1321438/<zip>` with byte sizes identical to Google's. Upstream switched to this mirror in commit e0d0a7eea5 ("use registry.npmmirror.com to download the chromium", 2022-02-08).
 Sources: https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/ · https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/Linux_x64/ · https://github.com/go-rod/rod/commit/e0d0a7eea5
 
-**Version pinning.** The unit is a trunk commit position. Mapping to a Chrome version requires chromiumdash (`fetch_releases?channel=Stable&platform=Linux&num=1` → `{"version":"152.0.7977.82","chromium_main_branch_position":1669021}`; `fetch_milestones?mstone=N` → branch point), and a position that is a *branch point* is not guaranteed to have a snapshot on every platform (snapshots are built from arbitrary trunk revisions, not release tags). Snapshot revisions therefore pin "a trunk build near Chrome N canary", never a shipped Chrome version.
+**Version pinning.** The unit is a trunk commit position. Mapping to a Chrome version requires chromiumdash (`fetch_releases?channel=Stable&platform=Linux&num=1` → `{"version":"152.0.7977.82","chromium_main_branch_position":1669021}`; `fetch_milestones?mstone=N` → branch point), and a position that is a _branch point_ is not guaranteed to have a snapshot on every platform (snapshots are built from arbitrary trunk revisions, not release tags). Snapshot revisions therefore pin "a trunk build near Chrome N canary", never a shipped Chrome version.
 Sources: https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Linux&num=1 · https://chromiumdash.appspot.com/fetch_milestones?mstone=128
 
 **Alpine / musl.** The zips are glibc builds (upstream's Docker image installs Ubuntu deps around them; `Validate()` explicitly tolerates "error while loading shared libraries"). Not usable on musl without a compatibility layer; not what #1114 is about.
@@ -170,14 +170,14 @@ Source: https://developer.chrome.com/blog/chrome-for-testing/
 
 **JSON API endpoints** (README of GoogleChromeLabs/chrome-for-testing):
 
-| Endpoint | Purpose |
-|---|---|
-| `known-good-versions.json` / `-with-downloads.json` | "The versions for which all CfT assets are available for download." |
-| `last-known-good-versions.json` / `-with-downloads.json` | latest such version per channel (Stable/Beta/Dev/Canary) |
-| `latest-patch-versions-per-build.json` / `-with-downloads.json` | latest patch for each `MAJOR.MINOR.BUILD` |
-| `latest-versions-per-milestone.json` / `-with-downloads.json` | latest version per milestone |
-| `<version>.json` (e.g. `123.0.6309.0.json`) | per-version download list |
-| text endpoints | plain-text equivalents of the three "latest" lists |
+| Endpoint                                                        | Purpose                                                             |
+| --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `known-good-versions.json` / `-with-downloads.json`             | "The versions for which all CfT assets are available for download." |
+| `last-known-good-versions.json` / `-with-downloads.json`        | latest such version per channel (Stable/Beta/Dev/Canary)            |
+| `latest-patch-versions-per-build.json` / `-with-downloads.json` | latest patch for each `MAJOR.MINOR.BUILD`                           |
+| `latest-versions-per-milestone.json` / `-with-downloads.json`   | latest version per milestone                                        |
+| `<version>.json` (e.g. `123.0.6309.0.json`)                     | per-version download list                                           |
+| text endpoints                                                  | plain-text equivalents of the three "latest" lists                  |
 
 "The set of 'all CfT assets' for a given Chrome version is a matrix of supported binaries × platforms." Every entry carries both `version` and `revision` (trunk position), so a CfT pin also yields the snapshot-style revision for free.
 Source: https://github.com/GoogleChromeLabs/chrome-for-testing#json-api-endpoints
@@ -191,7 +191,7 @@ Source: https://github.com/GoogleChromeLabs/chrome-for-testing#json-api-endpoint
 
 Sources: https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json · https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json · https://googlechromelabs.github.io/chrome-for-testing/ · https://raw.githubusercontent.com/puppeteer/puppeteer/main/packages/browsers/src/browser-data/chrome.ts
 
-**Mirror: npmmirror (`registry.npmmirror.com/-/binary/chrome-for-testing/`).** 2,506 version directories (Google's known-good list has 2,504), each with the platform subdirectories, including `linux-arm64/` for 154.0.8037.0. For 152.0.7977.82/linux64 it holds `chrome-linux64.zip` (194,031,103 B), `chrome-headless-shell-linux64.zip` (119,454,769 B), `chromedriver-linux64.zip`, mirrored 2026-09-03T20:26Z — about 21 hours after Google's `Last-Modified`. The JSON *index* itself (`googlechromelabs.github.io`) is GitHub Pages and is not mirrored there; Playwright's `cdn.playwright.dev/builds/cft/<version>/…` also re-hosts the CfT zips (see §6).
+**Mirror: npmmirror (`registry.npmmirror.com/-/binary/chrome-for-testing/`).** 2,506 version directories (Google's known-good list has 2,504), each with the platform subdirectories, including `linux-arm64/` for 154.0.8037.0. For 152.0.7977.82/linux64 it holds `chrome-linux64.zip` (194,031,103 B), `chrome-headless-shell-linux64.zip` (119,454,769 B), `chromedriver-linux64.zip`, mirrored 2026-09-03T20:26Z — about 21 hours after Google's `Last-Modified`. The JSON _index_ itself (`googlechromelabs.github.io`) is GitHub Pages and is not mirrored there; Playwright's `cdn.playwright.dev/builds/cft/<version>/…` also re-hosts the CfT zips (see §6).
 Source: https://registry.npmmirror.com/-/binary/chrome-for-testing/
 
 **Version pinning.** Any of: exact `MAJOR.MINOR.BUILD.PATCH`; `MAJOR.MINOR.BUILD` (→ latest patch); milestone `MAJOR` (→ latest version); channel name (→ moving target). Only versions in `known-good-versions` are guaranteed to have every binary on every platform.
@@ -281,11 +281,11 @@ Source: `gh api "repos/runZeroInc/go-rod/commits?path=lib/launcher&per_page=100"
 
 **Resulting design (main, `lib/launcher/browser.go`, 1,186 lines).**
 
-- No pinned version: `DownloadAndInstall()` resolves the *current* Stable CfT version at run time (`ResolveLatestDownloadURLWithCache`, in-process cache `chromiumDownloadURLCacheTimeout = 24h`), reads the installed revision from `<CacheDir>/LATEST.txt`, and upgrades when `latest > installed`. Locks: `flock` on `LATEST.txt.lock` and on `chromium-<rev>.lock`. Directory naming keeps upstream's `chromium-<revision>` (the CfT `revision` field).
+- No pinned version: `DownloadAndInstall()` resolves the _current_ Stable CfT version at run time (`ResolveLatestDownloadURLWithCache`, in-process cache `chromiumDownloadURLCacheTimeout = 24h`), reads the installed revision from `<CacheDir>/LATEST.txt`, and upgrades when `latest > installed`. Locks: `flock` on `LATEST.txt.lock` and on `chromium-<rev>.lock`. Directory naming keeps upstream's `chromium-<revision>` (the CfT `revision` field).
 - Cache dir: `ROD_BROWSER_CACHE` → `XDG_CACHE_HOME/<suffix>` → `$HOME/.cache/<suffix>`.
 - Extraction guarded by `MaxPackageFileSize = 1 GiB`, `MaxPackageTotalSize = 2 GiB`, `MaxMetadataSize = 256 MiB`, `MaxMetadataTimeout = 10 s`, three unzip retries.
 - Header comment: "Google's Chromium-for-Testing (CfT) project provides builds for macOS (Intel and ARM), Windows (x86 and x64), and Linux (x64) … Playwright offers Chromium builds for Linux on ARM … Other platforms should use operating-specific packages to install Chromium or Chrome. Note that systems using MUSL instead of GLIBC (like Alpine Linux) require OS packages as well." A `TODO` considers driving chromedriver instead (link to VibiumDev/vibium `installer.go`).
-- Observations against today's data: the fork predates CfT's `linux-arm64` (153+), so it still routes arm64 through Playwright's `builds/chromium/<rev>/chromium-linux-arm64.zip`, which Playwright continues to publish (r1243 confirmed via npmmirror); it uses the *old* host `playwright.azureedge.net` (still redirecting) rather than the mirrors in Playwright's current registry; it reads `browsers.json` from Playwright's `main` branch, so the arm64 build tracks Playwright's unreleased roll, not a release; it consumes only the `chrome` binary, never `chrome-headless-shell`; and it has no mirror/fallback host (npmmirror was removed with `HostNPM`).
+- Observations against today's data: the fork predates CfT's `linux-arm64` (153+), so it still routes arm64 through Playwright's `builds/chromium/<rev>/chromium-linux-arm64.zip`, which Playwright continues to publish (r1243 confirmed via npmmirror); it uses the _old_ host `playwright.azureedge.net` (still redirecting) rather than the mirrors in Playwright's current registry; it reads `browsers.json` from Playwright's `main` branch, so the arm64 build tracks Playwright's unreleased roll, not a release; it consumes only the `chrome` binary, never `chrome-headless-shell`; and it has no mirror/fallback host (npmmirror was removed with `HostNPM`).
 
 Source: https://raw.githubusercontent.com/runZeroInc/go-rod/main/lib/launcher/browser.go
 
@@ -306,6 +306,7 @@ Source: https://raw.githubusercontent.com/runZeroInc/go-rod/main/lib/launcher/br
 ## 9. Sources
 
 Upstream go-rod/rod
+
 - https://raw.githubusercontent.com/go-rod/rod/main/lib/launcher/browser.go
 - https://raw.githubusercontent.com/go-rod/rod/main/lib/launcher/revision.go
 - https://raw.githubusercontent.com/go-rod/rod/main/lib/launcher/revision/main.go
@@ -323,6 +324,7 @@ Upstream go-rod/rod
 - https://github.com/headlesslab/wand/issues/2 (prior research: revision/protocol dating, fork survey)
 
 Chromium snapshots
+
 - https://www.chromium.org/getting-involved/download-chromium/
 - https://commondatastorage.googleapis.com/chromium-browser-snapshots/?delimiter=/&prefix=
 - https://commondatastorage.googleapis.com/chromium-browser-snapshots/<prefix>/LAST_CHANGE (Linux_x64, Mac, Mac_Arm, Win, Win_x64, Win_Arm64, Linux, Linux_ARM_Cross-Compile)
@@ -335,6 +337,7 @@ Chromium snapshots
 - https://raw.githubusercontent.com/puppeteer/puppeteer/main/packages/browsers/src/browser-data/chromium.ts
 
 Chrome for Testing
+
 - https://googlechromelabs.github.io/chrome-for-testing/
 - https://github.com/GoogleChromeLabs/chrome-for-testing#json-api-endpoints
 - https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json
@@ -349,6 +352,7 @@ Chrome for Testing
 - https://raw.githubusercontent.com/puppeteer/puppeteer/main/packages/browsers/src/browser-data/chrome.ts
 
 System browsers / Alpine
+
 - https://raw.githubusercontent.com/chromedp/chromedp/master/allocate.go
 - https://raw.githubusercontent.com/puppeteer/puppeteer/main/packages/puppeteer/src/getConfiguration.ts
 - https://pptr.dev/troubleshooting
@@ -358,6 +362,7 @@ System browsers / Alpine
 - https://pkgs.alpinelinux.org/package/v3.22/community/x86_64/chromium
 
 Playwright
+
 - https://raw.githubusercontent.com/microsoft/playwright/main/packages/playwright-core/browsers.json
 - https://raw.githubusercontent.com/microsoft/playwright/main/packages/playwright-core/src/server/registry/index.ts
 - https://playwright.dev/docs/browsers
@@ -368,6 +373,7 @@ Playwright
 - HEAD/redirect checks on https://cdn.playwright.dev/… and https://playwright.azureedge.net/… (ESRP gateway answered 400 to HEAD/range from this network)
 
 runZeroInc/go-rod
+
 - https://github.com/runZeroInc/go-rod (README)
 - https://github.com/runZeroInc/go-rod/commit/27e2c031e0
 - https://github.com/runZeroInc/go-rod/commit/bd12524773

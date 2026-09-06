@@ -56,3 +56,11 @@ type InspectorTargetReloadedAfterCrash struct{}
 func (evt InspectorTargetReloadedAfterCrash) ProtoEvent() string {
 	return "Inspector.targetReloadedAfterCrash"
 }
+
+// InspectorWorkerScriptLoaded (experimental) Fired on worker targets when main worker script and any imported scripts have been evaluated.
+type InspectorWorkerScriptLoaded struct{}
+
+// ProtoEvent name.
+func (evt InspectorWorkerScriptLoaded) ProtoEvent() string {
+	return "Inspector.workerScriptLoaded"
+}

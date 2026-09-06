@@ -2,6 +2,10 @@
 
 package proto
 
+import (
+	"github.com/headlesslab/lazyjson"
+)
+
 /*
 
 Target
@@ -44,7 +48,7 @@ type TargetTargetInfo struct {
 	// TargetID ...
 	TargetID TargetTargetID `json:"targetId"`
 
-	// Type List of types: https://source.chromium.org/chromium/chromium/src/+/main:content/browser/devtools/devtools_agent_host_impl.cc?ss=chromium&q=f:devtools%20-f:out%20%22::kTypeTab%5B%5D%22
+	// Type List of types: https://source.chromium.org/chromium/chromium/src/+/main:content/browser/devtools/devtools_agent_host_impl.cc?ss=chromium&q=f:devtools%20-f:out%20%22::kTypeTab%5B%5D%22.
 	Type TargetTargetInfoType `json:"type"`
 
 	// Title ...
@@ -56,7 +60,10 @@ type TargetTargetInfo struct {
 	// Attached Whether the target has an attached client.
 	Attached bool `json:"attached"`
 
-	// OpenerID (optional) Opener target Id
+	// ParentID (optional) Id of the parent target, if any. For example, "iframe" target may have a "page" parent.
+	ParentID TargetTargetID `json:"parentId,omitempty"`
+
+	// OpenerID (optional) Opener target Id.
 	OpenerID TargetTargetID `json:"openerId,omitempty"`
 
 	// CanAccessOpener (experimental) Whether the target has access to the originating window.
@@ -65,12 +72,20 @@ type TargetTargetInfo struct {
 	// OpenerFrameID (experimental) (optional) Frame id of originating window (is only set if target has an opener).
 	OpenerFrameID PageFrameID `json:"openerFrameId,omitempty"`
 
+	// ParentFrameID (experimental) (optional) Id of the parent frame, present for "iframe" and "worker" targets. For nested workers,
+	// this is the "ancestor" frame that created the first worker in the nested chain.
+	ParentFrameID PageFrameID `json:"parentFrameId,omitempty"`
+
 	// BrowserContextID (experimental) (optional) ...
 	BrowserContextID BrowserBrowserContextID `json:"browserContextId,omitempty"`
 
 	// Subtype (experimental) (optional) Provides additional details for specific target types. For example, for
-	// the type of "page", this may be set to "portal" or "prerender".
+	// the type of "page", this may be set to "prerender".
 	Subtype string `json:"subtype,omitempty"`
+
+	// EmbedderData (experimental) (optional) Embedder-specific target metadata. This is only set for targets of
+	// type "tab".
+	EmbedderData map[string]lazyjson.JSON `json:"embedderData,omitempty"`
 }
 
 // TargetFilterEntry (experimental) A filter used by target query/discovery/auto-attach operations.
@@ -98,6 +113,23 @@ type TargetRemoteLocation struct {
 	// Port ...
 	Port int `json:"port"`
 }
+
+// TargetWindowState (experimental) The state of the target window.
+type TargetWindowState string
+
+const (
+	// TargetWindowStateNormal enum const.
+	TargetWindowStateNormal TargetWindowState = "normal"
+
+	// TargetWindowStateMinimized enum const.
+	TargetWindowStateMinimized TargetWindowState = "minimized"
+
+	// TargetWindowStateMaximized enum const.
+	TargetWindowStateMaximized TargetWindowState = "maximized"
+
+	// TargetWindowStateFullscreen enum const.
+	TargetWindowStateFullscreen TargetWindowState = "fullscreen"
+)
 
 // TargetActivateTarget Activates (focuses) the target.
 type TargetActivateTarget struct {
@@ -175,6 +207,8 @@ func (m TargetCloseTarget) Call(c Client) (*TargetCloseTargetResult, error) {
 // TargetCloseTargetResult ...
 type TargetCloseTargetResult struct {
 	// Success (deprecated) Always set to true. If an error occurs, the response indicates protocol error.
+	//
+	// Deprecated: Target.closeTarget.success is deprecated in the Chrome DevTools Protocol.
 	Success bool `json:"success"`
 }
 
@@ -192,6 +226,9 @@ type TargetExposeDevToolsProtocol struct {
 
 	// BindingName (optional) Binding name, 'cdp' if not specified.
 	BindingName string `json:"bindingName,omitempty"`
+
+	// InheritPermissions (optional) If true, inherits the current root session's permissions (default: false).
+	InheritPermissions bool `json:"inheritPermissions,omitempty"`
 }
 
 // ProtoReq name.
@@ -208,10 +245,10 @@ type TargetCreateBrowserContext struct {
 	// DisposeOnDetach (experimental) (optional) If specified, disposes this context when debugging session disconnects.
 	DisposeOnDetach bool `json:"disposeOnDetach,omitempty"`
 
-	// ProxyServer (experimental) (optional) Proxy server, similar to the one passed to --proxy-server
+	// ProxyServer (experimental) (optional) Proxy server, similar to the one passed to --proxy-server.
 	ProxyServer string `json:"proxyServer,omitempty"`
 
-	// ProxyBypassList (experimental) (optional) Proxy bypass list, similar to the one passed to --proxy-bypass-list
+	// ProxyBypassList (experimental) (optional) Proxy bypass list, similar to the one passed to --proxy-bypass-list.
 	ProxyBypassList string `json:"proxyBypassList,omitempty"`
 
 	// OriginsWithUniversalNetworkAccess (experimental) (optional) An optional list of origins to grant unlimited cross-origin access to.
@@ -250,6 +287,9 @@ func (m TargetGetBrowserContexts) Call(c Client) (*TargetGetBrowserContextsResul
 type TargetGetBrowserContextsResult struct {
 	// BrowserContextIDs An array of browser context ids.
 	BrowserContextIDs []BrowserBrowserContextID `json:"browserContextIds"`
+
+	// DefaultBrowserContextID (experimental) (optional) The id of the default browser context if available.
+	DefaultBrowserContextID BrowserBrowserContextID `json:"defaultBrowserContextId,omitempty"`
 }
 
 // TargetCreateTarget Creates a new page.
@@ -257,28 +297,50 @@ type TargetCreateTarget struct {
 	// URL The initial URL the page will be navigated to. An empty string indicates about:blank.
 	URL string `json:"url"`
 
-	// Width (optional) Frame width in DIP (headless chrome only).
+	// Left (experimental) (optional) Frame left origin in DIP (requires newWindow to be true or headless shell).
+	Left *int `json:"left,omitempty"`
+
+	// Top (experimental) (optional) Frame top origin in DIP (requires newWindow to be true or headless shell).
+	Top *int `json:"top,omitempty"`
+
+	// Width (optional) Frame width in DIP (requires newWindow to be true or headless shell).
 	Width *int `json:"width,omitempty"`
 
-	// Height (optional) Frame height in DIP (headless chrome only).
+	// Height (optional) Frame height in DIP (requires newWindow to be true or headless shell).
 	Height *int `json:"height,omitempty"`
+
+	// WindowState (optional) Frame window state (requires newWindow to be true or headless shell).
+	// Default is normal.
+	WindowState TargetWindowState `json:"windowState,omitempty"`
 
 	// BrowserContextID (experimental) (optional) The browser context to create the page in.
 	BrowserContextID BrowserBrowserContextID `json:"browserContextId,omitempty"`
 
-	// EnableBeginFrameControl (experimental) (optional) Whether BeginFrames for this target will be controlled via DevTools (headless chrome only,
+	// EnableBeginFrameControl (experimental) (optional) Whether BeginFrames for this target will be controlled via DevTools (headless shell only,
 	// not supported on MacOS yet, false by default).
 	EnableBeginFrameControl bool `json:"enableBeginFrameControl,omitempty"`
 
-	// NewWindow (optional) Whether to create a new Window or Tab (chrome-only, false by default).
+	// NewWindow (optional) Whether to create a new Window or Tab (false by default, not supported by headless shell).
 	NewWindow bool `json:"newWindow,omitempty"`
 
-	// Background (optional) Whether to create the target in background or foreground (chrome-only,
-	// false by default).
+	// Background (optional) Whether to create the target in background or foreground (false by default, not supported
+	// by headless shell).
 	Background bool `json:"background,omitempty"`
 
 	// ForTab (experimental) (optional) Whether to create the target of type "tab".
 	ForTab bool `json:"forTab,omitempty"`
+
+	// Hidden (experimental) (optional) Whether to create a hidden target. The hidden target is observable via protocol, but not
+	// present in the tab UI strip. Cannot be created with `forTab: true`, `newWindow: true` or
+	// `background: false`. The life-time of the tab is limited to the life-time of the session.
+	Hidden bool `json:"hidden,omitempty"`
+
+	// Focus (experimental) (optional) If specified, determines whether the new target should be focused.
+	// By default, the focus behavior depends on the `background` parameter:
+	// - If `background` is false (default) and `focus` is omitted, the new target is focused and the browser window is brought to the foreground.
+	// - If `background` is false and `focus` is false, the target is opened but the browser window's focus remains unchanged (e.g., if the window was in the background, it stays there).
+	// - If `background` is true, setting `focus` to true is not supported and will result in an error.
+	Focus bool `json:"focus,omitempty"`
 }
 
 // ProtoReq name.
@@ -302,6 +364,8 @@ type TargetDetachFromTarget struct {
 	SessionID TargetSessionID `json:"sessionId,omitempty"`
 
 	// TargetID (deprecated) (optional) Deprecated.
+	//
+	// Deprecated: Target.detachFromTarget.targetId is deprecated in the Chrome DevTools Protocol.
 	TargetID TargetTargetID `json:"targetId,omitempty"`
 }
 
@@ -375,6 +439,8 @@ type TargetGetTargetsResult struct {
 // TargetSendMessageToTarget (deprecated) Sends protocol message over session with given id.
 // Consider using flat mode instead; see commands attachToTarget, setAutoAttach,
 // and crbug.com/991325.
+//
+// Deprecated: Target.sendMessageToTarget is deprecated in the Chrome DevTools Protocol.
 type TargetSendMessageToTarget struct {
 	// Message ...
 	Message string `json:"message"`
@@ -383,6 +449,8 @@ type TargetSendMessageToTarget struct {
 	SessionID TargetSessionID `json:"sessionId,omitempty"`
 
 	// TargetID (deprecated) (optional) Deprecated.
+	//
+	// Deprecated: Target.sendMessageToTarget.targetId is deprecated in the Chrome DevTools Protocol.
 	TargetID TargetTargetID `json:"targetId,omitempty"`
 }
 
@@ -394,11 +462,14 @@ func (m TargetSendMessageToTarget) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// TargetSetAutoAttach Controls whether to automatically attach to new targets which are considered to be related to
-// this one. When turned on, attaches to all existing related targets as well. When turned off,
+// TargetSetAutoAttach Controls whether to automatically attach to new targets which are considered
+// to be directly related to this one (for example, iframes or workers).
+// When turned on, attaches to all existing related targets as well. When turned off,
 // automatically detaches from all currently attached targets.
 // This also clears all targets added by `autoAttachRelated` from the list of targets to watch
 // for creation of related targets.
+// You might want to call this recursively for auto-attached targets to attach
+// to all available targets.
 type TargetSetAutoAttach struct {
 	// AutoAttach Whether to auto-attach to related targets.
 	AutoAttach bool `json:"autoAttach"`
@@ -483,6 +554,54 @@ func (m TargetSetRemoteLocations) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// TargetGetDevToolsTarget (experimental) Gets the targetId of the DevTools page target opened for the given target
+// (if any).
+type TargetGetDevToolsTarget struct {
+	// TargetID Page or tab target ID.
+	TargetID TargetTargetID `json:"targetId"`
+}
+
+// ProtoReq name.
+func (m TargetGetDevToolsTarget) ProtoReq() string { return "Target.getDevToolsTarget" }
+
+// Call the request.
+func (m TargetGetDevToolsTarget) Call(c Client) (*TargetGetDevToolsTargetResult, error) {
+	var res TargetGetDevToolsTargetResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// TargetGetDevToolsTargetResult (experimental) ...
+type TargetGetDevToolsTargetResult struct {
+	// TargetID (optional) The targetId of DevTools page target if exists.
+	TargetID TargetTargetID `json:"targetId,omitempty"`
+}
+
+// TargetOpenDevTools (experimental) Opens a DevTools window for the target.
+type TargetOpenDevTools struct {
+	// TargetID This can be the page or tab target ID.
+	TargetID TargetTargetID `json:"targetId"`
+
+	// PanelID (optional) The id of the panel we want DevTools to open initially. Currently
+	// supported panels are elements, console, network, sources, resources,
+	// timeline, chrome-recorder, heap-profiler, lighthouse, and security.
+	PanelID string `json:"panelId,omitempty"`
+}
+
+// ProtoReq name.
+func (m TargetOpenDevTools) ProtoReq() string { return "Target.openDevTools" }
+
+// Call the request.
+func (m TargetOpenDevTools) Call(c Client) (*TargetOpenDevToolsResult, error) {
+	var res TargetOpenDevToolsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// TargetOpenDevToolsResult (experimental) ...
+type TargetOpenDevToolsResult struct {
+	// TargetID The targetId of DevTools page target.
+	TargetID TargetTargetID `json:"targetId"`
+}
+
 // TargetAttachedToTarget (experimental) Issued when attached to target because of auto-attach or `attachToTarget` command.
 type TargetAttachedToTarget struct {
 	// SessionID Identifier assigned to the session used to send/receive messages.
@@ -507,6 +626,8 @@ type TargetDetachedFromTarget struct {
 	SessionID TargetSessionID `json:"sessionId"`
 
 	// TargetID (deprecated) (optional) Deprecated.
+	//
+	// Deprecated: Target.detachedFromTarget.targetId is deprecated in the Chrome DevTools Protocol.
 	TargetID TargetTargetID `json:"targetId,omitempty"`
 }
 
@@ -525,6 +646,8 @@ type TargetReceivedMessageFromTarget struct {
 	Message string `json:"message"`
 
 	// TargetID (deprecated) (optional) Deprecated.
+	//
+	// Deprecated: Target.receivedMessageFromTarget.targetId is deprecated in the Chrome DevTools Protocol.
 	TargetID TargetTargetID `json:"targetId,omitempty"`
 }
 

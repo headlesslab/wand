@@ -156,7 +156,7 @@ func (r *HijackRouter) new(ctx context.Context, e *proto.FetchRequestPaused) *Hi
 	req := &http.Request{
 		Method: e.Request.Method,
 		URL:    u,
-		Body:   io.NopCloser(strings.NewReader(e.Request.PostData)),
+		Body:   io.NopCloser(strings.NewReader(e.Request.PostData)), //nolint:staticcheck // postDataEntries later
 		Header: headers,
 	}
 
@@ -283,7 +283,7 @@ func (ctx *HijackRequest) Headers() proto.NetworkHeaders {
 
 // Body of the request, devtools API doesn't support binary data yet, only string can be captured.
 func (ctx *HijackRequest) Body() string {
-	return ctx.event.Request.PostData
+	return ctx.event.Request.PostData //nolint:staticcheck // postDataEntries is API modernization
 }
 
 // JSONBody of the request.

@@ -1,115 +1,174 @@
+# golangci-lint configuration for wand, run at the version internal/devutil
+# pins by go generate's lint step and by the generate Gate (spec #33,
+# section 13).
+#
+# This is upstream go-rod/rod's configuration (Snapshot 393ac0d, v1 schema)
+# migrated to the v2 schema the way headlesslab/.github's default was, with
+# wand's own exclusions kept. Linters that did not exist when upstream chose
+# its set, and whose findings would restyle the Snapshot (ADR-0001) ahead of
+# the upstream pull requests still to be harvested (spec section 10), are
+# disabled here with the reason; each is a candidate to turn on once the
+# harvest is done.
+version: '2'
+run:
+  relative-path-mode: wd
 linters:
-  enable-all: true
+  default: all
   disable:
-    - gochecknoinits
-    - paralleltest
-    - wrapcheck
-    - gosec
-    - gochecknoglobals
-    - musttag
-    - varnamelen
-    - wsl
-    - nonamedreturns
-    - tagliatelle
-    - nlreturn
-    - nakedret
-    - gomnd
-    - mnd
-    - err113
-    - exhaustruct
-    - godox
-    - depguard
-    - testpackage
-    - exhaustive
-    - containedctx
-    - prealloc
-    - perfsprint
-    - ireturn
-    - contextcheck
+    # Upstream's list.
     - canonicalheader
+    - containedctx
+    - contextcheck
     - copyloopvar
+    - depguard
+    - err113
+    - exhaustive
+    - exhaustruct
+    - gochecknoglobals
+    - gochecknoinits
+    - godox
+    - gosec
     - intrange
-
-    # Deprecated ones:
-    - execinquery
-    - structcheck
-    - interfacer
-    - deadcode
-    - varcheck
-    - ifshort
-    - exhaustivestruct
-    - golint
-    - maligned
-    - nosnakecase
-    - scopelint
-
-linters-settings:
-  cyclop:
-    max-complexity: 15
-  gocyclo:
-    min-complexity: 15
-  nestif:
-    min-complexity: 6
-  funlen:
-    lines: 120
-
-issues:
-  exclude-use-default: false
-
-  exclude-rules:
-    - path: _test.go$
-      linters:
-        - lll
-        - funlen
-        - dupword
-        - goconst
-        - contextcheck
-        - errorlint
-        - testableexamples
-        - forcetypeassert
-
-    # Generated code
-    - path: lib/proto/
-      linters:
-        - lll
-        - gocritic
-        - dupword
-        - forcetypeassert
-    - path: lib/devices/list.go
-      linters:
-        - lll
-    - path: lib/js/helper.go
-      linters:
-        - lll
-
-    - path: /fixtures/
-      linters:
-        - forbidigo
-
-    - path: lib/examples/
-      linters:
-        - forbidigo
-        - noctx
-        - gocritic
-
-    - path: examples?_test.go$
-      linters:
-        - forbidigo
-        - noctx
-        - gocritic
-
-    - path: main.go$
-      linters:
-        - forbidigo
-        - noctx
-        - forcetypeassert
-        - lll
-
-    - path: internal/assets/
-      linters:
-        - lll
-
-    # The Roll tool writes the table of README.zh-CN.md in Chinese
-    - path: lib/launcher/pins/generate/readme.go
-      linters:
-        - gosmopolitan
+    - ireturn
+    - mnd
+    - musttag
+    - nakedret
+    - nlreturn
+    - nonamedreturns
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - tagliatelle
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+    # Successors and deprecated names that `default: all` would otherwise
+    # enable beside a disabled one.
+    - exhaustruct_v5
+    - gomodguard
+    - wsl_v5
+    # Newer than upstream's set; each would restyle the Snapshot.
+    # funcorder: reorders methods (unexported after exported).
+    - funcorder
+    # goconst: names the strings upstream repeats in tables (OS names, Mac
+    # key commands, device user agents).
+    - goconst
+    # modernize: mostly interface{} to any; the Go floor is 1.21 (ADR-0003).
+    - modernize
+    # noctx: since v2 also flags exec.Command, net.Listen and tls.Dial,
+    # whose context-taking forms change process and connection lifetimes;
+    # the Orphan guard decides those (ADR-0007).
+    - noctx
+    # noinlineerr: forbids Go's `if err := f(); err != nil` form, used
+    # throughout.
+    - noinlineerr
+    # recvcheck: upstream's public types mix receivers, an API (ADR-0002).
+    - recvcheck
+  settings:
+    cyclop:
+      max-complexity: 15
+    funlen:
+      lines: 120
+    gocyclo:
+      min-complexity: 15
+    nestif:
+      min-complexity: 6
+    staticcheck:
+      # The QF quickfixes (tagged switches, De Morgan, inferred types)
+      # restyle the Snapshot; the rest is v2's default set.
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+        - -QF1001
+        - -QF1002
+        - -QF1003
+        - -QF1004
+        - -QF1005
+        - -QF1006
+        - -QF1007
+        - -QF1008
+        - -QF1009
+        - -QF1010
+        - -QF1011
+        - -QF1012
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - contextcheck
+          - dupword
+          - errorlint
+          - forcetypeassert
+          - funlen
+          - goconst
+          - gosmopolitan
+          - lll
+          - testableexamples
+        path: _test.go$
+      # Generated code; the comments are the protocol's own descriptions,
+      # misspellings included.
+      - linters:
+          - dupword
+          - forcetypeassert
+          - gocritic
+          - lll
+          - misspell
+        path: lib/proto/
+      - linters:
+          - lll
+        path: lib/devices/list.go
+      - linters:
+          - lll
+        path: lib/js/helper.go
+      - linters:
+          - forbidigo
+        path: /fixtures/
+      - linters:
+          - forbidigo
+          - gocritic
+          - noctx
+        path: lib/examples/
+      - linters:
+          - forbidigo
+          - gocritic
+          - noctx
+        path: examples?_test.go$
+      - linters:
+          - forbidigo
+          - forcetypeassert
+          - lll
+          - noctx
+        path: main.go$
+      - linters:
+          - lll
+        path: internal/assets/
+      # The Roll tool writes the table of README.zh-CN.md in Chinese
+      - linters:
+          - gosmopolitan
+        path: lib/launcher/pins/generate/readme.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      # The Node tools the setup tool installs; one of them ships Go code.
+      - internal/tools/node_modules/
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      # The Node tools the setup tool installs; one of them ships Go code.
+      - internal/tools/node_modules/

@@ -54,6 +54,7 @@ func TestWebSocketErr(t *testing.T) {
 
 type MockConn struct {
 	sync.Mutex
+
 	errOnCount int
 	frame      []byte
 }

@@ -35,7 +35,7 @@ func main() {
 
 	utils.E(utils.OutputFile("lib/js/helper.go", out))
 
-	devutil.Exec("gofumpt -w lib/js/helper.go")
+	devutil.GolangciLint("fmt", "./lib/js")
 }
 
 var regDeps = regexp.MustCompile(`\Wfunctions.(\w+)`)
@@ -57,8 +57,7 @@ func fnName(name string) string {
 }
 
 func getList() lazyjson.JSON {
-	devutil.UseNode(false)
-	code := devutil.ExecLine(false, "npx -ys -- uglify-js@3.17.4 -c -m -- lib/js/helper.js")
+	code := devutil.NodeToolOutput("uglifyjs", "-c", "-m", "--", "lib/js/helper.js")
 
 	script := fmt.Sprintf(`
 		%s

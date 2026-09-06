@@ -3,6 +3,7 @@
 //go:generate go run ./lib/proto/generate
 //go:generate go run ./lib/js/generate
 //go:generate go run ./internal/assets/generate
+//go:generate go run ./lib/devices/generate
 //go:generate go run ./internal/tools/lint
 
 // Package wand is a high-level driver directly based on DevTools Protocol.
@@ -496,7 +497,11 @@ func (b *Browser) SetCookies(cookies []*proto.NetworkCookieParam) error {
 // The file path will be:
 //
 //	filepath.Join(dir, info.GUID)
-func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillBegin) {
+//
+// Page.downloadWillBegin and Page.downloadProgress are deprecated in the
+// protocol and still fire; moving to their Browser domain successors is API
+// modernization, so the deprecation is silenced below.
+func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillBegin) { //nolint:staticcheck
 	var oldDownloadBehavior proto.BrowserSetDownloadBehavior
 	has := b.LoadState("", &oldDownloadBehavior)
 
@@ -506,15 +511,15 @@ func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillB
 		DownloadPath:     dir,
 	}.Call(b)
 
-	var start *proto.PageDownloadWillBegin
+	var start *proto.PageDownloadWillBegin //nolint:staticcheck
 
-	waitProgress := b.EachEvent(func(e *proto.PageDownloadWillBegin) {
+	waitProgress := b.EachEvent(func(e *proto.PageDownloadWillBegin) { //nolint:staticcheck
 		start = e
-	}, func(e *proto.PageDownloadProgress) bool {
+	}, func(e *proto.PageDownloadProgress) bool { //nolint:staticcheck
 		return start != nil && start.GUID == e.GUID && e.State == proto.PageDownloadProgressStateCompleted
 	})
 
-	return func() *proto.PageDownloadWillBegin {
+	return func() *proto.PageDownloadWillBegin { //nolint:staticcheck
 		defer func() {
 			if has {
 				_ = oldDownloadBehavior.Call(b)

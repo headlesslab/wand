@@ -24,6 +24,7 @@ const (
 type domain struct {
 	name         string
 	experimental bool
+	deprecated   bool
 	description  string
 	definitions  []*definition
 	global       lazyjson.JSON
@@ -63,6 +64,7 @@ type definition struct {
 	description  string
 	experimental bool
 	deprecated   bool
+	deprecation  string // the Deprecated paragraph, without its "Deprecated: " prefix
 	optional     bool
 	command      bool
 	returnValue  bool
@@ -70,8 +72,15 @@ type definition struct {
 	skip         bool
 }
 
-func parse(schema lazyjson.JSON) []*domain {
-	patch(schema)
+// parse applies the patches and the marker-less binary fields to the schema
+// and turns it into the domains to generate.
+func parse(schema lazyjson.JSON, binary []binaryField) ([]*domain, error) {
+	if err := patch(schema); err != nil {
+		return nil, err
+	}
+	if err := restoreBinary(schema, binary); err != nil {
+		return nil, err
+	}
 
 	list := []*domain{}
 
@@ -79,13 +88,14 @@ func parse(schema lazyjson.JSON) []*domain {
 		list = append(list, parseDomain(schema, domainSchema))
 	}
 
-	return list
+	return list, nil
 }
 
 func parseDomain(global, schema lazyjson.JSON) *domain {
 	domain := &domain{
 		name:         schema.Get("domain").Str(),
 		experimental: schema.Get("experimental").Bool(),
+		deprecated:   schema.Get("deprecated").Bool(),
 		definitions:  []*definition{},
 		global:       global,
 	}
@@ -103,6 +113,22 @@ func parseDomain(global, schema lazyjson.JSON) *domain {
 	return domain
 }
 
+// deprecation is the Deprecated paragraph of an entity or a field, named as
+// the protocol names it, such as Page.setDownloadBehavior or
+// Network.setBlockedURLs.urls: the whole domain when the domain is
+// deprecated, otherwise what the schema flags, or nothing (ADR-0004). A
+// field of a deprecated entity is not flagged on its own; using the entity
+// is what a Go tool warns about.
+func deprecation(d *domain, cdpName string, schema lazyjson.JSON, entity bool) string {
+	switch {
+	case entity && d.deprecated:
+		return "the " + d.name + " domain is deprecated in the Chrome DevTools Protocol"
+	case schema.Get("deprecated").Bool():
+		return cdpName + " is deprecated in the Chrome DevTools Protocol"
+	}
+	return ""
+}
+
 func parseDef(domain *domain, cdpType cdpType, schema lazyjson.JSON) []*definition {
 	list := []*definition{}
 
@@ -111,12 +137,15 @@ func parseDef(domain *domain, cdpType cdpType, schema lazyjson.JSON) []*definiti
 		if schema.Has("properties") {
 			list = append(list, parseStruct(domain, cdpType, schema.Get("id").Str(), false, schema, "properties")...)
 		} else {
+			id := schema.Get("id").Str()
+			dep := deprecation(domain, domain.name+"."+id, schema, true)
 			list = append(list, &definition{
 				domain:       domain,
 				typeName:     typeName(domain, schema),
-				name:         domain.name + symbol(schema.Get("id").Str()),
+				name:         domain.name + symbol(id),
 				description:  schema.Get("description").Str(),
-				deprecated:   schema.Get("deprecated").Bool(),
+				deprecated:   dep != "",
+				deprecation:  dep,
 				experimental: schema.Get("experimental").Bool(),
 				objType:      objTypePrimitive,
 				enum:         enumList(schema),
@@ -142,9 +171,18 @@ func parseDef(domain *domain, cdpType cdpType, schema lazyjson.JSON) []*definiti
 func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, schema lazyjson.JSON, propsPath string) []*definition {
 	list := []*definition{}
 
+	// cdpName is the entity as the protocol names it; a command's result
+	// shares the command's name, since the schema flags the command as a
+	// whole.
+	cdpName := domain.name + "." + schema.Get("name").Str()
+	if schema.Has("id") {
+		cdpName = domain.name + "." + schema.Get("id").Str()
+	}
+
 	props := []*definition{}
 	for _, propSchema := range schema.Get(propsPath).Arr() {
 		typeName := typeName(domain, propSchema)
+		dep := deprecation(domain, cdpName+"."+propSchema.Get("name").Str(), propSchema, false)
 
 		prop := &definition{
 			objType:      objTypePrimitive,
@@ -152,7 +190,8 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 			originName:   propSchema.Get("name").Str(),
 			description:  propSchema.Get("description").Str(),
 			optional:     propSchema.Get("optional").Bool(),
-			deprecated:   propSchema.Get("deprecated").Bool(),
+			deprecated:   dep != "",
+			deprecation:  dep,
 			experimental: propSchema.Get("experimental").Bool(),
 			typeName:     typeName,
 		}
@@ -179,6 +218,8 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 		desc = "..."
 	}
 
+	dep := deprecation(domain, cdpName, schema, true)
+
 	list = append(list, &definition{
 		domain:       domain,
 		cdpType:      cdpType,
@@ -188,7 +229,8 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 		originName:   name,
 		description:  desc,
 		optional:     schema.Get("optional").Bool(),
-		deprecated:   schema.Get("deprecated").Bool(),
+		deprecated:   dep != "",
+		deprecation:  dep,
 		experimental: schema.Get("experimental").Bool(),
 		props:        props,
 		command:      isCommand,
@@ -197,4 +239,31 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 	})
 
 	return list
+}
+
+// byteFields lists every []byte the definitions carry, by Go name: a
+// primitive type declared as bytes, or a struct field of bytes or of a slice
+// of bytes. The PDL must use binary exactly that many times (ADR-0004).
+func byteFields(domains []*domain) []string {
+	list := []string{}
+	for _, d := range domains {
+		for _, def := range d.definitions {
+			if def.skip {
+				continue
+			}
+			if def.objType == objTypePrimitive && isBytes(def.typeName) {
+				list = append(list, def.name)
+			}
+			for _, prop := range def.props {
+				if isBytes(prop.typeName) {
+					list = append(list, def.name+"."+prop.name)
+				}
+			}
+		}
+	}
+	return list
+}
+
+func isBytes(typeName string) bool {
+	return typeName == "[]byte" || typeName == "[][]byte"
 }
