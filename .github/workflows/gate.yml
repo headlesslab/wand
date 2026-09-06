@@ -58,10 +58,10 @@ jobs:
 
       # The Managed browser arrives through Browser resolution's own download
       # on every run, never through an Actions cache; the pre-fetch command
-      # runs that download before any test does. The launcher serializes
-      # downloads and validations behind one port lock, so a package suite
-      # that started while another package was still downloading would spend
-      # its timing budgets waiting behind that lock.
+      # runs that download before any test does. Concurrent downloads of one
+      # browser serialize behind fetch's file lock, so a package suite that
+      # started while another package was still downloading would spend its
+      # timing budgets waiting behind that lock.
       - run: go run ./cmd/wand-fetch-browser
 
       # Everything runs from the workspace root. `./...` stops at the two

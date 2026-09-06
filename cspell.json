@@ -12,6 +12,7 @@
     "lib/js/helper.go",
     "lib/proto/!(a_*)",
     "**/go.{mod,sum}",
+    "go.work.sum",
     ".golangci.yml",
     // Research notes are archived findings full of product and platform names.
     "docs/research/**",
@@ -131,6 +132,7 @@
     "MDPI",
     "MITM",
     "mitmproxy",
+    "musl",
     "mvdan",
     "nilnil",
     "noctx",

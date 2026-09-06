@@ -1,14 +1,11 @@
 package launcher_test
 
 import (
-	"archive/zip"
-	"bytes"
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -19,45 +16,12 @@ import (
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/launcher/flags"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 )
 
 var setup = got.Setup(nil)
-
-func TestDownloadHosts(t *testing.T) {
-	g := setup(t)
-
-	g.Has(launcher.HostGoogle(launcher.RevisionDefault), "https://storage.googleapis.com/chromium-browser-snapshots")
-	g.Has(launcher.HostNPM(launcher.RevisionDefault), "https://registry.npmmirror.com/-/binary/chromium-browser-snapshots")
-	g.Has(launcher.HostPlaywright(launcher.RevisionDefault), "https://playwright.azureedge.net/")
-}
-
-func TestDownload(t *testing.T) {
-	g := got.T(t)
-
-	buf := bytes.NewBuffer(nil)
-	z := zip.NewWriter(buf)
-	f, _ := z.Create(filepath.FromSlash("a/b/c.txt"))
-	_, _ = f.Write([]byte(g.RandStr(500 * 1024)))
-	_ = z.Close()
-
-	s := g.Serve()
-	s.Route("/", ".zip", buf.Bytes())
-
-	b := launcher.NewBrowser()
-	b.Revision = 1
-	b.Logger = utils.LoggerQuiet
-	b.Hosts = []launcher.Host{func(_ int) string {
-		return s.URL("/a.zip")
-	}}
-
-	g.Cleanup(func() { _ = os.RemoveAll(b.Dir()) })
-
-	b.MustGet()
-
-	g.PathExists(b.Dir())
-}
 
 func TestLaunch(t *testing.T) {
 	g := setup(t)
@@ -130,7 +94,7 @@ func TestLaunchUserMode(t *testing.T) {
 	port := 58472
 
 	l = l.Context(g.Context()).Delete("test").Bin("").
-		Revision(launcher.RevisionDefault).
+		Version(pins.ChromeVersion).
 		Logger(io.Discard).
 		Leakless(false).Leakless(true).
 		HeadlessNew(true).HeadlessNew(false).
@@ -226,11 +190,11 @@ func TestBrowserValid(t *testing.T) {
 	g := setup(t)
 
 	b := launcher.NewBrowser()
-	b.Revision = 0
+	b.RootDir = filepath.Join(t.TempDir(), "browser")
+	b.Version = "0"
 	g.Err(b.Validate())
 
 	g.E(utils.Mkdir(filepath.Dir(b.BinPath())))
-	g.Cleanup(func() { _ = os.RemoveAll(b.Dir()) })
 
 	g.E(exec.Command("go", "build", "-o", b.BinPath(), "./fixtures/chrome-exit-err").CombinedOutput())
 	g.Has(b.Validate().Error(), "failed to run the browser")
@@ -240,6 +204,11 @@ func TestBrowserValid(t *testing.T) {
 
 	g.E(exec.Command("go", "build", "-o", b.BinPath(), "./fixtures/chrome-lib-missing").CombinedOutput())
 	g.Nil(b.Validate())
+
+	// A cached browser that validates is used as it is, without a download.
+	p, err := b.Get()
+	g.E(err)
+	g.Eq(p, b.BinPath())
 }
 
 func TestIgnoreCerts(t *testing.T) {
@@ -304,24 +273,6 @@ func TestIgnoreCerts_InvalidCert(t *testing.T) {
 	if err == nil {
 		g.Fatalf("IgnoreCerts: %s", err)
 	}
-}
-
-func TestBrowserDownloadErr(t *testing.T) {
-	g := setup(t)
-	b := launcher.NewBrowser()
-	b.Logger = utils.LoggerQuiet
-	b.HTTPClient = http.DefaultClient
-	b.Hosts = []launcher.Host{}
-	g.Err(b.Download())
-
-	s := g.Serve()
-	s.Route("/download", ".txt", "ok")
-
-	b = launcher.NewBrowser()
-	b.Hosts = []launcher.Host{func(_ int) string {
-		return s.URL("/download/file")
-	}}
-	g.Err(b.Download())
 }
 
 func TestLaunchMultiTimes(t *testing.T) {

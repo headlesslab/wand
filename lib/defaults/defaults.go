@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -51,10 +50,6 @@ var Bin string
 // Option name is "proxy".
 var Proxy string
 
-// LockPort is the default of launcher.Browser.LockPort
-// Option name is "lock".
-var LockPort int
-
 // URL is the default websocket url for remote control a browser.
 // Option name is "url".
 var URL string
@@ -74,7 +69,6 @@ func Reset() {
 	Port = "0"
 	Bin = ""
 	Proxy = ""
-	LockPort = 2978
 	URL = ""
 	CDP = utils.LoggerQuiet
 }
@@ -115,12 +109,6 @@ var envParsers = map[string]func(string){
 	},
 	"proxy": func(v string) {
 		Proxy = v
-	},
-	"lock": func(v string) {
-		i, err := strconv.ParseInt(v, 10, 32)
-		if err == nil {
-			LockPort = int(i)
-		}
 	},
 	"url": func(v string) {
 		URL = v

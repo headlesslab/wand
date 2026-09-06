@@ -11,156 +11,413 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
-	"github.com/headlesslab/wand/lib/defaults"
+	"github.com/headlesslab/fetch"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/fetchup"
-	"github.com/ysmood/leakless"
 )
 
-// Host formats a revision number to a downloadable URL for the browser.
-type Host func(revision int) string
+// Source is a Browser source: the archive family a Managed browser is
+// downloaded from.
+type Source string
 
-var hostConf = map[string]struct {
-	urlPrefix string
-	zipName   string
-}{
-	"darwin_amd64":  {"Mac", "chrome-mac.zip"},
-	"darwin_arm64":  {"Mac_Arm", "chrome-mac.zip"},
-	"linux_amd64":   {"Linux_x64", "chrome-linux.zip"},
-	"windows_386":   {"Win", "chrome-win.zip"},
-	"windows_amd64": {"Win_x64", "chrome-win.zip"},
-}[runtime.GOOS+"_"+runtime.GOARCH]
+const (
+	// SourceChrome is Chrome for Testing, the default: Google's build of the
+	// Chrome stable branch, pinned to the Target Chrome.
+	SourceChrome Source = "chrome"
 
-// HostGoogle to download browser.
-func HostGoogle(revision int) string {
-	return fmt.Sprintf(
-		"https://storage.googleapis.com/chromium-browser-snapshots/%s/%d/%s",
-		hostConf.urlPrefix,
-		revision,
-		hostConf.zipName,
-	)
-}
+	// SourceChromium is Chromium trunk builds from Google's continuous-build
+	// archive, pinned to the Companion Chromium: BSD-licensed Chromium for
+	// deployments that cannot accept Google Chrome's terms.
+	SourceChromium Source = "chromium"
+)
 
-// HostNPM to download browser.
-func HostNPM(revision int) string {
-	return fmt.Sprintf(
-		"https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/%s/%d/%s",
-		hostConf.urlPrefix,
-		revision,
-		hostConf.zipName,
-	)
-}
+// Binary is the executable a Chrome for Testing archive holds.
+type Binary string
 
-// HostPlaywright to download browser.
-func HostPlaywright(revision int) string {
-	rev := RevisionPlaywright
-	if !(runtime.GOOS == "linux" && runtime.GOARCH == "arm64") {
-		rev = revision
+const (
+	// BinaryChrome is the full browser, the default.
+	BinaryChrome Binary = "chrome"
+
+	// BinaryHeadlessShell is chrome-headless-shell, the smaller build that
+	// only runs headless.
+	BinaryHeadlessShell Binary = "chrome-headless-shell"
+)
+
+// The environment variables NewBrowser reads. A launcher option set in code
+// overrides them.
+const (
+	// EnvBrowserCache sets the browser cache, DefaultBrowserDir, when the
+	// process starts.
+	EnvBrowserCache = "WAND_BROWSER_CACHE"
+
+	// EnvBrowserHosts overrides the Download hosts: URL templates separated
+	// by commas, in the form DefaultHosts describes.
+	EnvBrowserHosts = "WAND_BROWSER_HOSTS"
+
+	// EnvBrowserSource selects the Browser source: "chrome" for Chrome for
+	// Testing, the default, or "chromium" for Chromium trunk builds.
+	EnvBrowserSource = "WAND_BROWSER_SOURCE"
+
+	// EnvBrowserBinary selects the Chrome for Testing binary: "chrome", the
+	// default, or "chrome-headless-shell".
+	EnvBrowserBinary = "WAND_BROWSER_BINARY"
+)
+
+// DefaultHosts are the Download hosts of a Browser source: Google's bucket
+// and npmmirror, as URL templates. A template names the archive with three
+// placeholders: {version}, the Chrome for Testing version or the Chromium
+// trunk position; {platform}, the Chrome for Testing platform such as
+// linux64 or the Chromium bucket prefix such as Linux_x64; and {archive},
+// the file name such as chrome-linux64.zip or chrome-linux.zip. Every host
+// is probed concurrently, the first to answer serves the download and the
+// others are its fallbacks.
+func DefaultHosts(source Source) []string {
+	if source == SourceChromium {
+		return []string{
+			"https://storage.googleapis.com/chromium-browser-snapshots/{platform}/{version}/{archive}",
+			"https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/{platform}/{version}/{archive}",
+		}
 	}
-	return fmt.Sprintf(
-		"https://playwright.azureedge.net/builds/chromium/%d/chromium-linux-arm64.zip",
-		rev,
-	)
+
+	return []string{
+		"https://storage.googleapis.com/chrome-for-testing-public/{version}/{platform}/{archive}",
+		"https://registry.npmmirror.com/-/binary/chrome-for-testing/{version}/{platform}/{archive}",
+	}
 }
 
-// DefaultBrowserDir for downloaded browser. For unix is "$HOME/.cache/rod/browser",
-// for Windows it's "%APPDATA%\rod\browser".
-var DefaultBrowserDir = filepath.Join(map[string]string{
-	"windows": os.Getenv("APPDATA"),
-	"darwin":  filepath.Join(os.Getenv("HOME"), ".cache"),
-	"linux":   filepath.Join(os.Getenv("HOME"), ".cache"),
-}[runtime.GOOS], "rod", "browser")
+// DefaultBrowserDir is the browser cache: EnvBrowserCache when set, otherwise
+// wand/browser under [os.UserCacheDir] ($XDG_CACHE_HOME or ~/.cache on Linux,
+// ~/Library/Caches on macOS, %LocalAppData% on Windows), or under the
+// temporary directory for a user without a cache directory. Each Managed
+// browser lives in its own subdirectory: chrome-<version>,
+// chrome-headless-shell-<version> or chromium-<revision>.
+var DefaultBrowserDir = cacheDir()
 
-// Browser is a helper to download browser smartly.
+func cacheDir() string {
+	if dir := os.Getenv(EnvBrowserCache); dir != "" {
+		return dir
+	}
+
+	base, err := os.UserCacheDir()
+	if err != nil {
+		base = os.TempDir()
+	}
+
+	return filepath.Join(base, "wand", "browser")
+}
+
+// The pins the launcher verifies downloads against; variables so that tests
+// can pin archives of their own.
+var (
+	chromeSHA256   = pins.ChromeSHA256
+	chromiumSHA256 = pins.ChromiumSHA256
+)
+
+// chromePlatforms maps GOOS/GOARCH to the Chrome for Testing platform.
+var chromePlatforms = map[string]string{
+	"darwin/amd64":  "mac-x64",
+	"darwin/arm64":  "mac-arm64",
+	"linux/amd64":   "linux64",
+	"linux/arm64":   "linux-arm64",
+	"windows/386":   "win32",
+	"windows/amd64": "win64",
+}
+
+// chromiumPlatforms maps GOOS/GOARCH to the prefix of the Chromium trunk
+// build bucket and the archive under it.
+var chromiumPlatforms = map[string]struct{ prefix, archive string }{
+	"darwin/amd64":  {"Mac", "chrome-mac.zip"},
+	"darwin/arm64":  {"Mac_Arm", "chrome-mac.zip"},
+	"linux/amd64":   {"Linux_x64", "chrome-linux.zip"},
+	"windows/386":   {"Win", "chrome-win.zip"},
+	"windows/amd64": {"Win_x64", "chrome-win.zip"},
+}
+
+// binaries is the path of the executable inside an extracted archive, by
+// source, binary and GOOS.
+var binaries = map[Source]map[Binary]map[string]string{
+	SourceChrome: {
+		BinaryChrome: {
+			"darwin":  "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+			"linux":   "chrome",
+			"windows": "chrome.exe",
+		},
+		BinaryHeadlessShell: {
+			"darwin":  "chrome-headless-shell",
+			"linux":   "chrome-headless-shell",
+			"windows": "chrome-headless-shell.exe",
+		},
+	},
+	SourceChromium: {
+		BinaryChrome: {
+			"darwin":  "Chromium.app/Contents/MacOS/Chromium",
+			"linux":   "chrome",
+			"windows": "chrome.exe",
+		},
+	},
+}
+
+// muslLoaderGlob matches the dynamic loader of the musl C library, which
+// Alpine and the other musl distributions install as /lib/ld-musl-<arch>.so.1.
+// Every Managed browser is linked against glibc, so none runs there.
+const muslLoaderGlob = "/lib/ld-musl-*.so.1"
+
+func hasMuslLoader() bool {
+	return runtime.GOOS == "linux" && muslLoaderPresent(muslLoaderGlob)
+}
+
+func muslLoaderPresent(glob string) bool {
+	matches, _ := filepath.Glob(glob)
+
+	return len(matches) > 0
+}
+
+// wayOut is how a platform with nothing to download still gets a browser.
+const wayOut = "point WAND_BROWSER_BIN or Launcher.Bin() at a browser already on this machine"
+
+// Browser is a helper to download a Managed browser: the Target Chrome from
+// Chrome for Testing by default, or the Companion Chromium from Chromium
+// trunk builds, verified against the pins and cached under RootDir.
 type Browser struct {
 	Context context.Context
 
-	// Hosts are the candidates to download the browser.
-	// Such as [HostGoogle] or [HostNPM].
-	Hosts []Host
+	// Source of the archive: SourceChrome, the default, or SourceChromium.
+	// EnvBrowserSource sets the default.
+	Source Source
 
-	// Revision of the browser to use
+	// Binary of a Chrome for Testing archive: BinaryChrome, the default, or
+	// BinaryHeadlessShell. A Chromium trunk build holds only BinaryChrome.
+	// EnvBrowserBinary sets the default.
+	Binary Binary
+
+	// Version of Chrome for Testing to use, the Target Chrome by default.
+	Version string
+
+	// Revision is the trunk position of the Chromium trunk build to use, the
+	// Companion Chromium by default.
 	Revision int
 
-	// RootDir to download different browser versions.
+	// Hosts to download the archive from, as the URL templates DefaultHosts
+	// describes; empty means DefaultHosts of the Source. EnvBrowserHosts
+	// sets the default.
+	Hosts []string
+
+	// RootDir is the browser cache, DefaultBrowserDir by default.
 	RootDir string
 
-	// Log to print output
+	// Logger to print output
 	Logger utils.Logger
-
-	// LockPort a tcp port to prevent race downloading. Default is 2968 .
-	LockPort int
 
 	// HTTPClient to download the browser
 	HTTPClient *http.Client
 }
 
-// NewBrowser with default values.
+// NewBrowser with default values, the environment variables applied.
 func NewBrowser() *Browser {
-	return &Browser{
+	b := &Browser{
 		Context:  context.Background(),
-		Revision: RevisionDefault,
-		Hosts:    []Host{HostGoogle, HostNPM, HostPlaywright},
+		Source:   SourceChrome,
+		Binary:   BinaryChrome,
+		Version:  pins.ChromeVersion,
+		Revision: pins.ChromiumPosition,
 		RootDir:  DefaultBrowserDir,
-		Logger:   log.New(os.Stdout, "[launcher.Browser]", log.LstdFlags),
-		LockPort: defaults.LockPort,
+		Logger:   log.New(os.Stdout, "[launcher.Browser] ", log.LstdFlags),
 	}
+
+	if source := os.Getenv(EnvBrowserSource); source != "" {
+		b.Source = Source(source)
+	}
+
+	if binary := os.Getenv(EnvBrowserBinary); binary != "" {
+		b.Binary = Binary(binary)
+	}
+
+	for _, host := range strings.Split(os.Getenv(EnvBrowserHosts), ",") {
+		if host = strings.TrimSpace(host); host != "" {
+			b.Hosts = append(b.Hosts, host)
+		}
+	}
+
+	return b
+}
+
+// name of the Managed browser, which is its directory under RootDir:
+// chrome-<version>, chrome-headless-shell-<version> or chromium-<revision>.
+func (lc *Browser) name() string {
+	if lc.Source == SourceChromium {
+		return fmt.Sprintf("chromium-%d", lc.Revision)
+	}
+
+	return fmt.Sprintf("%s-%s", lc.Binary, lc.Version)
 }
 
 // Dir to download the browser.
 func (lc *Browser) Dir() string {
-	return filepath.Join(lc.RootDir, fmt.Sprintf("chromium-%d", lc.Revision))
+	return filepath.Join(lc.RootDir, lc.name())
 }
 
 // BinPath to download the browser executable.
 func (lc *Browser) BinPath() string {
-	bin := map[string]string{
-		"darwin":  "Chromium.app/Contents/MacOS/Chromium",
-		"linux":   "chrome",
-		"windows": "chrome.exe",
-	}[runtime.GOOS]
-
-	return filepath.Join(lc.Dir(), filepath.FromSlash(bin))
+	return lc.binPath(runtime.GOOS)
 }
 
-// Download browser from the fastest host.
-// It will race downloading a TCP packet from each host and use the fastest host.
+func (lc *Browser) binPath(goos string) string {
+	return filepath.Join(lc.Dir(), filepath.FromSlash(binaries[lc.Source][lc.Binary][goos]))
+}
+
+// archive is what a Managed browser resolves to on one platform: what the
+// host templates take and the digest to verify the download against, which
+// the pins record for the Target Chrome and the Companion Chromium and
+// nothing else.
+type archive struct {
+	platform string
+	version  string
+	name     string
+	sha256   string
+}
+
+// url of the archive on a Download host.
+func (a archive) url(template string) string {
+	return strings.NewReplacer("{version}", a.version, "{platform}", a.platform, "{archive}", a.name).Replace(template)
+}
+
+// resolve finds the archive for a platform, given as GOOS/GOARCH, refusing
+// the platforms with nothing to download: the ones no Browser source builds
+// for, the ones the pins record no archive for, and Linux on the musl C
+// library.
+func (lc *Browser) resolve(platform string, musl bool) (archive, error) {
+	if musl {
+		return archive{}, fmt.Errorf("no Managed browser runs on %s with the musl C library (Alpine): %s", platform, wayOut)
+	}
+
+	switch lc.Source {
+	case SourceChrome:
+		return lc.resolveChrome(platform)
+	case SourceChromium:
+		return lc.resolveChromium(platform)
+	default:
+		return archive{}, fmt.Errorf("unknown Browser source %q: %q or %q", lc.Source, SourceChrome, SourceChromium)
+	}
+}
+
+func (lc *Browser) resolveChrome(platform string) (archive, error) {
+	cft, has := chromePlatforms[platform]
+	if !has {
+		return archive{}, fmt.Errorf("no Chrome for Testing build exists for %s: %s", platform, wayOut)
+	}
+
+	if _, has := binaries[SourceChrome][lc.Binary]; !has {
+		return archive{}, fmt.Errorf("unknown Chrome for Testing binary %q: %q or %q",
+			lc.Binary, BinaryChrome, BinaryHeadlessShell)
+	}
+
+	a := archive{platform: cft, version: lc.Version, name: fmt.Sprintf("%s-%s.zip", lc.Binary, cft)}
+
+	if lc.Version == pins.ChromeVersion {
+		sum, has := chromeSHA256[string(lc.Binary)][cft]
+		if !has {
+			return archive{}, fmt.Errorf("no %s %s archive is pinned for %s: %s", lc.Binary, lc.Version, platform, wayOut)
+		}
+
+		a.sha256 = sum
+	}
+
+	return a, nil
+}
+
+func (lc *Browser) resolveChromium(platform string) (archive, error) {
+	bucket, has := chromiumPlatforms[platform]
+	if !has {
+		return archive{}, fmt.Errorf("no Chromium trunk build exists for %s: %s", platform, wayOut)
+	}
+
+	if lc.Binary != BinaryChrome {
+		return archive{}, fmt.Errorf("no %s in Chromium trunk builds, only %s", lc.Binary, BinaryChrome)
+	}
+
+	a := archive{platform: bucket.prefix, version: strconv.Itoa(lc.Revision), name: bucket.archive}
+
+	if lc.Revision == pins.ChromiumPosition {
+		sum, has := chromiumSHA256[bucket.prefix]
+		if !has {
+			return archive{}, fmt.Errorf("no Chromium %d archive is pinned for %s: %s", lc.Revision, platform, wayOut)
+		}
+
+		a.sha256 = sum
+	}
+
+	return a, nil
+}
+
+// hosts is Hosts, or DefaultHosts of the Source when none is set.
+func (lc *Browser) hosts() []string {
+	if len(lc.Hosts) == 0 {
+		return DefaultHosts(lc.Source)
+	}
+
+	return lc.Hosts
+}
+
+// Download the browser from the first of the Hosts to answer, verified
+// against the pins before extraction, into [Browser.Dir]. When that directory
+// exists already nothing is downloaded.
 func (lc *Browser) Download() error {
-	us := []string{}
-	for _, host := range lc.Hosts {
-		us = append(us, host(lc.Revision))
+	a, err := lc.resolve(runtime.GOOS+"/"+runtime.GOARCH, hasMuslLoader())
+	if err != nil {
+		return err
 	}
 
 	dir := lc.Dir()
-
-	fu := fetchup.New(dir, us...)
-	fu.Ctx = lc.Context
-	fu.Logger = lc.Logger
-	if lc.HTTPClient != nil {
-		fu.HttpClient = lc.HTTPClient
+	if _, err := os.Stat(dir); err == nil {
+		return nil
 	}
 
-	err := fu.Fetch()
+	if a.sha256 == "" {
+		lc.Logger.Println("the download of", lc.name(), "is not verified: no SHA-256 is recorded for it")
+	}
+
+	hosts := lc.hosts()
+	urls := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		urls = append(urls, a.url(host))
+	}
+
+	err = fetch.Zip(lc.Context, dir, urls,
+		fetch.WithSHA256(a.sha256),
+		fetch.WithStripFirstDir(),
+		fetch.WithClient(lc.HTTPClient),
+		fetch.WithLogger(lc.Logger),
+	)
 	if err != nil {
-		return fmt.Errorf("can't find a browser binary for your OS, the doc might help https://go-rod.github.io/#/compatibility?id=os : %w", err) //nolint: lll
+		return fmt.Errorf("can't download %s: %w", lc.name(), err)
 	}
 
-	return fetchup.StripFirstDir(dir)
+	return nil
 }
 
 // Get is a smart helper to get the browser executable path.
 // If [Browser.BinPath] is not valid it will auto download the browser to [Browser.BinPath].
+// Concurrent downloads of the same browser, in this process or another,
+// serialize behind a file lock next to [Browser.Dir], and the ones that
+// waited find it in place.
 func (lc *Browser) Get() (string, error) {
-	defer leakless.LockPort(lc.LockPort)()
+	// Whether the browser was in place before validation: a directory that
+	// was there and fails to validate is broken and goes before the download
+	// replaces it. One that lands during the validation, downloaded by
+	// another process, is complete and must stay, so the check comes first.
+	_, err := os.Stat(lc.Dir())
+	present := err == nil
 
 	if lc.Validate() == nil {
 		return lc.BinPath(), nil
 	}
 
-	// Try to cleanup before downloading
-	_ = os.RemoveAll(lc.Dir())
+	if present {
+		_ = os.RemoveAll(lc.Dir())
+	}
 
 	return lc.BinPath(), lc.Download()
 }
