@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func TestPageEvalOnNewDocument(t *testing.T) {
@@ -63,11 +63,11 @@ func TestPageEvaluateRetry(t *testing.T) {
 
 	page := g.page.MustNavigate(g.blank())
 
-	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (gson.JSON, error) {
-		g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (gson.JSON, error) {
-			return gson.New(nil), cdp.ErrCtxNotFound
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+		g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(nil), cdp.ErrCtxNotFound
 		})
-		return gson.New(nil), cdp.ErrCtxNotFound
+		return lazyjson.New(nil), cdp.ErrCtxNotFound
 	})
 	g.Eq(1, page.MustEval(`() => 1`).Int())
 }
@@ -77,9 +77,9 @@ func TestPageUpdateJSCtxIDErr(t *testing.T) {
 
 	page := g.page.MustNavigate(g.srcFile("./fixtures/click-iframe.html"))
 
-	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (gson.JSON, error) {
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
 		g.mc.stubErr(1, proto.RuntimeEvaluate{})
-		return gson.New(nil), cdp.ErrCtxNotFound
+		return lazyjson.New(nil), cdp.ErrCtxNotFound
 	})
 	g.Err(page.Eval(`() => 1`))
 
@@ -99,7 +99,7 @@ func TestPageExpose(t *testing.T) {
 
 	page := g.newPage(g.blank()).MustWaitLoad()
 
-	stop := page.MustExpose("exposedFunc", func(g gson.JSON) (interface{}, error) {
+	stop := page.MustExpose("exposedFunc", func(g lazyjson.JSON) (interface{}, error) {
 		return g.Get("k").Str(), nil
 	})
 
@@ -204,8 +204,8 @@ func TestGetJSHelperRetry(t *testing.T) {
 
 	g.page.MustNavigate(g.srcFile("fixtures/click.html"))
 
-	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (gson.JSON, error) {
-		return gson.JSON{}, cdp.ErrCtxNotFound
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.JSON{}, cdp.ErrCtxNotFound
 	})
 	g.page.MustElements("button")
 }

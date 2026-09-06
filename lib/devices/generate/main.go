@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func main() {
@@ -73,7 +73,7 @@ func main() {
 	)
 }
 
-func getDeviceList() gson.JSON {
+func getDeviceList() lazyjson.JSON {
 	// we use the list from the web UI of devtools
 	// TODO: We should keep update with their latest list, using hash id is a temp solution
 	res, err := http.Get(
@@ -85,7 +85,7 @@ func getDeviceList() gson.JSON {
 	data, err := io.ReadAll(res.Body)
 	utils.E(err)
 
-	return gson.New(data).Get("extensions")
+	return lazyjson.New(data).Get("extensions")
 }
 
 func normalizeName(name string) string {
@@ -103,7 +103,7 @@ func normalizeName(name string) string {
 	return strings.Join(list, "")
 }
 
-func getUserAgent(val gson.JSON) string {
+func getUserAgent(val lazyjson.JSON) string {
 	ua := val.Get("user-agent").String()
 	if ua == "" {
 		return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
@@ -112,7 +112,7 @@ func getUserAgent(val gson.JSON) string {
 	return ua
 }
 
-func toGoArr(val gson.JSON) string {
+func toGoArr(val lazyjson.JSON) string {
 	list := []string{}
 	for _, s := range val.Arr() {
 		list = append(list, s.String())

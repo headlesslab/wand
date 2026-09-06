@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
+	"github.com/headlesslab/leakcheck"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
@@ -22,8 +24,6 @@ import (
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
-	"github.com/ysmood/gotrace"
-	"github.com/ysmood/gson"
 )
 
 var TimeoutEach = flag.Duration("timeout-each", time.Minute, "timeout for each test")
@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 		g.browser.MustClose()
 	})
 
-	if err := gotrace.Check(0, gotrace.IgnoreFuncs("internal/poll.runtime_pollWait")); err != nil {
+	if err := leakcheck.Check(0, leakcheck.IgnoreFuncs("internal/poll.runtime_pollWait")); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -171,12 +171,12 @@ func (g G) newPage(u ...string) *wand.Page {
 }
 
 func (g *G) checkLeaking() {
-	ig := gotrace.CombineIgnores(gotrace.IgnoreCurrent(), gotrace.IgnoreNonChildren())
-	gotrace.CheckLeak(g.Testable, 0, ig)
+	ig := leakcheck.CombineIgnores(leakcheck.IgnoreCurrent(), leakcheck.IgnoreNonChildren())
+	leakcheck.CheckLeak(g.Testable, 0, ig)
 
-	self := gotrace.Get(false)[0]
+	self := leakcheck.Get(false)[0]
 	g.cancelTimeout = g.DoAfter(*TimeoutEach, func() {
-		t := gotrace.Get(true).Filter(func(t *gotrace.Trace) bool {
+		t := leakcheck.Get(true).Filter(func(t *leakcheck.Trace) bool {
 			if t.GoroutineID == self.GoroutineID {
 				return false
 			}
@@ -304,11 +304,11 @@ func (mc *MockClient) stubCounter() {
 	})
 }
 
-type StubSend func() (gson.JSON, error)
+type StubSend func() (lazyjson.JSON, error)
 
 // When call the cdp.Client.Call the nth time use fn instead.
 // Use p to filter method.
-func (mc *MockClient) stub(nth int, p proto.Request, fn func(send StubSend) (gson.JSON, error)) {
+func (mc *MockClient) stub(nth int, p proto.Request, fn func(send StubSend) (lazyjson.JSON, error)) {
 	if p == nil {
 		mc.t.Logf("p must be specified")
 		mc.t.FailNow()
@@ -320,9 +320,9 @@ func (mc *MockClient) stub(nth int, p proto.Request, fn func(send StubSend) (gso
 		if method == p.ProtoReq() {
 			if int(atomic.AddInt64(&count, 1)) == nth {
 				mc.resetCall()
-				j, err := fn(func() (gson.JSON, error) {
+				j, err := fn(func() (lazyjson.JSON, error) {
 					b, err := mc.principal.Call(ctx, sessionID, method, params)
-					return gson.New(b), err
+					return lazyjson.New(b), err
 				})
 				if err != nil {
 					return nil, err
@@ -337,8 +337,8 @@ func (mc *MockClient) stub(nth int, p proto.Request, fn func(send StubSend) (gso
 // When call the cdp.Client.Call the nth time return error.
 // Use p to filter method.
 func (mc *MockClient) stubErr(nth int, p proto.Request) {
-	mc.stub(nth, p, func(_ StubSend) (gson.JSON, error) {
-		return gson.New(nil), errors.New("mock error")
+	mc.stub(nth, p, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(nil), errors.New("mock error")
 	})
 }
 

@@ -16,13 +16,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/devices"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func TestGetPageBrowser(t *testing.T) {
@@ -362,8 +362,8 @@ func TestPageCloseWhenNotAttached(t *testing.T) {
 
 	p := g.browser.MustPage(g.blank())
 
-	g.mc.stub(1, proto.PageClose{}, func(_ StubSend) (gson.JSON, error) {
-		return gson.New(nil), cdp.ErrNotAttachedToActivePage
+	g.mc.stub(1, proto.PageClose{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(nil), cdp.ErrNotAttachedToActivePage
 	})
 
 	g.E(p.Close())
@@ -767,8 +767,8 @@ func TestScreenshotFullPage(t *testing.T) {
 	})
 
 	g.Panic(func() {
-		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (gson.JSON, error) {
-			return gson.New(proto.PageGetLayoutMetricsResult{}), nil
+		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(proto.PageGetLayoutMetricsResult{}), nil
 		})
 		p.MustScreenshotFullPage()
 	})
@@ -813,16 +813,16 @@ func TestScrollScreenshotErrors(t *testing.T) {
 		p.MustScrollScreenshot()
 	})
 	g.Panic(func() {
-		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (gson.JSON, error) {
-			return gson.New(proto.PageGetLayoutMetricsResult{
+		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(proto.PageGetLayoutMetricsResult{
 				CSSVisualViewport: &proto.PageVisualViewport{},
 			}), nil
 		})
 		p.MustScrollScreenshot()
 	})
 	g.Panic(func() {
-		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (gson.JSON, error) {
-			return gson.New(proto.PageGetLayoutMetricsResult{
+		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(proto.PageGetLayoutMetricsResult{
 				CSSContentSize: &proto.DOMRect{},
 			}), nil
 		})
@@ -848,7 +848,7 @@ func TestScrollScreenshotErrors(t *testing.T) {
 	_, err := p.ScrollScreenshot(&wand.ScrollScreenshotOptions{
 		/* cspell: disable-next-line */
 		Format:  proto.PageCaptureScreenshotFormatWebp,
-		Quality: gson.Int(10),
+		Quality: lazyjson.Int(10),
 	})
 	g.Err(err)
 }
@@ -1026,9 +1026,9 @@ func TestPageTriggerFavicon(t *testing.T) {
 	{
 		page := g.newPage()
 		page.MustNavigate(s.URL())
-		g.mc.stub(1, proto.BrowserGetBrowserCommandLine{}, func(_ StubSend) (gson.JSON, error) {
+		g.mc.stub(1, proto.BrowserGetBrowserCommandLine{}, func(_ StubSend) (lazyjson.JSON, error) {
 			commandLine := proto.BrowserGetBrowserCommandLineResult{Arguments: []string{""}}
-			return gson.New(commandLine), nil
+			return lazyjson.New(commandLine), nil
 		})
 		err := page.TriggerFavicon()
 		g.Eq(err.Error(), "browser is no-headless")

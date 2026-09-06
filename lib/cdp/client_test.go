@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
+	"github.com/headlesslab/leakcheck"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
-	"github.com/ysmood/gotrace"
-	"github.com/ysmood/gson"
 )
 
 var setup = got.Setup(nil)
@@ -46,7 +46,7 @@ func TestBasic(t *testing.T) {
 	})
 	g.E(err)
 
-	targetID := gson.New(res).Get("targetId").String()
+	targetID := lazyjson.New(res).Get("targetId").String()
 
 	res, err = client.Call(ctx, "", "Target.attachToTarget", map[string]interface{}{
 		"targetId": targetID,
@@ -54,7 +54,7 @@ func TestBasic(t *testing.T) {
 	})
 	g.E(err)
 
-	sessionID := gson.New(res).Get("sessionId").String()
+	sessionID := lazyjson.New(res).Get("sessionId").String()
 
 	_, err = client.Call(ctx, sessionID, "Page.enable", nil)
 	g.E(err)
@@ -83,15 +83,15 @@ func TestBasic(t *testing.T) {
 			"expression": `document.querySelector('iframe')`,
 		})
 
-		return err == nil && gson.New(res).Get("result.subtype").String() != "null", nil
+		return err == nil && lazyjson.New(res).Get("result.subtype").String() != "null", nil
 	}))
 
 	res, err = client.Call(ctx, sessionID, "DOM.describeNode", map[string]interface{}{
-		"objectId": gson.New(res).Get("result.objectId").String(),
+		"objectId": lazyjson.New(res).Get("result.objectId").String(),
 	})
 	g.E(err)
 
-	frameID := gson.New(res).Get("node.frameId").String()
+	frameID := lazyjson.New(res).Get("node.frameId").String()
 
 	timeout = g.Context()
 
@@ -104,19 +104,19 @@ func TestBasic(t *testing.T) {
 		g.E(err)
 
 		res, err = client.Call(ctx, sessionID, "Runtime.evaluate", map[string]interface{}{
-			"contextId":  gson.New(res).Get("executionContextId").Int(),
+			"contextId":  lazyjson.New(res).Get("executionContextId").Int(),
 			"expression": `document.querySelector('h4')`,
 		})
 
-		return err == nil && gson.New(res).Get("result.subtype").String() != "null", nil
+		return err == nil && lazyjson.New(res).Get("result.subtype").String() != "null", nil
 	}))
 
 	res, err = client.Call(ctx, sessionID, "DOM.getOuterHTML", map[string]interface{}{
-		"objectId": gson.New(res).Get("result.objectId").String(),
+		"objectId": lazyjson.New(res).Get("result.objectId").String(),
 	})
 	g.E(err)
 
-	g.Eq("<h4>it works</h4>", gson.New(res).Get("outerHTML").String())
+	g.Eq("<h4>it works</h4>", lazyjson.New(res).Get("outerHTML").String())
 }
 
 func TestError(t *testing.T) {
@@ -152,7 +152,7 @@ func TestCrash(t *testing.T) {
 	})
 	g.E(err)
 
-	targetID := gson.New(res).Get("targetId").String()
+	targetID := lazyjson.New(res).Get("targetId").String()
 
 	res, err = client.Call(ctx, "", "Target.attachToTarget", map[string]interface{}{
 		"targetId": targetID,
@@ -160,7 +160,7 @@ func TestCrash(t *testing.T) {
 	})
 	g.E(err)
 
-	sessionID := gson.New(res).Get("sessionId").String()
+	sessionID := lazyjson.New(res).Get("sessionId").String()
 
 	_, err = client.Call(ctx, sessionID, "Page.enable", nil)
 	g.E(err)
@@ -209,7 +209,7 @@ func TestFormat(t *testing.T) {
 func TestSlowSend(t *testing.T) {
 	g := setup(t)
 
-	gotrace.CheckLeak(g, 0)
+	leakcheck.CheckLeak(g, 0)
 
 	id := 0
 	wait := make(chan int)
@@ -244,7 +244,7 @@ func TestSlowSend(t *testing.T) {
 func TestCancelCallLeak(t *testing.T) {
 	g := setup(t)
 
-	gotrace.CheckLeak(g, 0)
+	leakcheck.CheckLeak(g, 0)
 
 	for i := 0; i < 30; i++ {
 		id := 0
@@ -282,7 +282,7 @@ func TestCancelCallLeak(t *testing.T) {
 func TestConcurrentCall(t *testing.T) {
 	g := setup(t)
 
-	gotrace.CheckLeak(g, 0)
+	leakcheck.CheckLeak(g, 0)
 
 	req := make(chan []byte, 30)
 	t.Cleanup(func() { close(req) })
@@ -306,7 +306,7 @@ func TestConcurrentCall(t *testing.T) {
 
 			return json.Marshal(cdp.Response{
 				ID:     req.ID,
-				Result: json.RawMessage(gson.New(req.Params).JSON("", "")),
+				Result: json.RawMessage(lazyjson.New(req.Params).JSON("", "")),
 				Error:  nil,
 			})
 		},
@@ -322,7 +322,7 @@ func TestConcurrentCall(t *testing.T) {
 
 			res, err := c.Call(g.Context(), "1234567890", "method", i)
 			g.E(err)
-			g.Eq(gson.New(res).Int(), i)
+			g.Eq(lazyjson.New(res).Int(), i)
 		})
 	}
 }

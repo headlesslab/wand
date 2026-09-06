@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func TestPageElements(t *testing.T) {
@@ -114,16 +114,16 @@ func TestSearch(t *testing.T) {
 
 	// when search result is not ready
 	{
-		g.mc.stub(1, proto.DOMGetSearchResults{}, func(_ StubSend) (gson.JSON, error) {
-			return gson.New(nil), cdp.ErrCtxNotFound
+		g.mc.stub(1, proto.DOMGetSearchResults{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(nil), cdp.ErrCtxNotFound
 		})
 		p.MustSearch("click me")
 	}
 
 	// when node id is zero
 	{
-		g.mc.stub(1, proto.DOMGetSearchResults{}, func(_ StubSend) (gson.JSON, error) {
-			return gson.New(proto.DOMGetSearchResultsResult{
+		g.mc.stub(1, proto.DOMGetSearchResults{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(proto.DOMGetSearchResultsResult{
 				NodeIDs: []proto.DOMNodeID{0},
 			}), nil
 		})

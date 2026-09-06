@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/devices"
@@ -17,7 +18,6 @@ import (
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
-	"github.com/ysmood/gson"
 )
 
 func TestIncognito(t *testing.T) {
@@ -99,7 +99,7 @@ func TestBrowserPages(t *testing.T) {
 	g.Gte(len(pages), 1)
 
 	{
-		g.mc.stub(1, proto.TargetGetTargets{}, func(send StubSend) (gson.JSON, error) {
+		g.mc.stub(1, proto.TargetGetTargets{}, func(send StubSend) (lazyjson.JSON, error) {
 			d, _ := send()
 			return *d.Set("targetInfos.0.type", "iframe"), nil
 		})
@@ -417,8 +417,8 @@ func TestStreamReader(t *testing.T) {
 
 	r := wand.NewStreamReader(g.page, "")
 
-	g.mc.stub(1, proto.IORead{}, func(_ StubSend) (gson.JSON, error) {
-		return gson.New(proto.IOReadResult{
+	g.mc.stub(1, proto.IORead{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(proto.IOReadResult{
 			Data: "test",
 		}), nil
 	})
@@ -430,8 +430,8 @@ func TestStreamReader(t *testing.T) {
 	_, err := r.Read(nil)
 	g.Err(err)
 
-	g.mc.stub(1, proto.IORead{}, func(_ StubSend) (gson.JSON, error) {
-		return gson.New(proto.IOReadResult{
+	g.mc.stub(1, proto.IORead{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(proto.IOReadResult{
 			Base64Encoded: true,
 			Data:          "@",
 		}), nil

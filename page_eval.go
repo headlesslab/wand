@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/js"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 // EvalOptions for Page.Evaluate.
@@ -183,7 +183,7 @@ func (p *Page) evaluate(opts *EvalOptions) (*proto.RuntimeRemoteObject, error) {
 
 // Expose fn to the page's window object with the name. The exposure survives reloads.
 // Call stop to unbind the fn.
-func (p *Page) Expose(name string, fn func(gson.JSON) (interface{}, error)) (stop func() error, err error) {
+func (p *Page) Expose(name string, fn func(lazyjson.JSON) (interface{}, error)) (stop func() error, err error) {
 	bind := "_" + utils.RandString(8)
 
 	err = proto.RuntimeAddBinding{Name: bind}.Call(p)
@@ -215,7 +215,7 @@ func (p *Page) Expose(name string, fn func(gson.JSON) (interface{}, error)) (sto
 
 	go p.EachEvent(func(e *proto.RuntimeBindingCalled) {
 		if e.Name == bind {
-			payload := gson.NewFrom(e.Payload)
+			payload := lazyjson.NewFrom(e.Payload)
 			res, err := fn(payload.Get("req"))
 			code := fmt.Sprintf("(res, err) => %s(res, err)", payload.Get("cb").Str())
 			_, _ = p.Evaluate(Eval(code, res, err))
@@ -237,7 +237,7 @@ func (p *Page) formatArgs(opts *EvalOptions) ([]*proto.RuntimeCallArgument, erro
 			}
 			formatted = append(formatted, &proto.RuntimeCallArgument{ObjectID: id})
 		} else { // plain json data
-			formatted = append(formatted, &proto.RuntimeCallArgument{Value: gson.New(arg)})
+			formatted = append(formatted, &proto.RuntimeCallArgument{Value: lazyjson.New(arg)})
 		}
 	}
 

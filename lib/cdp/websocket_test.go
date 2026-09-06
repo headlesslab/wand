@@ -9,11 +9,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
-	"github.com/ysmood/gson"
 )
 
 func TestWebSocketLargePayload(t *testing.T) {
@@ -99,7 +99,7 @@ func newPage(ctx context.Context, g got.G) (*cdp.Client, string) {
 	})
 	g.E(err)
 
-	targetID := gson.New(res).Get("targetId").String()
+	targetID := lazyjson.New(res).Get("targetId").String()
 
 	res, err = client.Call(ctx, "", "Target.attachToTarget", map[string]interface{}{
 		"targetId": targetID,
@@ -107,7 +107,7 @@ func newPage(ctx context.Context, g got.G) (*cdp.Client, string) {
 	})
 	g.E(err)
 
-	sessionID := gson.New(res).Get("sessionId").String()
+	sessionID := lazyjson.New(res).Get("sessionId").String()
 
 	return client, sessionID
 }

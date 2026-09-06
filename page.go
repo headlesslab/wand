@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/headlesslab/eventbus"
+	"github.com/headlesslab/lazyjson"
+	"github.com/headlesslab/seqdiff"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/devices"
 	"github.com/headlesslab/wand/lib/js"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/goob"
-	"github.com/ysmood/got/lib/lcs"
-	"github.com/ysmood/gson"
 )
 
 // Page implements these interfaces.
@@ -57,7 +57,7 @@ type Page struct {
 	sleeper func() utils.Sleeper
 
 	browser *Browser
-	event   *goob.Observable
+	event   *eventbus.Observable
 
 	// devices
 	Mouse    *Mouse
@@ -141,7 +141,7 @@ func (p *Page) SetExtraHeaders(dict []string) (func(), error) {
 	headers := proto.NetworkHeaders{}
 
 	for i := 0; i < len(dict); i += 2 {
-		headers[dict[i]] = gson.New(dict[i+1])
+		headers[dict[i]] = lazyjson.New(dict[i+1])
 	}
 
 	return p.EnableDomain(&proto.NetworkEnable{}), proto.NetworkSetExtraHTTPHeaders{Headers: headers}.Call(p)
@@ -803,8 +803,8 @@ func (p *Page) WaitDOMStable(d time.Duration, diff float64) error {
 			return err
 		}
 
-		xs := lcs.NewWords(domSnapshot.Strings)
-		ys := lcs.NewWords(currentDomSnapshot.Strings)
+		xs := seqdiff.NewWords(domSnapshot.Strings)
+		ys := seqdiff.NewWords(currentDomSnapshot.Strings)
 		lcs := xs.YadLCS(p.ctx, ys)
 
 		df := 1 - float64(len(lcs))/float64(len(ys))
@@ -909,7 +909,7 @@ func (p *Page) WaitElementsMoreThan(selector string, num int) error {
 }
 
 // ObjectToJSON by object id.
-func (p *Page) ObjectToJSON(obj *proto.RuntimeRemoteObject) (gson.JSON, error) {
+func (p *Page) ObjectToJSON(obj *proto.RuntimeRemoteObject) (lazyjson.JSON, error) {
 	if obj.ObjectID == "" {
 		return obj.Value, nil
 	}
@@ -920,7 +920,7 @@ func (p *Page) ObjectToJSON(obj *proto.RuntimeRemoteObject) (gson.JSON, error) {
 		ReturnByValue:       true,
 	}.Call(p)
 	if err != nil {
-		return gson.New(nil), err
+		return lazyjson.New(nil), err
 	}
 	return res.Result.Value, nil
 }
@@ -1031,7 +1031,7 @@ func (p *Page) Event() <-chan *Message {
 }
 
 func (p *Page) initEvents() {
-	p.event = goob.New(p.ctx)
+	p.event = eventbus.New(p.ctx)
 	event := p.browser.Context(p.ctx).Event()
 
 	go func() {

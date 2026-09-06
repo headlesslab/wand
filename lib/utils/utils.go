@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ysmood/gson"
+	"github.com/headlesslab/lazyjson"
 )
 
 // InContainer will be true if is inside container environment, such as docker.
@@ -211,7 +211,7 @@ func Pause() {
 func Dump(list ...interface{}) string {
 	out := []string{}
 	for _, el := range list {
-		out = append(out, gson.New(el).JSON("", "  "))
+		out = append(out, lazyjson.New(el).JSON("", "  "))
 	}
 	return strings.Join(out, " ")
 }

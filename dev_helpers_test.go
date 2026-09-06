@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/js"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func TestMonitor(t *testing.T) {
@@ -35,7 +35,7 @@ func TestMonitor(t *testing.T) {
 
 	res := g.Req("", host+"/api/page/test")
 	g.Eq(400, res.StatusCode)
-	g.Eq(-32602, gson.New(res.Body).Get("code").Int())
+	g.Eq(-32602, lazyjson.New(res.Body).Get("code").Int())
 }
 
 func TestMonitorErr(t *testing.T) {

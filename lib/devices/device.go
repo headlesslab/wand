@@ -2,8 +2,8 @@
 package devices
 
 import (
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/proto"
-	"github.com/ysmood/gson"
 )
 
 // Device represents a emulated device.
@@ -79,7 +79,7 @@ func (device Device) TouchEmulation() *proto.EmulationSetTouchEmulationEnabled {
 
 	return &proto.EmulationSetTouchEmulationEnabled{
 		Enabled:        has(device.Capabilities, "touch"),
-		MaxTouchPoints: gson.Int(5),
+		MaxTouchPoints: lazyjson.Int(5),
 	}
 }
 

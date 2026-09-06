@@ -3,7 +3,7 @@
 package proto
 
 import (
-	"github.com/ysmood/gson"
+	"github.com/headlesslab/lazyjson"
 )
 
 /*
@@ -100,7 +100,7 @@ type MediaPlayerError struct {
 	Cause []*MediaPlayerError `json:"cause"`
 
 	// Data Extra data attached to an error, such as an HRESULT, Video Codec, etc.
-	Data map[string]gson.JSON `json:"data"`
+	Data map[string]lazyjson.JSON `json:"data"`
 }
 
 // MediaEnable Enables the Media domain.

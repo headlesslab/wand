@@ -2,8 +2,8 @@
 package input
 
 import (
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/proto"
-	"github.com/ysmood/gson"
 )
 
 // Modifier values.
@@ -104,7 +104,7 @@ func (k Key) Encode(t proto.InputDispatchKeyEventType, modifiers int) *proto.Inp
 	}
 
 	info := k.Info()
-	l := gson.Int(info.Location)
+	l := lazyjson.Int(info.Location)
 	keypad := false
 	if info.Location == 3 {
 		l = nil

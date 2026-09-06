@@ -14,13 +14,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/headlesslab/eventbus"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/devices"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/goob"
 )
 
 // Browser implements these interfaces.
@@ -53,7 +53,7 @@ type Browser struct {
 
 	controlURL  string
 	client      CDPClient
-	event       *goob.Observable // all the browser events from cdp client
+	event       *eventbus.Observable // all the browser events from cdp client
 	targetsLock *sync.Mutex
 
 	// stores all the previous cdp call of same type. Browser doesn't have enough API
@@ -431,7 +431,7 @@ func (b *Browser) Event() <-chan *Message {
 
 func (b *Browser) initEvents() {
 	ctx, cancel := context.WithCancel(b.ctx)
-	b.event = goob.New(ctx)
+	b.event = eventbus.New(ctx)
 	event := b.client.Event()
 
 	go func() {

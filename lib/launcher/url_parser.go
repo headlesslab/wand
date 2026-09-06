@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 var _ io.Writer = &URLParser{}
@@ -128,7 +128,7 @@ func ResolveURL(u string) (string, error) {
 	data, err := io.ReadAll(res.Body)
 	utils.E(err)
 
-	wsURL := gson.New(data).Get("webSocketDebuggerUrl").Str()
+	wsURL := lazyjson.New(data).Get("webSocketDebuggerUrl").Str()
 
 	parsedWS, err := url.Parse(wsURL)
 	utils.E(err)

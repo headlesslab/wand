@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/ysmood/gson"
+	"github.com/headlesslab/lazyjson"
 )
 
 type objType int
@@ -26,10 +26,10 @@ type domain struct {
 	experimental bool
 	description  string
 	definitions  []*definition
-	global       gson.JSON
+	global       lazyjson.JSON
 }
 
-func (schema *domain) find(id string) gson.JSON {
+func (schema *domain) find(id string) lazyjson.JSON {
 	domain := schema.name
 	list := strings.Split(id, ".")
 	if len(list) == 2 {
@@ -70,7 +70,7 @@ type definition struct {
 	skip         bool
 }
 
-func parse(schema gson.JSON) []*domain {
+func parse(schema lazyjson.JSON) []*domain {
 	patch(schema)
 
 	list := []*domain{}
@@ -82,7 +82,7 @@ func parse(schema gson.JSON) []*domain {
 	return list
 }
 
-func parseDomain(global, schema gson.JSON) *domain {
+func parseDomain(global, schema lazyjson.JSON) *domain {
 	domain := &domain{
 		name:         schema.Get("domain").Str(),
 		experimental: schema.Get("experimental").Bool(),
@@ -103,7 +103,7 @@ func parseDomain(global, schema gson.JSON) *domain {
 	return domain
 }
 
-func parseDef(domain *domain, cdpType cdpType, schema gson.JSON) []*definition {
+func parseDef(domain *domain, cdpType cdpType, schema lazyjson.JSON) []*definition {
 	list := []*definition{}
 
 	switch cdpType {
@@ -139,7 +139,7 @@ func parseDef(domain *domain, cdpType cdpType, schema gson.JSON) []*definition {
 	return list
 }
 
-func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, schema gson.JSON, propsPath string) []*definition {
+func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, schema lazyjson.JSON, propsPath string) []*definition {
 	list := []*definition{}
 
 	props := []*definition{}

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func ExampleClient() {
@@ -35,7 +35,7 @@ func ExampleClient() {
 	})
 	utils.E(err)
 
-	fmt.Println(len(gson.New(res).Get("targetId").Str()))
+	fmt.Println(len(lazyjson.New(res).Get("targetId").Str()))
 
 	// close browser by using the proto lib to encode json
 	_ = proto.BrowserClose{}.Call(client)

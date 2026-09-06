@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/input"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 // This example opens https://github.com/, searches for "git",
@@ -238,7 +238,7 @@ func Example_page_screenshot() {
 	// customization version
 	img, _ := page.Screenshot(true, &proto.PageCaptureScreenshot{
 		Format:  proto.PageCaptureScreenshotFormatJpeg,
-		Quality: gson.Int(90),
+		Quality: lazyjson.Int(90),
 		Clip: &proto.PageViewport{
 			X:      0,
 			Y:      0,
@@ -257,7 +257,7 @@ func Example_page_scroll_screenshot() {
 	// capture entire browser viewport, returning jpg with quality=90
 	img, err := browser.MustPage("https://desktop.github.com/").MustWaitStable().ScrollScreenshot(&wand.ScrollScreenshotOptions{
 		Format:  proto.PageCaptureScreenshotFormatJpeg,
-		Quality: gson.Int(90),
+		Quality: lazyjson.Int(90),
 	})
 	if err != nil {
 		panic(err)
@@ -274,8 +274,8 @@ func Example_page_pdf() {
 
 	// customized version
 	pdf, _ := page.PDF(&proto.PagePrintToPDF{
-		PaperWidth:  gson.Num(8.5),
-		PaperHeight: gson.Num(11),
+		PaperWidth:  lazyjson.Num(8.5),
+		PaperHeight: lazyjson.Num(11),
 		PageRanges:  "1-3",
 	})
 	_ = utils.OutputFile("my.pdf", pdf)
