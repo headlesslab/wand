@@ -136,18 +136,17 @@ func TestSetUserAgent(t *testing.T) {
 
 	s := g.Serve()
 
-	// The first request's headers; a later request of the same page, as after
-	// a failure elsewhere, must not count (it once made a WaitGroup negative).
+	// A path of its own: a navigation to "/" also requests "/favicon.ico",
+	// and "/" is the catch-all pattern of http.ServeMux, so upstream's handler
+	// ran twice and its WaitGroup went negative whenever the favicon request
+	// arrived after the wait.
 	headers := make(chan http.Header, 1)
 
-	s.Mux.HandleFunc("/", func(_ http.ResponseWriter, r *http.Request) {
-		select {
-		case headers <- r.Header.Clone():
-		default:
-		}
+	s.Mux.HandleFunc("/user-agent", func(_ http.ResponseWriter, r *http.Request) {
+		headers <- r.Header.Clone()
 	})
 
-	g.newPage().MustSetUserAgent(nil).MustNavigate(s.URL())
+	g.newPage().MustSetUserAgent(nil).MustNavigate(s.URL("/user-agent"))
 	h := <-headers
 
 	g.Eq(h.Get("User-Agent"), "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")

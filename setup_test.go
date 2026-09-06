@@ -397,6 +397,21 @@ func (g G) newPage(u ...string) *wand.Page {
 	return p
 }
 
+// otherTargets lists the targets of the tester's browser other than its page.
+func (g *G) otherTargets() []proto.TargetTargetID {
+	res, err := proto.TargetGetTargets{}.Call(g.browser)
+	g.E(err)
+
+	var ids []proto.TargetTargetID
+	for _, info := range res.TargetInfos {
+		if info.TargetID != g.page.TargetID {
+			ids = append(ids, info.TargetID)
+		}
+	}
+
+	return ids
+}
+
 // launch starts a browser of the test's own through l, on the browser
 // TestMain resolved, and makes sure it is gone with its user data directory
 // when the test ends, whether the test closed it or not (the launcher kills
@@ -456,20 +471,29 @@ func (g *G) checkLeaking() {
 			return
 		}
 
-		// close all other pages other than g.page
-		res, err := proto.TargetGetTargets{}.Call(g.browser)
-		g.E(err)
-		for _, info := range res.TargetInfos {
-			if info.TargetID == g.page.TargetID {
-				continue
-			}
-
-			// A page the test closed can still be listed while the browser
-			// finishes closing it, and is gone by the time it is closed here.
-			_, err := proto.TargetCloseTarget{TargetID: info.TargetID}.Call(g.browser)
+		// Close every target but g.page, then make sure none is left. A
+		// target can still be listed while the browser finishes destroying
+		// it: Target.closeTarget answers before the target is gone, and the
+		// error path of Browser.Page closes the target it created that way,
+		// without waiting. Closing such a target fails with "No target with
+		// given id found", which is what closing it here was for; the outcome
+		// is what is checked, once the browser has had a moment to finish.
+		for _, id := range g.otherTargets() {
+			_, err := proto.TargetCloseTarget{TargetID: id}.Call(g.browser)
 			if err != nil && !strings.Contains(err.Error(), "No target with given id found") {
 				g.E(err)
 			}
+		}
+
+		deadline := time.Now().Add(3 * time.Second)
+		left := g.otherTargets()
+		for len(left) > 0 && time.Now().Before(deadline) {
+			time.Sleep(50 * time.Millisecond)
+			left = g.otherTargets()
+		}
+		if len(left) > 0 {
+			g.Logf("targets left after the test: %v", left)
+			g.Fail()
 		}
 
 		if g.browser.LoadState(g.page.SessionID, &proto.FetchEnable{}) {
