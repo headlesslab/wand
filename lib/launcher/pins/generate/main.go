@@ -1,8 +1,10 @@
 // Package main is the Roll tool: it computes everything lib/launcher/pins
-// holds and rewrites that package, so the launcher, the protocol generator,
-// the Roll and the release workflow all read the same numbers.
+// holds and rewrites every place the pins appear, so the launcher, the
+// protocol generator, the Roll, the release workflow and the READMEs all
+// carry the same numbers.
 //
 //	go run ./lib/launcher/pins/generate [<version>]
+//	go run ./lib/launcher/pins/generate -render
 //	go run ./lib/launcher/pins/generate -check
 //
 // With no argument the Target Chrome is Chrome for Testing's last-known-good
@@ -12,19 +14,24 @@
 // and the Companion Chromium, the newest Chromium trunk build at or below it
 // whose archive exists for all five bucket prefixes. It then downloads every
 // Managed browser archive from Google's origin bucket, never from another
-// Download host, records each SHA-256 and rewrites lib/launcher/pins/pins.go.
-// An archive Google does not serve is reported and the exit status is 1; what
-// was verified is still written, so the gap shows in the diff instead of
-// hiding.
+// Download host, records each SHA-256 and rewrites lib/launcher/pins/pins.go
+// and the browser table between the pins markers of README.md and
+// README.zh-CN.md. An archive Google does not serve is reported and the exit
+// status is 1; what was verified is still written, so the gap shows in the
+// diff instead of hiding.
+//
+// -render downloads nothing: it rewrites the same outputs from the pins as
+// committed, for when the renderer or a README's prose changes between two
+// Rolls.
 //
 // -check rewrites nothing. It re-derives the Protocol roll from the committed
-// branch position and fails on a mismatch, and it re-renders the file from
+// branch position and fails on a mismatch, and it re-renders every output from
 // the committed values and fails when the bytes differ, so a stale roll and
-// any drift in formatting or order are caught before the next Roll's diff
-// carries them. It cannot tell a hand-edited hash from a downloaded one: the
-// reviewed Roll pull request is the trust anchor for the hashes (ADR-0005).
-// go generate runs it, so the generate Gate's zero-diff check covers this
-// package (ADR-0004, ADR-0009).
+// any drift in formatting, order or a README table are caught before the next
+// Roll's diff carries them. It cannot tell a hand-edited hash from a
+// downloaded one: the reviewed Roll pull request is the trust anchor for the
+// hashes (ADR-0005). go generate runs it, so the generate Gate's zero-diff
+// check covers this package (ADR-0004, ADR-0009).
 package main
 
 import (
@@ -39,10 +46,6 @@ import (
 
 	"github.com/headlesslab/wand/lib/launcher/pins"
 )
-
-// pinsFile is the file the Roll writes, relative to the module root, where
-// every generator of this repository runs from.
-const pinsFile = "lib/launcher/pins/pins.go"
 
 func main() {
 	opts, err := parseArgs(os.Args[1:])
@@ -63,23 +66,32 @@ func run(opts options) int {
 
 	r := newRoller()
 
-	if opts.check {
+	switch {
+	case opts.check:
 		return check(ctx, r)
+	case opts.render:
+		return rerender(r)
+	default:
+		return roll(ctx, r, opts.version)
 	}
-	return roll(ctx, r, opts.version)
 }
 
 func check(ctx context.Context, r *roller) int {
-	file, err := os.ReadFile(pinsFile)
-	if err != nil {
-		return fail(err)
-	}
-	if err := r.check(ctx, current(), file); err != nil {
+	if err := r.check(ctx, current()); err != nil {
 		return fail(err)
 	}
 
-	fmt.Printf("pins: %s is what the Roll writes; branch position %d derives protocol r%d\n",
-		pinsFile, pins.ChromePosition, pins.ProtocolRoll)
+	fmt.Printf("pins: every output is what the Roll writes; branch position %d derives protocol r%d\n",
+		pins.ChromePosition, pins.ProtocolRoll)
+	return 0
+}
+
+func rerender(r *roller) int {
+	if err := r.write(current()); err != nil {
+		return fail(err)
+	}
+
+	fmt.Printf("pins: rewrote %s for Chrome %s\n", outputNames(), pins.ChromeVersion)
 	return 0
 }
 
@@ -88,16 +100,12 @@ func roll(ctx context.Context, r *roller, version string) int {
 	if err != nil {
 		return fail(err)
 	}
-	out, err := render(p)
-	if err != nil {
-		return fail(err)
-	}
-	if err := os.WriteFile(pinsFile, out, 0o644); err != nil {
+	if err := r.write(p); err != nil {
 		return fail(err)
 	}
 
 	fmt.Printf("pins: wrote %s for Chrome %s (branch position %d, protocol r%d, Chromium %d)\n",
-		pinsFile, p.ChromeVersion, p.ChromePosition, p.ProtocolRoll, p.ChromiumPosition)
+		outputNames(), p.ChromeVersion, p.ChromePosition, p.ProtocolRoll, p.ChromiumPosition)
 
 	if len(missing) > 0 {
 		fmt.Fprintf(os.Stderr, "pins: %d archive(s) missing from Google's bucket:\n", len(missing))
@@ -109,6 +117,22 @@ func roll(ctx context.Context, r *roller, version string) int {
 	return 0
 }
 
+// outputNames lists the outputs as prose: "a, b and c".
+func outputNames() string {
+	names := ""
+	for i, o := range outputs {
+		switch {
+		case i == 0:
+		case i == len(outputs)-1:
+			names += " and "
+		default:
+			names += ", "
+		}
+		names += o.path
+	}
+	return names
+}
+
 func fail(err error) int {
 	fmt.Fprintln(os.Stderr, "pins:", err)
 	return 1
@@ -116,6 +140,7 @@ func fail(err error) int {
 
 type options struct {
 	check   bool
+	render  bool
 	version string
 }
 
@@ -131,10 +156,14 @@ func parseArgs(args []string) (options, error) {
 
 	rest := fs.Args()
 	switch {
+	case opts.check && opts.render:
+		return options{}, errors.New("-check and -render exclude each other")
 	case len(rest) > 1:
 		return options{}, errors.New("at most one version may be given")
 	case len(rest) == 1 && opts.check:
 		return options{}, errors.New("-check takes no version: it checks the pins as committed")
+	case len(rest) == 1 && opts.render:
+		return options{}, errors.New("-render takes no version: it rewrites the pins as committed")
 	case len(rest) == 1:
 		if !chromeVersion.MatchString(rest[0]) {
 			return options{}, fmt.Errorf("%q is not a Chrome version of the form 152.0.7977.82", rest[0])
@@ -151,12 +180,14 @@ func flagSet(opts *options) *flag.FlagSet {
 	fs := flag.NewFlagSet("pins", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.BoolVar(&opts.check, "check", false,
-		"write nothing; fail unless the committed pins re-derive and re-render to the same bytes")
+		"write nothing; fail unless the committed pins re-derive and every output re-renders to the same bytes")
+	fs.BoolVar(&opts.render, "render", false,
+		"download nothing; rewrite every output from the committed pins")
 	return fs
 }
 
 func usage(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "usage: go run ./lib/launcher/pins/generate [-check] [<version>]")
+	_, _ = fmt.Fprintln(w, "usage: go run ./lib/launcher/pins/generate [-check | -render | <version>]")
 	fs := flagSet(&options{})
 	fs.SetOutput(w)
 	fs.PrintDefaults()

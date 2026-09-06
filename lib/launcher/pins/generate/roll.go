@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -78,6 +79,7 @@ var (
 // roller computes the pins. Its endpoints are Google's in production and a
 // local server in tests.
 type roller struct {
+	root            string // the module root, where every output path is relative to
 	client          *http.Client
 	cft             string // Chrome for Testing's version JSON
 	chromeBucket    string // Chrome for Testing's archive bucket
@@ -90,6 +92,7 @@ type roller struct {
 
 func newRoller() *roller {
 	return &roller{
+		root:            ".",
 		client:          &http.Client{},
 		cft:             chromeForTesting,
 		chromeBucket:    chromeBucket,
@@ -155,9 +158,10 @@ func (r *roller) roll(ctx context.Context, version string) (Pins, []string, erro
 }
 
 // check verifies the committed pins without writing: the Protocol roll must
-// still be what the branch position derives, and file must be byte for byte
-// what render gives for p, so that the next Roll's diff is only its values.
-func (r *roller) check(ctx context.Context, p Pins, file []byte) error {
+// still be what the branch position derives, and every output must be byte
+// for byte what write gives for p, so that the next Roll's diff is only its
+// values.
+func (r *roller) check(ctx context.Context, p Pins) error {
 	rolls, err := r.rolls(ctx)
 	if err != nil {
 		return fmt.Errorf("listing devtools-protocol tags: %w", err)
@@ -170,14 +174,69 @@ func (r *roller) check(ctx context.Context, p Pins, file []byte) error {
 		return fmt.Errorf("ProtocolRoll is r%d but branch position %d derives r%d", p.ProtocolRoll, p.ChromePosition, roll)
 	}
 
-	want, err := render(p)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(normalize(file), want) {
-		return fmt.Errorf("%s is not what the Roll writes for its own values; run the Roll again", pinsFile)
-	}
+	return r.verify(p)
+}
 
+// pinsFile is the file the Roll writes, relative to the module root, where
+// every generator of this repository runs from.
+const pinsFile = "lib/launcher/pins/pins.go"
+
+// output is one file the Roll writes: pins.go as a whole, or the block
+// between the markers of a README, given the file as it is.
+type output struct {
+	path   string
+	render func(p Pins, existing []byte) ([]byte, error)
+}
+
+var outputs = []output{
+	{pinsFile, func(p Pins, _ []byte) ([]byte, error) { return render(p) }},
+	{"README.md", readmeOutput("README.md")},
+	{"README.zh-CN.md", readmeOutput("README.zh-CN.md")},
+}
+
+func readmeOutput(readme string) func(Pins, []byte) ([]byte, error) {
+	return func(p Pins, existing []byte) ([]byte, error) {
+		block, err := readmeBlock(p, readme)
+		if err != nil {
+			return nil, err
+		}
+		return replaceBlock(existing, block)
+	}
+}
+
+// write rewrites every output for p.
+func (r *roller) write(p Pins) error {
+	for _, o := range outputs {
+		existing, err := os.ReadFile(filepath.Join(r.root, o.path))
+		if err != nil {
+			return err
+		}
+		out, err := o.render(p, normalize(existing))
+		if err != nil {
+			return fmt.Errorf("%s: %w", o.path, err)
+		}
+		if err := os.WriteFile(filepath.Join(r.root, o.path), out, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// verify fails when any output is not byte for byte what write gives for p.
+func (r *roller) verify(p Pins) error {
+	for _, o := range outputs {
+		existing, err := os.ReadFile(filepath.Join(r.root, o.path))
+		if err != nil {
+			return err
+		}
+		want, err := o.render(p, normalize(existing))
+		if err != nil {
+			return fmt.Errorf("%s: %w", o.path, err)
+		}
+		if !bytes.Equal(normalize(existing), want) {
+			return fmt.Errorf("%s is not what the Roll writes for its own values; run the Roll tool with -render", o.path)
+		}
+	}
 	return nil
 }
 
