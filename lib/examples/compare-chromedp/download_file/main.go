@@ -32,7 +32,7 @@ func main() {
 			completed = fmt.Sprintf("%0.2f%%", e.ReceivedBytes/e.TotalBytes*100.0)
 		}
 		log.Printf("state: %s, completed: %s\n", e.State, completed)
-		return e.State == proto.PageDownloadProgressStateCompleted
+		return e.State == proto.PageDownloadProgressStateCompleted //nolint: staticcheck
 	})()
 
 	page.MustElementR("a", "Download ZIP").MustClick()

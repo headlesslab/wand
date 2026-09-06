@@ -516,7 +516,8 @@ func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillB
 	waitProgress := b.EachEvent(func(e *proto.PageDownloadWillBegin) { //nolint: staticcheck
 		start = e
 	}, func(e *proto.PageDownloadProgress) bool { //nolint: staticcheck
-		return start != nil && start.GUID == e.GUID && e.State == proto.PageDownloadProgressStateCompleted
+		completed := e.State == proto.PageDownloadProgressStateCompleted //nolint: staticcheck
+		return start != nil && start.GUID == e.GUID && completed
 	})
 
 	return func() *proto.PageDownloadWillBegin { //nolint: staticcheck
