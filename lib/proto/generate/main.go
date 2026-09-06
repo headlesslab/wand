@@ -185,7 +185,7 @@ func (g *generator) generate(ctx context.Context) (string, error) {
 	g.log.Printf("wrote %d files to %s", len(files), dir)
 
 	if g.format {
-		devutil.GolangciLint("fmt", "./"+filepath.ToSlash(dir))
+		devutil.GoTool(devutil.GolangciLint, "fmt", "./"+filepath.ToSlash(dir))
 	}
 
 	after, err := readSymbols(dir)

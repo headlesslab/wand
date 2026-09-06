@@ -1,18 +1,18 @@
 package devutil
 
-// golangciLint is the one pinned Go tool of the generators and the lint tool.
-// Its formatters (gofmt, gofumpt, goimports, gci) and its linters run at the
-// versions its own go.mod pins, so moving this line moves them all together;
-// the satellites' reusable workflow in headlesslab/.github pins the same
-// version. go run builds it into the build cache on first use and installs
-// nothing (spec #33, section 13: no @latest in a Gate).
-const golangciLint = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
+// GolangciLint is the one pinned Go tool of the generators and the lint tool,
+// run through GoTool. Its formatters (gofmt, gofumpt, goimports, gci) and its
+// linters run at the versions its own go.mod pins, so moving this line moves
+// them all together; the satellites' reusable workflow in headlesslab/.github
+// pins the same version (spec #33, section 13: no @latest in a Gate).
+const GolangciLint = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
 
-// GolangciLint runs golangci-lint at the pinned version with args, such as
-// "fmt ./lib/proto" to rewrite or "run ./..." to report, and returns what it
-// printed.
-func GolangciLint(args ...string) string {
-	return Exec("go run "+golangciLint, args...)
+// GoTool runs a Go tool with args through go run, which builds it into the
+// build cache on first use and installs nothing: a pinned tool by its module
+// path at an exact version, such as GolangciLint, or a tool of this module by
+// its package path. It echoes the output as well as returning it.
+func GoTool(pkg string, args ...string) string {
+	return Exec("go run "+pkg, args...)
 }
 
 // nodeTools is where the Node tools live: package.json there names each at

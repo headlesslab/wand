@@ -35,7 +35,7 @@ func main() {
 
 	utils.E(utils.OutputFile("lib/js/helper.go", out))
 
-	devutil.GolangciLint("fmt", "./lib/js")
+	devutil.GoTool(devutil.GolangciLint, "fmt", "./lib/js")
 }
 
 var regDeps = regexp.MustCompile(`\Wfunctions.(\w+)`)

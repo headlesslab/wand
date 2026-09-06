@@ -19,9 +19,9 @@ func main() {
 
 	devutil.NodeTool("prettier", "--loglevel=error", "--write", "--ignore-path=.gitignore", ".")
 
-	devutil.GolangciLint("fmt", "./...")
+	devutil.GoTool(devutil.GolangciLint, "fmt", "./...")
 
-	devutil.GolangciLint("run", "./...")
+	devutil.GoTool(devutil.GolangciLint, "run", "./...")
 
 	lintMustPrefix()
 

@@ -65,7 +65,7 @@ func main() {
 	path := "./lib/devices/list.go"
 	utils.E(utils.OutputFile(path, code))
 
-	devutil.GolangciLint("fmt", filepath.Dir(path))
+	devutil.GoTool(devutil.GolangciLint, "fmt", filepath.Dir(path))
 }
 
 func getDeviceList() lazyjson.JSON {
