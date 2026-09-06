@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -37,6 +38,12 @@ type Launcher struct {
 	pid     int
 	exit    chan struct{}
 
+	// download is whether Browser resolution may download the Managed
+	// browser as its last resort; findSystem is its search for a System
+	// browser, LookPath outside the tests.
+	download   bool
+	findSystem func() (string, bool)
+
 	managed    bool
 	serviceURL string
 
@@ -47,8 +54,10 @@ type Launcher struct {
 // Headless will be enabled by default.
 // Leakless will be enabled by default.
 // UserDataDir will use OS tmp dir by default, this folder will usually be cleaned up by the OS after reboot.
-// It will auto download the browser binary according to the current platform,
-// check [Launcher.Bin], [Launcher.Source] and [Launcher.Version] for more info.
+// The browser comes from Browser resolution at launch: an explicit path, then
+// a System browser, then a Managed browser, downloaded only as a last resort;
+// check [Launcher.Bin], [LookPath], [Launcher.Download] and [Launcher.Source]
+// for more info.
 func New() *Launcher {
 	dir := defaults.Dir
 	if dir == "" {
@@ -111,22 +120,25 @@ func New() *Launcher {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Launcher{
-		ctx:       ctx,
-		ctxCancel: cancel,
-		Flags:     defaultFlags,
-		exit:      make(chan struct{}),
-		browser:   NewBrowser(),
-		parser:    NewURLParser(),
-		logger:    io.Discard,
+		ctx:        ctx,
+		ctxCancel:  cancel,
+		Flags:      defaultFlags,
+		exit:       make(chan struct{}),
+		browser:    NewBrowser(),
+		download:   downloadEnabled(),
+		findSystem: LookPath,
+		parser:     NewURLParser(),
+		logger:     io.Discard,
 	}
 }
 
 // NewUserMode is a preset to enable reusing current user data. Useful for automation of personal browser.
 // If you see any error, it may because you can't launch debug port for existing browser, the solution is to
 // completely close the running browser. Unfortunately, there's no API for wand to tell it automatically yet.
+// The browser comes from the same Browser resolution as [New], so a System
+// browser is preferred to a Managed one.
 func NewUserMode() *Launcher {
 	ctx, cancel := context.WithCancel(context.Background())
-	bin, _ := LookPath()
 
 	return &Launcher{
 		ctx:       ctx,
@@ -134,12 +146,14 @@ func NewUserMode() *Launcher {
 		Flags: map[flags.Flag][]string{
 			flags.RemoteDebuggingPort: {"37712"},
 			"no-startup-window":       nil,
-			flags.Bin:                 {bin},
+			flags.Bin:                 {defaults.Bin},
 		},
-		browser: NewBrowser(),
-		exit:    make(chan struct{}),
-		parser:  NewURLParser(),
-		logger:  io.Discard,
+		browser:    NewBrowser(),
+		download:   downloadEnabled(),
+		findSystem: LookPath,
+		exit:       make(chan struct{}),
+		parser:     NewURLParser(),
+		logger:     io.Discard,
 	}
 }
 
@@ -210,9 +224,22 @@ func (l *Launcher) Delete(name flags.Flag) *Launcher {
 	return l
 }
 
-// Bin of the browser binary path to launch, if the path is not empty the auto download will be disabled.
+// Bin of the browser binary to launch: the first step of Browser resolution,
+// which then goes no further. It beats the -wand=bin= flag, which beats
+// WAND_BROWSER_BIN; an empty path leaves the search to the steps below: a
+// System browser from [LookPath], then the Managed browser, cached or
+// downloaded.
 func (l *Launcher) Bin(path string) *Launcher {
 	return l.Set(flags.Bin, path)
+}
+
+// Download switch: whether Browser resolution may download the Managed
+// browser when no explicit path, System browser or cached Managed browser is
+// found. On by default; WAND_BROWSER_DOWNLOAD=0 switches it off for a whole
+// process. With it off, a launch that finds nothing fails with [ErrNoBrowser].
+func (l *Launcher) Download(enable bool) *Launcher {
+	l.download = enable
+	return l
 }
 
 // Source of the Managed browser to auto download when no binary is set:
@@ -461,7 +488,7 @@ func (l *Launcher) Launch() (string, error) {
 
 	defer l.ctxCancel()
 
-	bin, err := l.getBin()
+	bin, err := l.resolveBin()
 	if err != nil {
 		return "", err
 	}
@@ -552,13 +579,54 @@ func (l *Launcher) setupCmd(cmd *exec.Cmd) {
 	cmd.Stderr = io.MultiWriter(l.logger, l.parser)
 }
 
-func (l *Launcher) getBin() (string, error) {
-	bin := l.Get(flags.Bin)
-	if bin == "" {
-		l.browser.Context = l.ctx
-		return l.browser.Get()
+// resolveBin runs Browser resolution (ADR-0005): the explicit path from
+// [Launcher.Bin], the -wand=bin= flag or EnvBrowserBin, then a System
+// browser from [LookPath], then the Managed browser already in the cache,
+// then its download unless [Launcher.Download] switched that off. An explicit
+// path is taken as it is; nothing is compared by version. When every step
+// finds nothing the error, wrapping [ErrNoBrowser], lists them all.
+func (l *Launcher) resolveBin() (string, error) {
+	if bin := l.Get(flags.Bin); bin != "" {
+		return bin, nil
 	}
-	return bin, nil
+
+	if bin := os.Getenv(EnvBrowserBin); bin != "" {
+		return bin, nil
+	}
+
+	if bin, has := l.findSystem(); has {
+		return bin, nil
+	}
+
+	l.browser.Context = l.ctx
+
+	tried := []string{
+		"no path from Launcher.Bin(), -wand=bin= or " + EnvBrowserBin,
+		"no System browser at the paths LookPath searches on " + runtime.GOOS,
+	}
+
+	if l.download {
+		bin, err := l.browser.Get()
+		if err != nil {
+			tried = append(tried, "no usable Managed browser at "+l.browser.BinPath())
+
+			return "", fmt.Errorf("%w: %s; %w", ErrNoBrowser, strings.Join(tried, "; "), err)
+		}
+
+		return bin, nil
+	}
+
+	err := l.browser.Validate()
+	if err == nil {
+		return l.browser.BinPath(), nil
+	}
+
+	tried = append(tried,
+		fmt.Sprintf("no usable Managed browser at %s (%v)", l.browser.BinPath(), err),
+		"download off ("+EnvBrowserDownload+"=0 or Launcher.Download(false))",
+	)
+
+	return "", fmt.Errorf("%w: %s", ErrNoBrowser, strings.Join(tried, "; "))
 }
 
 func (l *Launcher) getURL() (u string, err error) {

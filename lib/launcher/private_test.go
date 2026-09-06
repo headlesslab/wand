@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"errors"
 	"net/url"
 	"os"
 	"os/exec"
@@ -357,14 +358,215 @@ func TestLaunchErrs(t *testing.T) {
 	_, err := l.Launch()
 	g.Err(err)
 
+	// Nothing explicit, no System browser, nothing cached and a Download
+	// host that serves no archive: the error names every step tried and
+	// wraps the download's own.
+	t.Setenv(EnvBrowserBin, "")
 	s := g.Serve()
 	s.Route("/", "", nil)
 	l = New().Bin("")
+	l.findSystem = noSystemBrowser
 	l.browser.Logger = utils.LoggerQuiet
 	l.browser.RootDir = filepath.Join(t.TempDir(), "browser")
 	l.browser.Hosts = []string{s.URL("/{version}/{platform}/{archive}")}
 	_, err = l.Launch()
-	g.Err(err)
+	g.True(errors.Is(err, ErrNoBrowser))
+	g.Has(err.Error(), "Launcher.Bin()")
+	g.Has(err.Error(), "System browser")
+	g.Has(err.Error(), l.browser.BinPath())
+	g.Has(err.Error(), "can't download")
+}
+
+// noSystemBrowser is a discovery that finds nothing, for the tests of the
+// steps below it.
+func noSystemBrowser() (string, bool) { return "", false }
+
+// fakeBrowser writes an executable file named name under dir, which is all
+// exec.LookPath asks of a browser binary, and returns its path.
+func fakeBrowser(g got.G, dir, name string) string {
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+
+	p := filepath.Join(dir, name)
+	g.E(os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755))
+
+	return p
+}
+
+func TestResolveBin(t *testing.T) {
+	g := setup(t)
+
+	dir := t.TempDir()
+	code := fakeBrowser(g, dir, "code")
+	flag := fakeBrowser(g, dir, "flag")
+	env := fakeBrowser(g, dir, "env")
+	system := fakeBrowser(g, dir, "system")
+
+	resolve := func(l *Launcher) string {
+		bin, err := l.resolveBin()
+		g.E(err)
+
+		return bin
+	}
+
+	defaults.Bin = flag
+	defer defaults.ResetWith("")
+	t.Setenv(EnvBrowserBin, env)
+
+	// The code option beats the flag, the flag the environment, the
+	// environment discovery.
+	l := New()
+	l.findSystem = func() (string, bool) { return system, true }
+	g.Eq(resolve(l), flag)
+	g.Eq(resolve(l.Bin(code)), code)
+	g.Eq(resolve(l.Bin("")), env)
+
+	t.Setenv(EnvBrowserBin, "")
+	g.Eq(resolve(l), system)
+
+	// Below discovery, a Managed browser already in the cache is used
+	// whether or not a download is allowed, and nothing is downloaded.
+	l.findSystem = noSystemBrowser
+	l.browser.Logger = utils.LoggerQuiet
+	l.browser.RootDir = filepath.Join(dir, "cache")
+	l.browser.Hosts = []string{"http://127.0.0.1:1/{archive}"}
+	g.E(utils.Mkdir(filepath.Dir(l.browser.BinPath())))
+	g.E(exec.Command("go", "build", "-o", l.browser.BinPath(), "./fixtures/chrome-lib-missing").CombinedOutput())
+	g.Eq(resolve(l.Download(false)), l.browser.BinPath())
+	g.Eq(resolve(l.Download(true)), l.browser.BinPath())
+
+	// Nothing cached and the download switched off: the error lists every
+	// step tried.
+	l.browser.RootDir = filepath.Join(dir, "empty")
+	_, err := l.Download(false).resolveBin()
+	g.True(errors.Is(err, ErrNoBrowser))
+	for _, step := range []string{
+		"Launcher.Bin()", "-wand=bin=", EnvBrowserBin,
+		"System browser", runtime.GOOS,
+		l.browser.BinPath(),
+		EnvBrowserDownload + "=0", "Launcher.Download(false)",
+	} {
+		g.Desc(step).Has(err.Error(), step)
+	}
+}
+
+func TestResolveBinDownload(t *testing.T) {
+	g := setup(t)
+
+	// The last resort: nothing explicit, no System browser, nothing cached,
+	// so the Managed browser is downloaded, here from an ephemeral host.
+	t.Setenv(EnvBrowserBin, "")
+	l := New()
+	l.findSystem = noSystemBrowser
+	l.browser = newBrowser(t)
+	data, sum := archiveOf(g, l.browser)
+	pin(g, sum)
+
+	s := g.Serve()
+	s.Route("/", ".zip", data)
+	l.browser.Hosts = []string{s.URL(hostTemplate)}
+
+	bin, err := l.resolveBin()
+	g.E(err)
+	g.Eq(bin, l.browser.BinPath())
+	g.PathExists(bin)
+}
+
+func TestDownloadEnv(t *testing.T) {
+	g := setup(t)
+
+	t.Setenv(EnvBrowserDownload, "")
+	g.True(New().download)
+	g.True(NewUserMode().download)
+
+	t.Setenv(EnvBrowserDownload, "0")
+	g.False(New().download)
+	g.False(NewUserMode().download)
+
+	t.Setenv(EnvBrowserDownload, "1")
+	g.True(New().download)
+
+	// The option beats the environment either way.
+	t.Setenv(EnvBrowserDownload, "0")
+	g.True(New().Download(true).download)
+	g.False(New().Download(true).Download(false).download)
+}
+
+func TestUserModeBin(t *testing.T) {
+	g := setup(t)
+
+	// User mode takes the flag like New and leaves the rest to Browser
+	// resolution at launch, rather than searching for a System browser up
+	// front.
+	defaults.Bin = "flag"
+	defer defaults.ResetWith("")
+	g.Eq(NewUserMode().Get(flags.Bin), "flag")
+
+	defaults.ResetWith("")
+	g.Eq(NewUserMode().Get(flags.Bin), "")
+}
+
+func TestSystemBrowsers(t *testing.T) {
+	g := setup(t)
+
+	darwin := systemBrowsers("darwin")
+	g.Has(darwin, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+	g.Has(darwin, "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")
+	g.Has(darwin, "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")
+	g.Has(darwin, "/opt/homebrew/bin/chromium")
+	g.Has(darwin, "/usr/local/bin/chromium")
+
+	linux := systemBrowsers("linux")
+	g.Has(linux, "google-chrome")
+	g.Has(linux, "/opt/google/chrome/chrome")
+	g.Has(linux, "microsoft-edge-stable")
+	g.Has(linux, "/opt/microsoft/msedge/msedge")
+	g.Has(linux, "/snap/bin/chromium")
+
+	windows := systemBrowsers("windows")
+	g.Has(windows, "chrome")
+	g.Has(windows, filepath.Join(os.Getenv("ProgramFiles"), `Google\Chrome\Application\chrome.exe`))
+	g.Has(windows, filepath.Join(os.Getenv("LocalAppData"), `Microsoft\Edge\Application\msedge.exe`))
+
+	g.Eq(systemBrowsers("openbsd"), []string{"chrome", "chromium"})
+	g.Len(systemBrowsers("plan9"), 0)
+
+	// No Domestic platform browser: none is verified to accept remote
+	// debugging (ADR-0005), so their paths go to WAND_BROWSER_BIN.
+	for _, goos := range []string{"darwin", "linux", "windows", "openbsd"} {
+		for _, p := range systemBrowsers(goos) {
+			for _, name := range []string{"lbrowser", "qianxin", "qax", "360", "uos"} {
+				g.Desc("%s %s", goos, p).False(strings.Contains(strings.ToLower(p), name))
+			}
+		}
+	}
+}
+
+func TestLookPath(t *testing.T) {
+	g := setup(t)
+
+	dir := t.TempDir()
+	second := fakeBrowser(g, dir, "second")
+	first := fakeBrowser(g, dir, "first")
+	missing := filepath.Join(dir, "missing")
+
+	// The first candidate that exists wins, whatever its version.
+	found, has := lookPath([]string{missing, first, second})
+	g.True(has)
+	g.Eq(found, first)
+
+	_, has = lookPath([]string{missing})
+	g.False(has)
+
+	_, has = lookPath(nil)
+	g.False(has)
+
+	// LookPath is the search over this OS's list.
+	found, has = LookPath()
+	expected, expectedHas := lookPath(systemBrowsers(runtime.GOOS))
+	g.Eq(has, expectedHas)
+	g.Eq(found, expected)
 }
 
 func TestURLParserErr(t *testing.T) {

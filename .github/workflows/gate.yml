@@ -62,7 +62,17 @@ jobs:
       # browser serialize behind fetch's file lock, so a package suite that
       # started while another package was still downloading would spend its
       # timing budgets waiting behind that lock.
-      - run: go run ./cmd/wand-fetch-browser
+      #
+      # Browser resolution takes a System browser before a Managed one, and
+      # the runner image ships Google Chrome, so WAND_BROWSER_BIN points every
+      # suite at the Managed browser just downloaded, whose path the command
+      # prints: Tier 1 runs on the Target Chrome pin, never on whatever the
+      # runner installed (spec #33, section 12).
+      - name: Fetch the Target Chrome
+        run: |
+          bin="$(go run ./cmd/wand-fetch-browser)"
+          echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
+          "$bin" --version
 
       # Everything runs from the workspace root. `./...` stops at the two
       # nested example modules, so they are named to be compiled against this

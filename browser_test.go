@@ -1,12 +1,15 @@
 package wand_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/devices"
 	"github.com/headlesslab/wand/lib/launcher"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
@@ -503,4 +507,46 @@ func TestBrowserConnectConflict(t *testing.T) {
 	g.Panic(func() {
 		wand.New().Client(&cdp.Client{}).ControlURL("test").MustConnect()
 	})
+}
+
+func TestBrowserVersionMismatch(t *testing.T) {
+	g := setup(t)
+
+	// A browser of its own, so that each connection below is a fresh one
+	// whose Browser.getVersion answer the mock decides.
+	u := launcher.New().MustLaunch()
+
+	connect := func(product string) string {
+		mc := newMockClient(u)
+		mc.t = t
+		mc.stub(1, proto.BrowserGetVersion{}, func(_ StubSend) (lazyjson.JSON, error) {
+			return lazyjson.New(proto.BrowserGetVersionResult{Product: product}), nil
+		})
+
+		logs := &bytes.Buffer{}
+		b := wand.New().Client(mc).Logger(log.New(logs, "", 0))
+		g.E(b.Connect())
+		g.Cleanup(func() { _ = b.Close() })
+
+		return logs.String()
+	}
+
+	// Another major version than the Target Chrome's: one line, both
+	// versions, and the connection stands.
+	line := connect("Chrome/1.0.0.0")
+	g.Has(line, "Chrome/1.0.0.0")
+	g.Has(line, pins.ChromeVersion)
+	g.Eq(strings.Count(line, "\n"), 1)
+
+	// The Target Chrome's major version, headless or not: nothing.
+	g.Eq(connect("HeadlessChrome/"+pins.ChromeVersion), "")
+
+	// The version could not be read, or target discovery could not be
+	// switched on: the connection fails with that error.
+	for _, req := range []proto.Request{proto.BrowserGetVersion{}, proto.TargetSetDiscoverTargets{}} {
+		mc := newMockClient(u)
+		mc.t = t
+		mc.stubErr(1, req)
+		g.Err(wand.New().Client(mc).Connect())
+	}
 }
