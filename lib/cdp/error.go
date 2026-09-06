@@ -45,11 +45,11 @@ var ErrSearchSessionNotFound = &Error{
 	Message: "No search session with given id found",
 }
 
-// ErrCtxDestroyed type. It matches every message Chrome uses for an evaluation
-// interrupted by a navigation: Chromium 128 reports "Execution context was
-// destroyed." from V8, Chrome 152 "Inspected target navigated or closed" from
-// the DevTools session, and Puppeteer rewrites the latter into the former too.
-// ErrCtxNotFound, a stale context id, stays a separate error.
+// ErrCtxDestroyed type. It matches both messages Chrome has used for an
+// evaluation interrupted by a navigation: Chromium 128 reports "Execution
+// context was destroyed." from V8, Chrome 152 "Inspected target navigated or
+// closed" from the DevTools session. ErrCtxNotFound, a stale context id, stays
+// a separate error.
 var ErrCtxDestroyed = &Error{
 	Code:    -32000,
 	Message: "Execution context was destroyed.",

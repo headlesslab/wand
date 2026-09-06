@@ -166,7 +166,9 @@ func TestTestOpen(t *testing.T) {
 
 	Open("about:blank")
 
-	// A browser that cannot start leaves no process to release.
+	// A browser that cannot start leaves no process to release. Like the call
+	// above, this one reaches openExec only where LookPath finds a browser, as
+	// it does on every Tier 1 runner.
 	openExec = func(_ string, _ ...string) *exec.Cmd {
 		return exec.Command(filepath.Join(t.TempDir(), "no-such-browser"))
 	}
