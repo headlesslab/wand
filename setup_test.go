@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,35 +28,75 @@ import (
 	"github.com/ysmood/got"
 )
 
+// TimeoutEach is how long one test may run. A test still running after it
+// has its browser closed, so that a call hung on the browser returns an error
+// and the test fails on its own, with the goroutine dump above its output,
+// while the run goes on; a test still running another TimeoutEach later, hung
+// on something else, ends the run.
 var TimeoutEach = flag.Duration("timeout-each", time.Minute, "timeout for each test")
 
 var LogDir = slash(fmt.Sprintf("tmp/cdp-log/%s", time.Now().Format("2006-01-02_15-04-05")))
 
-func init() {
-	got.DefaultFlags("timeout=5m", "run=/")
-
-	utils.E(os.MkdirAll(slash("tmp/cdp-log"), 0o755))
-
-	launcher.NewBrowser().MustGet() // preload browser to local
-}
+// browserBin is the browser Browser resolution found in TestMain, which every
+// tester launches: an explicit path, WAND_BROWSER_BIN in CI, a System browser
+// on a developer machine, the Managed browser otherwise (spec #33, section
+// 12). There is no test-only browser knob.
+var browserBin string
 
 var testerPool wand.Pool[G]
 
 func TestMain(m *testing.M) {
+	got.DefaultFlags("timeout=5m", "run=/")
+
+	utils.E(os.MkdirAll(slash("tmp/cdp-log"), 0o755))
+
+	os.Exit(run(m))
+}
+
+// run is the body of TestMain, so that the browsers are closed and their user
+// data directories removed whatever the outcome, before the process exits.
+func run(m *testing.M) int {
+	bin, err := launcher.New().ResolveBin()
+	if err != nil {
+		log.Printf("browser resolution: %v", err)
+		return 1
+	}
+	browserBin = bin
+
 	testerPool = newTesterPool()
 
-	code := m.Run()
-	if code != 0 {
-		os.Exit(code)
+	// The first tester is launched here, once: a browser that does not start
+	// fails the run at once, with its path, and one that does prints its
+	// version, so every log shows the browser actually used.
+	first, err := testerPool.Get(launchTester)
+	if err != nil {
+		stopTesters()
+		log.Printf("browser %s: %v", bin, err)
+		return 1
 	}
+	version, err := first.browser.Version()
+	if err != nil {
+		stopTesters()
+		log.Printf("browser %s: %v", bin, err)
+		return 1
+	}
+	fmt.Printf("browser: %s (%s), %d pooled testers\n", bin, version.Product, cap(testerPool)) //nolint: forbidigo
+	testerPool.Put(first)
 
-	testerPool.Cleanup(func(g *G) {
-		g.browser.MustClose()
-	})
+	code := m.Run()
+
+	stopTesters()
+
+	if code != 0 {
+		return code
+	}
 
 	if err := leakcheck.Check(0, leakcheck.IgnoreFuncs("internal/poll.runtime_pollWait")); err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return 1
 	}
+
+	return 0
 }
 
 // G is a tester. Testers are thread-safe, they shouldn't race each other.
@@ -72,43 +114,187 @@ type G struct {
 	// or it may affect other test cases.
 	page *wand.Page
 
+	// launcher of the browser, kept so that the browser and its user data
+	// directory are cleaned up whatever happens to the tests that use it.
+	launcher *launcher.Launcher
+
+	// retired is set once the tester is out of service, after a test failed
+	// or timed out on it: the pool gets a placeholder in its place and the
+	// next test launches a fresh browser. A pointer, as a G is passed by value.
+	retired *atomic.Bool
+
+	// expectPanic counts the Panic blocks in progress, inside which a failing
+	// Must call panics as the block expects (see fail).
+	expectPanic *atomic.Int32
+
+	// testGoroutine is the goroutine running the current test.
+	testGoroutine *atomic.Int64
+
+	// stop closes the browser and removes its user data directory, once.
+	stop func()
+
 	// use it to cancel the TimeoutEach for current test case
 	cancelTimeout func()
 }
 
-// If we don't use pool to cache, the total time will be much longer.
+// The pooled tester count follows go test's -parallel, which is GOMAXPROCS
+// unless set, so a hosted 4-vCPU runner launches four browsers per job. If we
+// don't use pool to cache, the total time will be much longer.
 func newTesterPool() wand.Pool[G] {
 	parallel := got.Parallel()
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
 	}
 
-	fmt.Println("parallel test", parallel) //nolint: forbidigo
-
 	return wand.NewPool[G](parallel)
 }
 
-func newTester() *G {
-	u := launcher.New().Set("proxy-bypass-list", "<-loopback>").NoSandbox(true).MustLaunch()
+// testers is every tester the run launched, in the pool or held by a test,
+// so that stopTesters reaches them all.
+var testers struct {
+	sync.Mutex
 
-	mc := newMockClient(u)
+	list []*G
+}
 
-	browser := wand.New().Client(mc).MustConnect().MustIgnoreCertErrors(false)
+// launchTester launches a browser through launcher.New() on the browser
+// TestMain resolved, and connects a tester to it.
+func launchTester() (*G, error) {
+	l := launcher.New().Bin(browserBin).Set("proxy-bypass-list", "<-loopback>").NoSandbox(true)
 
-	pages := browser.MustPages()
+	u, err := l.Launch()
+	if err != nil {
+		stopLauncher(l)
+		return nil, err
+	}
 
-	var page *wand.Page
+	g := &G{
+		launcher:      l,
+		retired:       &atomic.Bool{},
+		expectPanic:   &atomic.Int32{},
+		testGoroutine: &atomic.Int64{},
+	}
+	g.mc = newMockClient(u)
+	g.browser = wand.New().Client(g.mc).WithPanic(g.fail)
+	g.stop = sync.OnceFunc(func() {
+		_ = g.browser.Close()
+		stopLauncher(l)
+	})
+
+	if err := g.browser.Connect(); err != nil {
+		g.stop()
+		return nil, err
+	}
+
+	if err := g.browser.IgnoreCertErrors(false); err != nil {
+		g.stop()
+		return nil, err
+	}
+
+	pages, err := g.browser.Pages()
+	if err != nil {
+		g.stop()
+		return nil, err
+	}
+
 	if pages.Empty() {
-		page = browser.MustPage()
+		g.page, err = g.browser.Page(proto.TargetCreateTarget{})
+		if err != nil {
+			g.stop()
+			return nil, err
+		}
 	} else {
-		page = pages.First()
+		g.page = pages.First()
 	}
 
-	return &G{
-		mc:      mc,
-		browser: browser,
-		page:    page,
+	testers.Lock()
+	testers.list = append(testers.list, g)
+	testers.Unlock()
+
+	return g, nil
+}
+
+func newTester() *G {
+	g, err := launchTester()
+	utils.E(err)
+	return g
+}
+
+// stopTesters closes every browser the run launched, in the pool or held by
+// a test, and waits until their user data directories are removed.
+func stopTesters() {
+	testers.Lock()
+	list := testers.list
+	testers.list = nil
+	testers.Unlock()
+
+	wg := sync.WaitGroup{}
+	for _, g := range list {
+		wg.Add(1)
+		go func(g *G) {
+			defer wg.Done()
+			g.stop()
+		}(g)
 	}
+	wg.Wait()
+}
+
+// stopLauncher makes sure the browser l launched is gone with its user data
+// directory: one closed through CDP exits on its own and is waited for, one
+// still running after a moment is killed. A launcher that never launched has
+// nothing to stop.
+func stopLauncher(l *launcher.Launcher) {
+	if l.PID() == 0 {
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		l.Cleanup()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		l.Kill()
+		<-done
+	}
+}
+
+// retire takes the tester out of service: its browser is closed, or killed
+// when it does not go, its user data directory removed, and the pool gets a
+// placeholder in its place once the test returns it, so what a failed or hung
+// test left in a browser never reaches another test.
+func (g *G) retire() {
+	g.retired.Store(true)
+	g.stop()
+}
+
+// fail is what a failing Must call on the pooled browser, its pages and their
+// elements does. Inside a Panic block, or off the goroutine running the test,
+// it panics, which is what the caller waits for. On the test's goroutine it
+// fails the test with the error and the stack and ends the test, so that the
+// run goes on to the next test and ends with its cleanup and its coverage,
+// where a panic would have killed the binary, browsers and directories left
+// where they were.
+func (g *G) fail(v interface{}) {
+	if g.expectPanic.Load() > 0 || leakcheck.Get(false)[0].GoroutineID != g.testGoroutine.Load() {
+		panic(v)
+	}
+
+	g.Fatalf("%v\n%s", v, debug.Stack())
+}
+
+// Panic is got's Panic, with the tester told that fn is expected to panic, so
+// that a failing Must call inside it panics rather than ending the test.
+func (g G) Panic(fn func()) interface{} {
+	g.Helper()
+
+	g.expectPanic.Add(1)
+	defer g.expectPanic.Add(-1)
+
+	return g.G.Panic(fn)
 }
 
 func setup(t *testing.T) G {
@@ -119,7 +305,13 @@ func setup(t *testing.T) G {
 	}
 
 	tester := testerPool.MustGet(newTester)
-	t.Cleanup(func() { testerPool.Put(tester) })
+	t.Cleanup(func() {
+		if tester.retired.Load() {
+			testerPool.Put(nil)
+			return
+		}
+		testerPool.Put(tester)
+	})
 
 	tester.G = got.New(t)
 	tester.mc.t = t
@@ -130,14 +322,6 @@ func setup(t *testing.T) G {
 	tester.page.MustNavigate("")
 
 	return *tester
-}
-
-func (g G) enableCDPLog() {
-	g.mc.principal.Logger(wand.DefaultLogger)
-}
-
-func (g G) dump(args ...interface{}) {
-	g.Log(utils.Dump(args...))
 }
 
 func (g G) blank() string {
@@ -170,24 +354,58 @@ func (g G) newPage(u ...string) *wand.Page {
 	return p
 }
 
+// launch starts a browser of the test's own through l, on the browser
+// TestMain resolved, and makes sure it is gone with its user data directory
+// when the test ends, whether the test closed it or not.
+func (g G) launch(l *launcher.Launcher) string {
+	g.Helper()
+	u := l.Bin(browserBin).MustLaunch()
+	g.Cleanup(func() { stopLauncher(l) })
+	return u
+}
+
 func (g *G) checkLeaking() {
 	ig := leakcheck.CombineIgnores(leakcheck.IgnoreCurrent(), leakcheck.IgnoreNonChildren())
 	leakcheck.CheckLeak(g.Testable, 0, ig)
 
 	self := leakcheck.Get(false)[0]
+	g.testGoroutine.Store(self.GoroutineID)
+
+	done := make(chan struct{})
 	g.cancelTimeout = g.DoAfter(*TimeoutEach, func() {
-		t := leakcheck.Get(true).Filter(func(t *leakcheck.Trace) bool {
+		trace := leakcheck.Get(true).Filter(func(t *leakcheck.Trace) bool {
 			if t.GoroutineID == self.GoroutineID {
 				return false
 			}
 			return ig(t)
 		}).String()
-		panic(fmt.Sprintf(`[wand_test.TimeoutEach] %s timeout after %v
-running goroutines: %s`, g.Name(), *TimeoutEach, t))
+
+		// Nothing of testing.T is called from here: the test may be finishing
+		// at this very moment, and a Log or Fail after it completed panics the
+		// binary. Its browser is closed instead, so a call hung on the browser
+		// returns an error and the test fails on its own, with this above.
+		_, _ = fmt.Fprintf(os.Stderr, "[wand_test.TimeoutEach] %s timeout after %v, closing its browser\nrunning goroutines: %s\n",
+			g.Name(), *TimeoutEach, trace)
+		g.retire()
+
+		// A test hung on something other than its browser cannot be failed
+		// from outside; the run ends, as go test would at its own timeout,
+		// once the other browsers are gone.
+		select {
+		case <-done:
+		case <-time.After(*TimeoutEach):
+			_, _ = fmt.Fprintf(os.Stderr, "[wand_test.TimeoutEach] %s still running %v after its browser was closed, ending the run\n",
+				g.Name(), *TimeoutEach)
+			stopTesters()
+			os.Exit(2)
+		}
 	})
 
 	g.Cleanup(func() {
+		close(done)
+
 		if g.Failed() {
+			g.retire()
 			return
 		}
 
@@ -195,17 +413,28 @@ running goroutines: %s`, g.Name(), *TimeoutEach, t))
 		res, err := proto.TargetGetTargets{}.Call(g.browser)
 		g.E(err)
 		for _, info := range res.TargetInfos {
-			if info.TargetID != g.page.TargetID {
-				g.E(proto.TargetCloseTarget{TargetID: info.TargetID}.Call(g.browser))
+			if info.TargetID == g.page.TargetID {
+				continue
+			}
+
+			// A page the test closed can still be listed while the browser
+			// finishes closing it, and is gone by the time it is closed here.
+			_, err := proto.TargetCloseTarget{TargetID: info.TargetID}.Call(g.browser)
+			if err != nil && !strings.Contains(err.Error(), "No target with given id found") {
+				g.E(err)
 			}
 		}
 
 		if g.browser.LoadState(g.page.SessionID, &proto.FetchEnable{}) {
 			g.Logf("leaking FetchEnable")
-			g.FailNow()
+			g.Fail()
 		}
 
 		g.mc.setCall(nil)
+
+		if g.Failed() {
+			g.retire()
+		}
 	})
 }
 
@@ -278,33 +507,6 @@ func (mc *MockClient) resetCall() {
 	mc.call = nil
 }
 
-// Use it to find out which cdp call to intercept. Put a print like log.Println("*****") after the cdp call you want to intercept.
-// The output of the test should has something like:
-//
-//	[stubCounter] begin
-//	[stubCounter] 1, proto.DOMResolveNode{}
-//	[stubCounter] 1, proto.RuntimeCallFunctionOn{}
-//	[stubCounter] 2, proto.RuntimeCallFunctionOn{}
-//	01:49:43 *****
-//
-// So the 3rd call is the one we want to intercept, then you can use the output with s.at or s.errorAt.
-func (mc *MockClient) stubCounter() {
-	l := sync.Mutex{}
-	mCount := map[string]int{}
-
-	_, _ = fmt.Fprintln(os.Stdout, "[stubCounter] begin")
-
-	mc.setCall(func(ctx context.Context, sessionID, method string, params interface{}) ([]byte, error) {
-		l.Lock()
-		mCount[method]++
-		m := fmt.Sprintf("%d, proto.%s{}", mCount[method], proto.GetType(method).Name())
-		_, _ = fmt.Fprintln(os.Stdout, "[stubCounter]", m)
-		l.Unlock()
-
-		return mc.principal.Call(ctx, sessionID, method, params)
-	})
-}
-
 type StubSend func() (lazyjson.JSON, error)
 
 // When call the cdp.Client.Call the nth time use fn instead.
@@ -343,6 +545,19 @@ func (mc *MockClient) stubErr(nth int, p proto.Request) {
 	})
 }
 
+// panicMessage runs fn, which must panic, and returns the message of what it
+// panicked with, so that a test asserts the reason and not only the panic.
+func (g G) panicMessage(fn func()) string {
+	g.Helper()
+
+	val := g.Panic(fn)
+	if err, ok := val.(error); ok {
+		return err.Error()
+	}
+
+	return fmt.Sprint(val)
+}
+
 type MockRoundTripper struct {
 	res *http.Response
 	err error
@@ -358,19 +573,6 @@ type MockReader struct {
 
 func (mr *MockReader) Read(_ []byte) (n int, err error) {
 	return 0, mr.err
-}
-
-func TestLintIgnore(t *testing.T) {
-	t.Skip()
-
-	_ = wand.Try(func() {
-		tt := G{}
-		tt.dump()
-		tt.enableCDPLog()
-
-		mc := &MockClient{}
-		mc.stubCounter()
-	})
 }
 
 var slash = filepath.FromSlash

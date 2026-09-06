@@ -318,6 +318,42 @@ func TestGetURLErr(t *testing.T) {
 	g.Eq("[launcher] Failed to get the debug url: err", err.Error())
 }
 
+func TestCleanup(t *testing.T) {
+	g := setup(t)
+
+	// A launcher that never launched has nothing to wait for or remove.
+	New().Cleanup()
+
+	// A directory that cannot be removed yet, as one a helper process of the
+	// browser still holds, is retried until it can be. Here a file of it is
+	// held open, which keeps it on Windows, and its parent is read-only for a
+	// moment, which keeps it elsewhere (not for root, who removes it at once).
+	hold := func(dir string) (release func()) {
+		g.E(os.MkdirAll(filepath.Join(dir, "Default"), 0o755))
+		f, err := os.Create(filepath.Join(dir, "Default", "held"))
+		g.E(err)
+		g.E(os.Chmod(filepath.Dir(dir), 0o555))
+		return func() {
+			_ = f.Close()
+			g.E(os.Chmod(filepath.Dir(dir), 0o755))
+		}
+	}
+
+	dir := filepath.Join(t.TempDir(), "user-data")
+	release := hold(dir)
+	time.AfterFunc(300*time.Millisecond, release)
+	removeDir(dir, 5*time.Second)
+	_, err := os.Stat(dir)
+	g.True(os.IsNotExist(err))
+
+	// One that never goes within the bound is given up on, and left.
+	dir = filepath.Join(t.TempDir(), "user-data")
+	release = hold(dir)
+	removeDir(dir, 300*time.Millisecond)
+	release()
+	g.E(os.RemoveAll(dir))
+}
+
 func TestManaged(t *testing.T) {
 	g := setup(t)
 
@@ -404,7 +440,7 @@ func TestResolveBin(t *testing.T) {
 	system := fakeBrowser(g, dir, "system")
 
 	resolve := func(l *Launcher) string {
-		bin, err := l.resolveBin()
+		bin, err := l.ResolveBin()
 		g.E(err)
 
 		return bin
@@ -439,7 +475,7 @@ func TestResolveBin(t *testing.T) {
 	// Nothing cached and the download switched off: the error lists every
 	// step tried.
 	l.browser.RootDir = filepath.Join(dir, "empty")
-	_, err := l.Download(false).resolveBin()
+	_, err := l.Download(false).ResolveBin()
 	g.True(errors.Is(err, ErrNoBrowser))
 	for _, step := range []string{
 		"Launcher.Bin()", "-wand=bin=", EnvBrowserBin,
@@ -467,7 +503,7 @@ func TestResolveBinDownload(t *testing.T) {
 	s.Route("/", ".zip", data)
 	l.browser.Hosts = []string{s.URL(hostTemplate)}
 
-	bin, err := l.resolveBin()
+	bin, err := l.ResolveBin()
 	g.E(err)
 	g.Eq(bin, l.browser.BinPath())
 	g.PathExists(bin)
@@ -625,7 +661,7 @@ func TestTestOpen(t *testing.T) {
 func TestLaunchClient(t *testing.T) {
 	g := setup(t)
 
-	ctx := g.Timeout(5 * time.Second)
+	ctx := g.Timeout(15 * time.Second)
 
 	s := got.New(g).Serve()
 	rl := NewManager()
@@ -637,4 +673,16 @@ func TestLaunchClient(t *testing.T) {
 		g.Err(err)
 	}
 	g.E(c.Call(ctx, "", "Browser.getVersion", nil))
+
+	// The manager removes the user data directory once the connection ends,
+	// which closing the browser does; waited for, so the run leaves nothing.
+	dir := l.Get(flags.UserDataDir)
+	_, _ = c.Call(ctx, "", "Browser.close", nil)
+	for ctx.Err() == nil {
+		if _, err := os.Stat(dir); err != nil {
+			break
+		}
+		utils.Sleep(0.1)
+	}
+	g.Err(os.Stat(dir))
 }

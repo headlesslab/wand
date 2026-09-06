@@ -232,28 +232,6 @@ func TestMouseMoveErr(t *testing.T) {
 	g.Err(p.Mouse.MoveLinear(proto.NewPoint(10, 10), 3))
 }
 
-func TestNativeDrag(t *testing.T) { // devtools doesn't support to use mouse event to simulate it for now
-	t.Skip()
-
-	g := setup(t)
-	page := g.page.MustNavigate(g.srcFile("fixtures/drag.html"))
-	mouse := page.Mouse
-
-	pt := page.MustElement("#draggable").MustShape().OnePointInside()
-	toY := page.MustElement(".dropzone:nth-child(2)").MustShape().OnePointInside().Y
-
-	page.Overlay(pt.X, pt.Y, 10, 10, "from")
-	page.Overlay(pt.X, toY, 10, 10, "to")
-
-	mouse.MustMoveTo(pt.X, pt.Y)
-	mouse.MustDown("left")
-	g.E(mouse.MoveLinear(proto.NewPoint(pt.X, toY), 5))
-	page.MustScreenshot("")
-	mouse.MustUp("left")
-
-	page.MustElement(".dropzone:nth-child(2) #draggable")
-}
-
 func TestTouch(t *testing.T) {
 	g := setup(t)
 

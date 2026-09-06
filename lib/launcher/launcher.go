@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher/flags"
@@ -40,6 +41,11 @@ type Launcher struct {
 	// findSystem is Browser resolution's search for a System browser,
 	// LookPath outside the tests.
 	findSystem func() (string, bool)
+
+	// tmpUserDataDir is whether flags.UserDataDir is the temporary directory
+	// New made up, which a launch that fails removes again, rather than one
+	// the caller or the -wand=dir flag named.
+	tmpUserDataDir bool
 
 	managed    bool
 	serviceURL string
@@ -118,14 +124,15 @@ func New() *Launcher {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Launcher{
-		ctx:        ctx,
-		ctxCancel:  cancel,
-		Flags:      defaultFlags,
-		exit:       make(chan struct{}),
-		browser:    NewBrowser(),
-		findSystem: LookPath,
-		parser:     NewURLParser(),
-		logger:     io.Discard,
+		ctx:            ctx,
+		ctxCancel:      cancel,
+		Flags:          defaultFlags,
+		exit:           make(chan struct{}),
+		browser:        NewBrowser(),
+		findSystem:     LookPath,
+		tmpUserDataDir: defaults.Dir == "",
+		parser:         NewURLParser(),
+		logger:         io.Discard,
 	}
 }
 
@@ -378,6 +385,7 @@ func (l *Launcher) IgnoreCerts(pks []crypto.PublicKey) error {
 // When set to empty, browser will use current OS home dir.
 // Related doc: https://chromium.googlesource.com/chromium/src/+/master/docs/user_data_dir.md
 func (l *Launcher) UserDataDir(dir string) *Launcher {
+	l.tmpUserDataDir = false
 	if dir == "" {
 		l.Delete(flags.UserDataDir)
 	} else {
@@ -497,7 +505,7 @@ func (l *Launcher) Launch() (string, error) {
 
 	defer l.ctxCancel()
 
-	bin, err := l.resolveBin()
+	bin, err := l.ResolveBin()
 	if err != nil {
 		return "", err
 	}
@@ -538,6 +546,13 @@ func (l *Launcher) Launch() (string, error) {
 	u, err := l.getURL()
 	if err != nil {
 		l.Kill()
+
+		// A browser that started and gave no URL may have written into the
+		// temporary directory made up for it; a failed launch leaves none.
+		if l.tmpUserDataDir {
+			l.Cleanup()
+		}
+
 		return "", err
 	}
 
@@ -581,13 +596,17 @@ func (l *Launcher) setupCmd(cmd *exec.Cmd) {
 	cmd.Stderr = io.MultiWriter(l.logger, l.parser)
 }
 
-// resolveBin runs Browser resolution (ADR-0005): the explicit path from
-// [Launcher.Bin], the -wand=bin= flag or EnvBrowserBin, then a System
-// browser from [LookPath], then the Managed browser already in the cache,
-// then its download unless [Launcher.Download] switched that off. An explicit
-// path is taken as it is; nothing is compared by version. When every step
-// finds nothing the error, wrapping [ErrNoBrowser], lists them all.
-func (l *Launcher) resolveBin() (string, error) {
+// ResolveBin runs Browser resolution (ADR-0005) and returns the browser
+// binary [Launcher.Launch] would start, without starting it: the explicit
+// path from [Launcher.Bin], the -wand=bin= flag or EnvBrowserBin, then a
+// System browser from [LookPath], then the Managed browser already in the
+// cache, then its download unless [Launcher.Download] switched that off. An
+// explicit path is taken as it is; nothing is compared by version. When every
+// step finds nothing the error, wrapping [ErrNoBrowser], lists them all.
+// Launch runs it again, so a caller that wants the path for a message, or
+// wants one download to serve many launches, calls it first and passes the
+// result to [Launcher.Bin].
+func (l *Launcher) ResolveBin() (string, error) {
 	if bin := l.Get(flags.Bin); bin != "" {
 		return bin, nil
 	}
@@ -665,9 +684,36 @@ func (l *Launcher) Kill() {
 }
 
 // Cleanup wait until the Browser exits and remove [flags.UserDataDir].
+// A launcher that never launched has nothing to wait for or remove. The
+// helper processes of a browser can outlive it by a moment and, on Windows,
+// hold files of the directory open until they are gone, a crash handler for
+// seconds, so the removal is retried for up to cleanupBound.
 func (l *Launcher) Cleanup() {
+	if l.PID() == 0 {
+		return
+	}
+
 	<-l.exit
 
 	dir := l.Get(flags.UserDataDir)
-	_ = os.RemoveAll(dir)
+	removeDir(dir, cleanupBound)
+}
+
+// cleanupBound is how long Cleanup keeps trying to remove the user data
+// directory of a browser that has exited.
+const cleanupBound = 10 * time.Second
+
+// removeDir removes dir, retrying a failure every 100 ms until it succeeds or
+// the bound passes; the error is dropped, as it was before the retries.
+func removeDir(dir string, bound time.Duration) {
+	deadline := time.Now().Add(bound)
+
+	for {
+		err := os.RemoveAll(dir)
+		if err == nil || time.Now().After(deadline) {
+			return
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
 }

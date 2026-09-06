@@ -12,7 +12,6 @@ import (
 
 	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/leakcheck"
-	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher"
@@ -22,12 +21,42 @@ import (
 
 var setup = got.Setup(nil)
 
+// launch starts a browser through l and makes sure it is gone with its user
+// data directory when the test ends, whether the test closed it or not.
+func launch(g got.G, l *launcher.Launcher) string {
+	g.Helper()
+	u := l.MustLaunch()
+	g.Cleanup(func() { stopLauncher(l) })
+	return u
+}
+
+// stopLauncher waits for the browser l launched to exit and its user data
+// directory to be removed; one still running after a moment is killed.
+func stopLauncher(l *launcher.Launcher) {
+	if l.PID() == 0 {
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		l.Cleanup()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		l.Kill()
+		<-done
+	}
+}
+
 func TestBasic(t *testing.T) {
 	g := setup(t)
 
 	ctx := g.Context()
 
-	client := cdp.New().Logger(defaults.CDP).Start(cdp.MustConnectWS(launcher.New().MustLaunch()))
+	client := cdp.New().Logger(defaults.CDP).Start(cdp.MustConnectWS(launch(g, launcher.New())))
 
 	defer func() {
 		_, _ = client.Call(ctx, "", "Browser.close", nil)
@@ -148,7 +177,7 @@ func TestCrash(t *testing.T) {
 
 	ctx := g.Context()
 
-	client := cdp.MustStartWithURL(ctx, launcher.New().MustLaunch(), nil)
+	client := cdp.MustStartWithURL(ctx, launch(g, launcher.New()), nil)
 
 	go func() {
 		for range client.Event() {
@@ -177,10 +206,15 @@ func TestCrash(t *testing.T) {
 	_, err = client.Call(ctx, sessionID, "Page.enable", nil)
 	g.E(err)
 
+	// The crash is asked for from another goroutine, which reports its result
+	// through the channel and asserts nothing itself: a goroutine that
+	// asserted after the test had returned was the "Fail in goroutine after
+	// TestCrash has completed" panic seen in the Gate.
+	crashed := make(chan error, 1)
 	go func() {
 		utils.Sleep(1)
 		_, err := client.Call(ctx, sessionID, "Browser.crash", nil)
-		g.Eq(err, io.EOF)
+		crashed <- err
 	}()
 
 	_, err = client.Call(ctx, sessionID, "Runtime.evaluate", map[string]interface{}{
@@ -188,6 +222,8 @@ func TestCrash(t *testing.T) {
 		"awaitPromise": true,
 	})
 	g.Eq(err, io.EOF)
+
+	g.Eq(<-crashed, io.EOF)
 
 	_, err = client.Call(ctx, sessionID, "Runtime.evaluate", map[string]interface{}{
 		"expression": `10`,
@@ -335,22 +371,6 @@ func TestConcurrentCall(t *testing.T) {
 			res, err := c.Call(g.Context(), "1234567890", "method", i)
 			g.E(err)
 			g.Eq(lazyjson.New(res).Int(), i)
-		})
-	}
-}
-
-func TestMassBrowserClose(t *testing.T) {
-	t.Skip()
-
-	g := setup(t)
-	s := g.Serve()
-
-	for i := 0; i < 50; i++ {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			t.Parallel()
-			browser := wand.New().MustConnect()
-			browser.MustPage(s.URL()).MustWaitLoad().MustClose()
-			browser.MustClose()
 		})
 	}
 }

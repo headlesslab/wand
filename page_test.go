@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"sync"
 	"testing"
@@ -79,18 +78,25 @@ func TestSetCookies(t *testing.T) {
 
 func TestSetBlockedURLs(t *testing.T) {
 	g := setup(t)
+
+	// A local page with one script, in place of upstream's github.com: no
+	// test reaches the public internet.
+	s := g.Serve()
+	s.Route("/", ".html", `<html><body>ok</body><script src="/a.js"></script></html>`)
+	s.Route("/a.js", ".js", `document.title = "loaded"`)
+
 	page := g.newPage()
-	urlsPattern := []string{}
 	page.EnableDomain(proto.NetworkEnable{})
-	page.MustSetBlockedURLs(urlsPattern...)
-	urlsPattern = append(urlsPattern, "*.js")
-	page.MustSetBlockedURLs(urlsPattern...)
-	go page.EachEvent(
-		func(e *proto.NetworkLoadingFailed) {
-			g.Eq(e.BlockedReason, proto.NetworkBlockedReasonInspector)
-		},
-	)
-	page.MustNavigate("https://github.com")
+	page.MustSetBlockedURLs()
+	page.MustSetBlockedURLs("*.js")
+
+	failed := proto.NetworkLoadingFailed{}
+	wait := page.WaitEvent(&failed)
+	page.MustNavigate(s.URL()).MustWaitLoad()
+	wait()
+
+	g.Eq(failed.BlockedReason, proto.NetworkBlockedReasonInspector)
+	g.Eq(page.MustEval(`() => document.title`).Str(), "")
 }
 
 func TestSetExtraHeaders(t *testing.T) {
@@ -130,23 +136,22 @@ func TestSetUserAgent(t *testing.T) {
 
 	s := g.Serve()
 
-	ua := ""
-	lang := ""
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	// The first request's headers; a later request of the same page, as after
+	// a failure elsewhere, must not count (it once made a WaitGroup negative).
+	headers := make(chan http.Header, 1)
 
 	s.Mux.HandleFunc("/", func(_ http.ResponseWriter, r *http.Request) {
-		ua = r.Header.Get("User-Agent")
-		lang = r.Header.Get("Accept-Language")
-		wg.Done()
+		select {
+		case headers <- r.Header.Clone():
+		default:
+		}
 	})
 
 	g.newPage().MustSetUserAgent(nil).MustNavigate(s.URL())
-	wg.Wait()
+	h := <-headers
 
-	g.Eq(ua, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-	g.Eq(lang, "en")
+	g.Eq(h.Get("User-Agent"), "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+	g.Eq(h.Get("Accept-Language"), "en")
 }
 
 func TestPageHTML(t *testing.T) {
@@ -598,9 +603,19 @@ func TestPageWaitIdle(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/click.html"))
 	p.MustElement("button").MustClick()
-	p.MustWaitIdle()
+
+	// An idle period is the renderer's to grant: requestIdleCallback in a
+	// headless page has waited until its timeout under load in the Gate, and
+	// MustWaitIdle's minute is TimeoutEach itself, so the two timers raced
+	// and the run died. The wait here has its own bounds, the JS timeout
+	// below the Go one, so a starved renderer fails this test alone.
+	g.E(p.Timeout(20 * time.Second).WaitIdle(5 * time.Second))
 
 	g.True(p.MustHas("[a=ok]"))
+
+	// MustWaitIdle itself, on the path that needs no idle period.
+	g.mc.stubErr(1, proto.RuntimeCallFunctionOn{})
+	g.Eq(g.panicMessage(func() { p.MustWaitIdle() }), "mock error")
 }
 
 func TestPageEventSession(t *testing.T) {
@@ -805,44 +820,42 @@ func TestScrollScreenshotErrors(t *testing.T) {
 	g := setup(t)
 	g.cancelTimeout()
 
-	p := g.page.MustNavigate(g.srcFile("fixtures/scroll-y.html"))
+	// Loaded before the first stub: Navigate returns when Page.navigate does,
+	// before layout. Each panic below is checked for its reason, since one for
+	// another reason leaves the stub armed and surfaces later, in the cleanup,
+	// as a leaking stub and nothing else.
+	p := g.page.MustNavigate(g.srcFile("fixtures/scroll-y.html")).MustWaitLoad()
+	shot := func() { p.MustScrollScreenshot() }
 
-	g.Panic(func() {
-		// mock error for get CSSContentSize
-		g.mc.stubErr(1, proto.PageGetLayoutMetrics{})
-		p.MustScrollScreenshot()
+	// mock error for get CSSContentSize
+	g.mc.stubErr(1, proto.PageGetLayoutMetrics{})
+	g.Eq(g.panicMessage(shot), "mock error")
+
+	g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(proto.PageGetLayoutMetricsResult{
+			CSSVisualViewport: &proto.PageVisualViewport{},
+		}), nil
 	})
-	g.Panic(func() {
-		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
-			return lazyjson.New(proto.PageGetLayoutMetricsResult{
-				CSSVisualViewport: &proto.PageVisualViewport{},
-			}), nil
-		})
-		p.MustScrollScreenshot()
+	g.Eq(g.panicMessage(shot), "failed to get css content size")
+
+	g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(proto.PageGetLayoutMetricsResult{
+			CSSContentSize: &proto.DOMRect{},
+		}), nil
 	})
-	g.Panic(func() {
-		g.mc.stub(1, proto.PageGetLayoutMetrics{}, func(_ StubSend) (lazyjson.JSON, error) {
-			return lazyjson.New(proto.PageGetLayoutMetricsResult{
-				CSSContentSize: &proto.DOMRect{},
-			}), nil
-		})
-		p.MustScrollScreenshot()
-	})
-	g.Panic(func() {
-		// mock error for scroll
-		g.mc.stubErr(1, proto.InputDispatchMouseEvent{})
-		p.MustScrollScreenshot()
-	})
-	g.Panic(func() {
-		// mock error for Screenshot
-		g.mc.stubErr(1, proto.PageCaptureScreenshot{})
-		p.MustScrollScreenshot()
-	})
-	g.Panic(func() {
-		// mock error for WaitStable
-		g.mc.stubErr(1, proto.DOMSnapshotCaptureSnapshot{})
-		p.MustScrollScreenshot()
-	})
+	g.Eq(g.panicMessage(shot), "failed to get css content size")
+
+	// mock error for scroll
+	g.mc.stubErr(1, proto.InputDispatchMouseEvent{})
+	g.Eq(g.panicMessage(shot), "scroll error: mock error")
+
+	// mock error for Screenshot
+	g.mc.stubErr(1, proto.PageCaptureScreenshot{})
+	g.Eq(g.panicMessage(shot), "mock error")
+
+	// mock error for WaitStable
+	g.mc.stubErr(1, proto.DOMSnapshotCaptureSnapshot{})
+	g.Eq(g.panicMessage(shot), "WaitDOMStable error: mock error")
 
 	// test unsupported format
 	_, err := p.ScrollScreenshot(&wand.ScrollScreenshotOptions{
@@ -907,17 +920,26 @@ func TestPageNavigateNetworkErr(t *testing.T) {
 	g := setup(t)
 	p := g.newPage()
 
+	// Nothing listens on port 1. The net error depends on the machine (a
+	// refused connection, or what a system proxy answers, since the testers
+	// send loopback through the proxy); upstream asserted the exact message
+	// with Is, which for two strings only compares their kinds.
 	err := p.Navigate("http://127.0.0.1:1")
 	g.Is(err, &wand.NavigationError{})
-	g.Is(err.Error(), "navigation failed: net::ERR_NAME_NOT_RESOLVED")
+	g.Has(err.Error(), "navigation failed: net::ERR_")
 	p.MustNavigate("about:blank")
 }
 
+// TestPageNavigateErr: an HTTP error status with an empty body commits the
+// browser's own error page, so Page.navigate reports an error and Navigate
+// returns a NavigationError. Chrome decides that in HttpErrorNavigationThrottle,
+// which defers a main-frame navigation whose status is 400 or more until the
+// body pipe is readable or closed, and cancels it with
+// ERR_HTTP_RESPONSE_CODE_FAILURE when the pipe closed empty; a Content-Length
+// of 0 closes it at once, so nothing depends on timing. Upstream skipped the
+// test on Windows as flaky; on Windows it passed 30 runs in a row against
+// Chrome for Testing 152 and the branded Chrome 152 before the skip went.
 func TestPageNavigateErr(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("TODO: This test on Windows is flaky")
-	}
-
 	g := setup(t)
 
 	s := g.Serve()
@@ -929,12 +951,13 @@ func TestPageNavigateErr(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 
-	g.Is(g.Panic(func() {
-		g.page.MustNavigate(s.URL("/404"))
-	}), &wand.NavigationError{})
-	g.Is(g.Panic(func() {
-		g.page.MustNavigate(s.URL("/500"))
-	}), &wand.NavigationError{})
+	for _, path := range []string{"/404", "/500"} {
+		val := g.Panic(func() {
+			g.page.MustNavigate(s.URL(path))
+		})
+		g.Desc(path).Is(val, &wand.NavigationError{})
+		g.Desc(path).Eq(val.(error).Error(), "navigation failed: net::ERR_HTTP_RESPONSE_CODE_FAILURE")
+	}
 }
 
 func TestPageWaitLoadErr(t *testing.T) {
@@ -1040,8 +1063,7 @@ func TestPageTriggerFavicon(t *testing.T) {
 		s.Route("/test", "")
 		s.Route("/favicon.ico", filepath.FromSlash("./fixtures/icon.png"))
 		page := g.newPage()
-		page.MustNavigate(s.URL("/test"))
-		page.MustWaitIdle()
+		page.MustNavigate(s.URL("/test")).MustWaitLoad()
 		go page.Context(g.Context()).EachEvent(
 			func(e *proto.NetworkRequestWillBeSent) {
 				if e.Request.URL == faviconURL {

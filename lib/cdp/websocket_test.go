@@ -81,9 +81,8 @@ func TestWebSocketHeader(t *testing.T) {
 
 func newPage(ctx context.Context, g got.G) (*cdp.Client, string) {
 	l := launcher.New()
+	client := cdp.New().Start(cdp.MustConnectWS(launch(g, l)))
 	g.Cleanup(l.Kill)
-
-	client := cdp.New().Start(cdp.MustConnectWS(l.MustLaunch()))
 
 	go func() {
 		for range client.Event() {
@@ -116,9 +115,8 @@ func TestDuplicatedConnectErr(t *testing.T) {
 	g := setup(t)
 
 	l := launcher.New()
+	u := launch(g, l)
 	g.Cleanup(l.Kill)
-
-	u := l.MustLaunch()
 
 	ws := &cdp.WebSocket{}
 	g.E(ws.Connect(g.Context(), u, nil))
