@@ -29,6 +29,7 @@
     "gjson",
     "GOARCH",
     "gofrs",
+    "GOMAXPROCS",
     "googlesource",
     "Hygon",
     "JOBOBJECT",
