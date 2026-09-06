@@ -12,17 +12,17 @@ go run ./internal/tools/repo-settings [-app <slug>] [-check <context>]... [-dry-
 
 It needs the GitHub CLI logged in as a user with admin access to every repository listed (`gh auth status`; a classic token needs the `repo` scope). The bundle, in the order the script applies it:
 
-| Setting | What the script sets | Where it shows in the repository settings |
-| --- | --- | --- |
-| Secret scanning | On | Advanced Security → Secret Protection |
-| Push protection | On (needs secret scanning first) | Advanced Security → Secret Protection |
-| Dependabot alerts | On | Advanced Security → Dependabot |
-| Dependabot security updates | On (needs the alerts first) | Advanced Security → Dependabot |
-| Private vulnerability reporting | On | Advanced Security |
-| Immutable releases | On: a published release's tag and assets are locked; title, notes and the pre-release and latest markers stay editable | General → Releases |
-| Actions SHA pinning | Required: every action reference must be a full-length commit SHA; the other Actions permissions are left as they are | Actions → General |
-| Ruleset `main` | Targets the default branch. Rules: no deletion, no force push, every change through a pull request (no approvals required), and the `-check` contexts required green before a merge. With no `-check` the status-check rule is left out. | Rules → Rulesets |
-| Ruleset `v*` | Targets `refs/tags/v*`. Creating, moving and deleting such a tag is restricted to the bypass actors, so a published tag never changes (ADR-0008). | Rules → Rulesets |
+| Setting                         | What the script sets                                                                                                                                                                                                                     | Where it shows in the repository settings |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Secret scanning                 | On                                                                                                                                                                                                                                       | Advanced Security → Secret Protection     |
+| Push protection                 | On (needs secret scanning first)                                                                                                                                                                                                         | Advanced Security → Secret Protection     |
+| Dependabot alerts               | On                                                                                                                                                                                                                                       | Advanced Security → Dependabot            |
+| Dependabot security updates     | On (needs the alerts first)                                                                                                                                                                                                              | Advanced Security → Dependabot            |
+| Private vulnerability reporting | On                                                                                                                                                                                                                                       | Advanced Security                         |
+| Immutable releases              | On: a published release's tag and assets are locked; title, notes and the pre-release and latest markers stay editable                                                                                                                   | General → Releases                        |
+| Actions SHA pinning             | Required: every action reference must be a full-length commit SHA; the other Actions permissions are left as they are                                                                                                                    | Actions → General                         |
+| Ruleset `main`                  | Targets the default branch. Rules: no deletion, no force push, every change through a pull request (no approvals required), and the `-check` contexts required green before a merge. With no `-check` the status-check rule is left out. | Rules → Rulesets                          |
+| Ruleset `v*`                    | Targets `refs/tags/v*`. Creating, moving and deleting such a tag is restricted to the bypass actors, so a published tag never changes (ADR-0008).                                                                                        | Rules → Rulesets                          |
 
 Both rulesets list the repository admin role as a bypass actor with mode "always", and the GitHub App from `-app` beside it once it exists. A bypass actor can still push to `main` directly and cut a `v*` tag by hand, which is how the satellites are released; the Gates bind everyone else, Dependabot included. Rulesets inherited from the organisation are ignored.
 
