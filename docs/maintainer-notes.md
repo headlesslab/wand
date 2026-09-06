@@ -61,3 +61,31 @@ A second run reports `no changes` for every repository. `-dry-run` prints what a
 - The GitHub App and organisation-wide two-factor authentication (#58). Once the App exists and is installed on the repositories, re-run every line above with `-app <slug>` so the App becomes a bypass actor of both rulesets; that is the only way the Roll and the release workflow can push to `main` and create tags. `-app` also takes the numeric App ID from the App's settings page, for a private App the apps endpoint does not show to the token.
 - Organisation-level settings and rulesets: the script touches repositories only.
 - Turning a setting off: the script only switches things on and creates or updates the two rulesets. Anything else is a hand change in the repository settings, which the next run reports as drift and reverts.
+
+## The Roll
+
+The Roll (spec #33, section 15) moves the Target Chrome, the Protocol roll, the Companion Chromium and every managed-browser archive hash together. Until its workflow exists, and for a Security roll, the Roll tool is run by hand from the module root:
+
+```sh
+go run ./lib/launcher/pins/generate                 # Chrome for Testing's current Stable
+go run ./lib/launcher/pins/generate 153.0.8010.27   # that version instead (a Security roll)
+go run ./lib/launcher/pins/generate -check          # what the generate Gate runs
+```
+
+The tool reads Chrome for Testing's version JSON for the Target Chrome and its branch position, lists the tags of `ChromeDevTools/devtools-protocol` through `git ls-remote` for the Protocol roll (the largest `v0.0.<rev>` not above the branch position), lists the Chromium snapshots bucket for the Companion Chromium (the newest position at or below the branch position whose archive exists under all five prefixes), then downloads every managed-browser archive, twelve Chrome for Testing ones and five Chromium ones (about 2.5 GB), from Google's bucket only and hashes each as it streams; nothing is kept on disk. It rewrites `lib/launcher/pins/pins.go` and prints the three pins. Running it again for the same version gives no diff.
+
+When Google serves no archive for one of the six Chrome for Testing platforms (linux-arm64 exists from 153.0.8001.0 on), the tool still writes what it verified, lists the missing archives and exits 1, so the gap is visible in the diff rather than hidden; a Roll pull request is not opened from such a run.
+
+`-check` writes nothing: it re-derives the Protocol roll from the committed branch position and re-renders the file from the committed values, and fails on either difference. `go generate` runs it before the protocol generator, so the generate Gate catches a hand edit and a stale roll.
+
+The release workflow reads the pins through the printer, never by parsing source:
+
+```sh
+go run ./internal/tools/print-pins         # Chrome <version>, protocol r<roll>, Chromium <position>
+go run ./internal/tools/print-pins -json   # {"chrome":"<version>","protocol":<roll>,"chromium":<position>}
+```
+
+### What stays human
+
+- Deciding to roll: the tool computes and downloads, it opens no pull request. The reviewed Roll pull request is the trust anchor for every managed-browser hash (ADR-0005), so its reviewer reads the hash diff as the thing being approved.
+- Regenerating the protocol layer for the new Protocol roll and reading its symbol-level summary, until the Roll workflow does both.
