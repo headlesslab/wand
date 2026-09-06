@@ -1,0 +1,83 @@
+# The Gate: every push and every pull request runs the whole suite with a real
+# browser on linux/amd64 and must keep statement coverage at 100 %. The main
+# ruleset requires the job below as a status check, so a red run blocks the
+# merge and nothing else (spec #33, section 13; ticket #36). Later tickets grow
+# this file into the full Tier 1 / Tier 2 matrix (#54) and add the security
+# Gates (#56).
+#
+# Every action is pinned to a full-length commit SHA with its version in a
+# trailing comment; Dependabot keeps the pins moving once #56 turns it on.
+name: Gate
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Never download a newer toolchain: a dependency raising its Go floor above
+  # ours must fail the run, not silently pull a toolchain.
+  GOTOOLCHAIN: local
+
+jobs:
+  test:
+    name: Tier 1 linux/amd64 (Go stable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      # Everything runs from the workspace root. `./...` stops at the two
+      # nested example modules, so they are named to be compiled against this
+      # checkout; e2e-testing has only test files, hence vet but no build.
+      - run: go build ./... ./lib/examples/custom-websocket
+
+      - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
+
+      # The ci-test wrapper sets GODEBUG=tracebackancestors=100 for the leak
+      # checker. The browser comes through the launcher's own download path on
+      # every run, never from a cache, so every run exercises that path too.
+      # Examples reach the public internet until #52 lands and belong to the
+      # examples Nightly (#61), hence -run=^Test.
+      - run: go run ./internal/tools/ci-test -race -coverprofile=coverage.out -run=^Test ./...
+
+      # 100 % per file, checked by got's check-cov at the version go.mod pins
+      # (go run resolves it from the build list, never @latest). Since Go 1.20
+      # the profile also lists packages without tests at 0 %; entry points
+      # (package main: the commands, the tools, the generators, the fixture
+      # binaries and the examples) are run rather than unit-tested and are
+      # dropped by that mechanical rule. Every other package must be at 100 %.
+      - name: Coverage at 100 %
+        run: |
+          go list -f '{{if eq .Name "main"}}{{.ImportPath}}/{{end}}' ./... > main-packages.txt
+          grep -v -F -f main-packages.txt coverage.out > coverage-lib.out
+          go run github.com/ysmood/got/cmd/check-cov -cov-file=coverage-lib.out
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-linux-amd64
+          path: |
+            tmp/cdp-log
+            coverage.out

@@ -153,10 +153,11 @@ func TestURLParserErr(t *testing.T) {
 }
 
 func TestTestOpen(_ *testing.T) {
+	// Open releases the process it starts, so it needs one that exists and
+	// exits at once: this test binary running no test. A zero-value os.Process
+	// is not an option since Go 1.23 refuses to release one.
 	openExec = func(_ string, _ ...string) *exec.Cmd {
-		cmd := exec.Command("not-exists")
-		cmd.Process = &os.Process{}
-		return cmd
+		return exec.Command(os.Args[0], "-test.run=^$")
 	}
 	defer func() { openExec = exec.Command }()
 
