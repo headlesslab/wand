@@ -298,10 +298,12 @@ func TestBinarySize(t *testing.T) {
 	stat, err := os.Stat("tmp/translator")
 	g.E(err)
 
-	// Go 1.27 builds it at 11.3 MB (Go 1.23: 10.2 MB); the bound still catches
-	// a test framework or another heavy dependency linked into user binaries.
-	// #53 lowers it once leakless and the runtime got import are gone.
-	g.Lte(float64(stat.Size())/1024/1024, 12) // mb
+	// With leakless's 2.4 MB of embedded guard binaries gone, Go 1.23 builds
+	// it at 8.0 MB and Go 1.27, the Gate's, at about 8.9 MB (11.3 MB with
+	// them). The bound locks the removal in, which #53 no longer has to, and
+	// still catches a test framework or another heavy dependency linked into
+	// user binaries.
+	g.Lte(float64(stat.Size())/1024/1024, 10) // mb
 }
 
 func TestBrowserCookies(t *testing.T) {

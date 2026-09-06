@@ -46,3 +46,15 @@ To download ahead of time, for a container image or an offline bundle, the comma
 ```sh
 go run github.com/headlesslab/wand/cmd/wand-fetch-browser [-source chromium] [-binary chrome-headless-shell]
 ```
+
+## Orphan guard
+
+A browser `Launcher.Launch()` starts does not outlive the wand process, however that process dies: no helper process, no dropped binary, nothing written at launch. The switch is `Launcher.Leakless(bool)`, on in `launcher.New()` and off in `launcher.NewUserMode()`, so that a browser you keep working in survives your program.
+
+- **Windows**: the browser joins a job object that the kernel closes, and so kills, with the wand process.
+- **Linux**: the browser is started with the parent-death signal `SIGKILL`, from a goroutine that holds its thread for the browser's lifetime.
+- **Every POSIX platform, macOS included**: the browser is started with `--remote-debugging-pipe` on descriptors 3 and 4 that wand opens and never speaks on, the Pipe tether; a Chromium of 89 or later exits by itself when they close. CDP stays on the WebSocket that `Launch()` returns. The flag is passed only with its descriptors, so `Launcher.FormatArgs()` never lists it: a command you build from those arguments yourself has no guard.
+
+With the guard off, or on a browser that rejects the pipe, `Launcher.Kill()` and `Launcher.Cleanup()` still kill the browser's process group on the way out; a wand process that dies hard leaves such a browser running.
+
+Under `Launcher.XVFB()` the tether reaches the browser through xvfb-run all the same; xvfb-run and its Xvfb server are outside it, so a wand process that dies hard leaves the Xvfb server behind.

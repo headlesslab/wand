@@ -4,7 +4,6 @@ package launcher
 import (
 	"context"
 	"crypto"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +17,6 @@ import (
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher/flags"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/leakless"
 )
 
 // DefaultUserDataDirPrefix ...
@@ -37,6 +35,7 @@ type Launcher struct {
 	parser  *URLParser
 	pid     int
 	exit    chan struct{}
+	guard   guard
 
 	// findSystem is Browser resolution's search for a System browser,
 	// LookPath outside the tests.
@@ -50,7 +49,7 @@ type Launcher struct {
 
 // New returns the default arguments to start browser.
 // Headless will be enabled by default.
-// Leakless will be enabled by default.
+// The Orphan guard ([Launcher.Leakless]) will be enabled by default.
 // UserDataDir will use OS tmp dir by default, this folder will usually be cleaned up by the OS after reboot.
 // The browser comes from Browser resolution at launch: an explicit path, then
 // a System browser, then a Managed browser, downloaded only as a last resort;
@@ -334,8 +333,15 @@ func (l *Launcher) AlwaysOpenPDFExternally() *Launcher {
 	return l.Set(flags.Preferences, `{"plugins":{"always_open_pdf_externally": true}}`)
 }
 
-// Leakless switch. If enabled, the browser will be force killed after the Go process exits.
-// The doc of leakless: https://github.com/ysmood/leakless.
+// Leakless switch is the Orphan guard: whether the browser dies with the wand process, however
+// that process dies, with no helper process and nothing written at launch. It is on in [New] and
+// off in [NewUserMode]. On Windows the browser joins a job object that the kernel closes, and so
+// kills, with the wand process; on Linux it is started with the parent-death signal SIGKILL; on
+// every POSIX platform it is also started with --remote-debugging-pipe on descriptors 3 and 4
+// that wand opens and never speaks on, so that a Chromium of 89 or later exits by itself when
+// they close. CDP stays on the WebSocket [Launcher.Launch] returns. The pipe flag is added at
+// launch, with its descriptors, and is not part of [Launcher.FormatArgs].
+// When disabled, [Launcher.Kill] and [Launcher.Cleanup] still kill the browser's process group.
 func (l *Launcher) Leakless(enable bool) *Launcher {
 	if enable {
 		return l.Set(flags.Leakless)
@@ -498,41 +504,34 @@ func (l *Launcher) Launch() (string, error) {
 
 	l.setupUserPreferences()
 
-	var ll *leakless.Launcher
-	var cmd *exec.Cmd
-
-	args := l.FormatArgs()
-
-	if l.Has(flags.Leakless) && leakless.Support() {
-		ll = leakless.New()
-		cmd = ll.Command(bin, args...)
-	} else {
+	// A guarded browser is this launcher's own; without the guard a browser
+	// already listening on the port is reused.
+	guarded := l.Has(flags.Leakless)
+	if !guarded {
 		port := l.Get(flags.RemoteDebuggingPort)
 		u, err := ResolveURL(port)
 		if err == nil {
 			return u, nil
 		}
-		cmd = exec.Command(bin, args...)
 	}
 
+	cmd := exec.Command(bin, l.FormatArgs()...)
 	l.setupCmd(cmd)
 
-	err = cmd.Start()
+	if guarded {
+		err = l.startGuarded(cmd)
+	} else {
+		err = cmd.Start()
+	}
 	if err != nil {
 		return "", err
 	}
 
-	if ll == nil {
-		l.pid = cmd.Process.Pid
-	} else {
-		l.pid = <-ll.Pid()
-		if ll.Err() != "" {
-			return "", errors.New(ll.Err())
-		}
-	}
+	l.pid = cmd.Process.Pid
 
 	go func() {
 		_ = cmd.Wait()
+		l.guard.release()
 		close(l.exit)
 	}()
 

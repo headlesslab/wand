@@ -7,7 +7,6 @@ import (
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/leakless"
 )
 
 func Example_use_system_browser() {
@@ -30,12 +29,9 @@ func Example_custom_launch() {
 	// use the FormatArgs to construct args, this line is optional, you can construct the args manually
 	args := launcher.New().FormatArgs()
 
-	var cmd *exec.Cmd
-	if true { // decide whether to use leakless or not
-		cmd = leakless.New().Command(path, args...)
-	} else {
-		cmd = exec.Command(path, args...)
-	}
+	// A browser started this way has no Orphan guard: it outlives a wand
+	// process that dies without killing it. launcher.New().Launch() adds the guard.
+	cmd := exec.Command(path, args...)
 
 	parser := launcher.NewURLParser()
 	cmd.Stderr = parser

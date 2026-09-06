@@ -48,7 +48,7 @@ const (
 	// Preferences flag.
 	Preferences Flag = "wand-preferences"
 
-	// Leakless flag.
+	// Leakless flag switches the Orphan guard: whether the browser dies with the wand process.
 	Leakless Flag = "wand-leakless"
 
 	// Bin is the browser executable file path. If it's empty, Browser resolution searches for a System browser,
