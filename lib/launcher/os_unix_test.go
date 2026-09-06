@@ -59,7 +59,10 @@ func TestLaunchXVFB(t *testing.T) {
 	}
 
 	l := New().XVFB("-a")
-	defer l.Kill()
+	defer func() {
+		l.Kill()
+		l.Cleanup()
+	}()
 
 	u, err := l.Launch()
 	g.E(err)

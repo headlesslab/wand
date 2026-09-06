@@ -42,7 +42,7 @@ func TestMonitorErr(t *testing.T) {
 	g := setup(t)
 
 	l := launcher.New()
-	u := l.MustLaunch()
+	u := g.launch(l)
 	defer l.Kill()
 
 	g.Panic(func() {

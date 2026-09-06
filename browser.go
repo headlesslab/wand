@@ -59,6 +59,10 @@ type Browser struct {
 	event       *eventbus.Observable // all the browser events from cdp client
 	targetsLock *sync.Mutex
 
+	// launcher of the browser Connect launched itself, nil for a browser
+	// reached through a client or a control URL; Close cleans it up.
+	launcher *launcher.Launcher
+
 	// stores all the previous cdp call of same type. Browser doesn't have enough API
 	// for us to retrieve all its internal states. This is an workaround to map them to local.
 	// For example you can't use cdp API to get the current position of mouse.
@@ -157,7 +161,7 @@ func (b *Browser) Connect() error {
 		u := b.controlURL
 		if u == "" {
 			var err error
-			u, err = launcher.New().Context(b.ctx).Launch()
+			u, err = b.launch()
 			if err != nil {
 				return err
 			}
@@ -217,12 +221,45 @@ func majorVersion(product string) string {
 	return major
 }
 
-// Close the browser.
-func (b *Browser) Close() error {
-	if b.BrowserContextID == "" {
-		return proto.BrowserClose{}.Call(b)
+// launch starts a browser through [launcher.New] for a Connect given neither
+// a client nor a control URL, and keeps the launcher for Close to clean up
+// when the user data directory is the temporary one the launcher made up,
+// not one the -wand=dir flag named.
+func (b *Browser) launch() (string, error) {
+	l := launcher.New().Context(b.ctx)
+
+	u, err := l.Launch()
+	if err != nil {
+		return "", err
 	}
-	return proto.TargetDisposeBrowserContext{BrowserContextID: b.BrowserContextID}.Call(b)
+
+	if defaults.Dir == "" {
+		b.launcher = l
+	}
+
+	return u, nil
+}
+
+// Close the browser. A browser [Browser.Connect] launched itself is wand's
+// own: Close also waits for its process to exit and removes its temporary
+// user data directory, so nothing is left behind; one that does not take the
+// close is killed at once, one that takes it and does not exit within the
+// launcher's bound is killed then ([launcher.Launcher.Cleanup]).
+func (b *Browser) Close() error {
+	if b.BrowserContextID != "" {
+		return proto.TargetDisposeBrowserContext{BrowserContextID: b.BrowserContextID}.Call(b)
+	}
+
+	err := proto.BrowserClose{}.Call(b)
+
+	if b.launcher != nil {
+		if err != nil {
+			b.launcher.Kill()
+		}
+		b.launcher.Cleanup()
+	}
+
+	return err
 }
 
 // Page creates a new browser tab. If opts.URL is empty, the default target will be "about:blank".

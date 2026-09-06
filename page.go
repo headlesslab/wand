@@ -193,7 +193,21 @@ func (p *Page) Navigate(url string) error {
 // NavigateBack history.
 func (p *Page) NavigateBack() error {
 	// Not using cdp API because it doesn't work for iframe
-	_, err := p.Evaluate(Eval(`() => history.back()`).ByUser())
+	return p.navigateByScript(`() => history.back()`)
+}
+
+// navigateByScript runs js, whose effect is a navigation of the page. When a
+// cross-document navigation starts, the browser fails every Runtime command
+// still waiting for its reply with "Inspected target navigated or closed"
+// (cdp.ErrCtxDestroyed), and the reply of this call can lose the race against
+// the navigation the script started: the two travel on different channels, and
+// a history entry in the back/forward cache starts at once. For this call that
+// error means the navigation has started, so it is not one.
+func (p *Page) navigateByScript(js string) error {
+	_, err := p.Evaluate(Eval(js).ByUser())
+	if errors.Is(err, cdp.ErrCtxDestroyed) {
+		return nil
+	}
 	return err
 }
 
@@ -211,8 +225,7 @@ func (p *Page) GetNavigationHistory() (*proto.PageGetNavigationHistoryResult, er
 // NavigateForward history.
 func (p *Page) NavigateForward() error {
 	// Not using cdp API because it doesn't work for iframe
-	_, err := p.Evaluate(Eval(`() => history.forward()`).ByUser())
-	return err
+	return p.navigateByScript(`() => history.forward()`)
 }
 
 // Reload page.
@@ -225,7 +238,7 @@ func (p *Page) Reload() error {
 	})
 
 	// Not using cdp API because it doesn't work for iframe
-	_, err := p.Evaluate(Eval(`() => location.reload()`).ByUser())
+	err := p.navigateByScript(`() => location.reload()`)
 	if err != nil {
 		return err
 	}

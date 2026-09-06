@@ -1,7 +1,6 @@
 package wand_test
 
 import (
-	"context"
 	"errors"
 	"io"
 	"mime"
@@ -149,25 +148,26 @@ func TestHijackMockWholeResponseEmptyBody(t *testing.T) {
 	g.Eq("", g.page.MustElement("body").MustText())
 }
 
+// TestHijackMockWholeResponseNoBody: a handler that sets no body fulfils an
+// empty 200 response. Upstream sent the body as null, which the browser
+// rejects as invalid parameters ("binary value expected"), so the request
+// stayed paused and the navigation hung until the caller's deadline; its test
+// asserted that hang, and was skipped as flaky.
 func TestHijackMockWholeResponseNoBody(t *testing.T) {
-	// TODO: remove the skip
-	t.Skip("Because of flaky test result")
-
 	g := setup(t)
 
 	router := g.page.HijackRequests()
 	defer router.MustStop()
 
 	// intercept and reply without setting a body
-	router.MustAdd("*", func(_ *wand.Hijack) {
-		// we don't set any body here
-	})
+	router.MustAdd("*", func(_ *wand.Hijack) {})
 
 	go router.Run()
 
-	// has to timeout as it will lock up the browser reading the reply.
-	err := g.page.Timeout(time.Second).Navigate(g.Serve().Route("/", "").URL())
-	g.Is(err, context.DeadlineExceeded)
+	// The deadline turns a request left paused into a failure, not a hang.
+	g.page.Timeout(10 * time.Second).MustNavigate(g.Serve().Route("/", ".html", "<body>served</body>").URL())
+
+	g.Eq("", g.page.MustElement("body").MustText())
 }
 
 func TestHijackMockWholeResponse(t *testing.T) {

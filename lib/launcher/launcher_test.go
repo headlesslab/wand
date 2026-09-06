@@ -5,7 +5,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
+	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -23,6 +25,23 @@ import (
 
 var setup = got.Setup(nil)
 
+// stop kills the browser l launched and removes its user data directory.
+func stop(l *launcher.Launcher) {
+	l.Kill()
+	l.Cleanup()
+}
+
+// freePort is a TCP port nothing listens on right now, for the User mode
+// tests: User mode reuses a browser already on its port, so a fixed port
+// would meet a browser of another test binary on a shared machine.
+func freePort(g got.G) int {
+	g.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	g.E(err)
+	defer func() { g.E(listener.Close()) }()
+	return listener.Addr().(*net.TCPAddr).Port
+}
+
 func TestLaunch(t *testing.T) {
 	g := setup(t)
 
@@ -30,7 +49,7 @@ func TestLaunch(t *testing.T) {
 	defer func() { defaults.ResetWith("") }()
 
 	l := launcher.New().Preferences("").AlwaysOpenPDFExternally()
-	defer l.Kill()
+	defer stop(l)
 
 	u := l.MustLaunch()
 	g.Regex(`\Aws://.+\z`, u)
@@ -91,7 +110,7 @@ func TestLaunchUserMode(t *testing.T) {
 	g.Eq("a", f)
 
 	dir := l.Get(flags.UserDataDir)
-	port := 58472
+	port := freePort(g)
 
 	l = l.Context(g.Context()).Delete("test").Bin("").
 		Version(pins.ChromeVersion).
@@ -107,11 +126,11 @@ func TestLaunchUserMode(t *testing.T) {
 		WorkingDir("").
 		Env(append(os.Environ(), "TZ=Asia/Tokyo")...)
 
-	g.Eq(l.FormatArgs(), []string /* len=6 cap=8 */ {
+	g.Eq(l.FormatArgs(), []string{
 		"--headless",
-		`--no-startup-window`,           /* len=19 */
-		`--proxy-server=test.com`,       /* len=23 */
-		`--remote-debugging-port=58472`, /* len=29 */
+		"--no-startup-window",
+		"--proxy-server=test.com",
+		fmt.Sprintf("--remote-debugging-port=%d", port),
 		"--test-append=a",
 		"about:blank",
 	})
@@ -143,10 +162,10 @@ func TestGuardFlags(t *testing.T) {
 func TestUserModeErr(t *testing.T) {
 	g := setup(t)
 
-	_, err := launcher.NewUserMode().RemoteDebuggingPort(48277).Bin("not-exists").Launch()
+	_, err := launcher.NewUserMode().RemoteDebuggingPort(freePort(g)).Bin("not-exists").Launch()
 	g.Err(err)
 
-	_, err = launcher.NewUserMode().RemoteDebuggingPort(58217).Bin("echo").Launch()
+	_, err = launcher.NewUserMode().RemoteDebuggingPort(freePort(g)).Bin("echo").Launch()
 	g.Err(err)
 }
 
@@ -178,9 +197,10 @@ func TestLaunchErr(t *testing.T) {
 		launcher.New().ClientHeader()
 	})
 	{
+		// Under xvfb-run, where it is installed, a browser starts.
 		l := launcher.New().XVFB()
 		_, _ = l.Launch()
-		l.Kill()
+		stop(l)
 	}
 }
 
@@ -189,16 +209,17 @@ var testProfileDir = flag.Bool("test-profile-dir", false, "set it to test profil
 func TestProfileDir(t *testing.T) {
 	g := setup(t)
 
-	url := launcher.New().Headless(false).
+	l := launcher.New().Headless(false).
 		ProfileDir("").ProfileDir("test-profile-dir")
 
 	if !*testProfileDir {
 		g.Skip("It's not CI friendly, so we skip it!")
 	}
 
-	url.MustLaunch()
+	l.MustLaunch()
+	defer stop(l)
 
-	userDataDir := url.Get(flags.UserDataDir)
+	userDataDir := l.Get(flags.UserDataDir)
 	file, err := os.Stat(filepath.Join(userDataDir, "test-profile-dir"))
 
 	g.E(err)
@@ -302,6 +323,7 @@ func TestLaunchMultiTimes(t *testing.T) {
 
 	// first time launch, success.
 	l := launcher.New()
+	defer stop(l)
 	u, e := l.Launch()
 	g.Neq(u, "")
 	g.E(e)

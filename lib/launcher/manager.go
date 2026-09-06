@@ -173,7 +173,9 @@ func (m *Manager) launch(w http.ResponseWriter, r *http.Request) {
 
 	options := r.Header.Get(string(HeaderName))
 	if options != "" {
+		// The flags, the user data directory among them, are the client's.
 		l.Flags = nil
+		l.tmpUserDataDir = false
 		utils.E(json.Unmarshal([]byte(options), l))
 	}
 

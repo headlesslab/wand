@@ -15,6 +15,8 @@ A lib helps to find, launch or download the browser. You can also use it as a st
 
 An explicit path is launched as it is, and wand never refuses a browser: once `wand.Browser` connects, a browser of another major version than the Target Chrome's gets one line through the browser's logger, with both versions. So a developer with Chrome installed runs wand without any download, a fresh container downloads the Target Chrome once, and CI pins the browser with `WAND_BROWSER_BIN`.
 
+`Launcher.ResolveBin()` runs the same search and returns the path without launching anything, for a message, or so that one resolution (and at most one download) serves many launches through `Launcher.Bin()`; wand's own test suite does that once in `TestMain`.
+
 Domestic platform browsers (lbrowser, the Qianxin, 360 and UOS browsers) are not in the discovery list: none is verified to accept `--remote-debugging-port`. If yours does, point `WAND_BROWSER_BIN` or `Launcher.Bin()` at its executable; on UOS and Kylin, browsers from the app store install under `/opt/apps/<app id>/files/`, and lbrowser comes as a package whose file list names the executable.
 
 ### Environment variables

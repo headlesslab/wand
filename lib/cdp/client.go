@@ -99,15 +99,14 @@ func (cdp *Client) Call(ctx context.Context, sessionID, method string, params in
 	data, err := json.Marshal(req)
 	utils.E(err)
 
-	done := make(chan result)
+	// Buffered, so that the one delivery never blocks the message loop: the
+	// loop fails every pending call when the connection drops, and this call
+	// may be returning on its own at that moment, from a Send that failed,
+	// with nobody left to receive.
+	done := make(chan result, 1)
 	once := sync.Once{}
 	cdp.pending.Store(req.ID, func(res result) {
-		once.Do(func() {
-			select {
-			case <-ctx.Done():
-			case done <- res:
-			}
-		})
+		once.Do(func() { done <- res })
 	})
 	defer cdp.pending.Delete(req.ID)
 

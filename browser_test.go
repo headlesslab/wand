@@ -2,6 +2,7 @@ package wand_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -21,7 +22,6 @@ import (
 	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/got"
 )
 
 func TestIncognito(t *testing.T) {
@@ -177,18 +177,24 @@ func TestBrowserCrash(t *testing.T) {
 	g := setup(t)
 
 	browser := wand.New().Context(g.Context()).MustConnect()
+	// The close of a crashed browser fails, and still removes its directory.
+	defer func() { _ = browser.Close() }()
+
 	page := browser.MustPage()
 	js := `() => new Promise(r => setTimeout(r, 10000))`
 
-	go g.Panic(func() {
-		page.MustEval(js)
-	})
+	// The pending call fails with the crash; it is asserted here, once it has
+	// returned, never from its goroutine.
+	pending := make(chan error, 1)
+	go func() {
+		pending <- wand.Try(func() { page.MustEval(js) })
+	}()
 
 	utils.Sleep(0.2)
 
 	_ = proto.BrowserCrash{}.Call(browser)
 
-	utils.Sleep(0.3)
+	g.Err(<-pending)
 
 	_, err := page.Eval(js)
 	g.Has(err.Error(), "use of closed network connection")
@@ -276,6 +282,7 @@ func TestBrowserOthers(t *testing.T) {
 	g := setup(t)
 
 	g.browser.Timeout(time.Second).CancelTimeout().MustGetCookies()
+	g.browser.MustIgnoreCertErrors(false)
 }
 
 func TestBinarySize(t *testing.T) {
@@ -458,18 +465,20 @@ func TestBrowserConnectFailure(t *testing.T) {
 }
 
 func TestBrowserPool(t *testing.T) {
-	g := got.T(t)
+	g := setup(t)
+
+	u := g.launch(launcher.New())
 
 	pool := wand.NewBrowserPool(3)
 
 	b, err := pool.Get(func() (*wand.Browser, error) {
-		browser := wand.New()
+		browser := wand.New().ControlURL(u)
 		return browser, browser.Connect()
 	})
 	g.E(err)
 	pool.Put(b)
 
-	b = pool.MustGet(func() *wand.Browser { return wand.New().MustConnect() })
+	b = pool.MustGet(func() *wand.Browser { return wand.New().ControlURL(u).MustConnect() })
 	pool.Put(b)
 
 	pool.Cleanup(func(p *wand.Browser) {
@@ -477,23 +486,48 @@ func TestBrowserPool(t *testing.T) {
 	})
 }
 
-func TestOldBrowser(t *testing.T) {
-	t.Skip()
-
+// TestBrowserCloseLaunched: a browser Connect launched itself is wand's own,
+// so Close waits for it to exit and removes its user data directory, whether
+// the browser took the close or had to be killed.
+func TestBrowserCloseLaunched(t *testing.T) {
 	g := setup(t)
-	u := launcher.New().Revision(686378).MustLaunch()
-	b := wand.New().ControlURL(u).MustConnect()
-	g.Cleanup(b.MustClose)
-	res, err := proto.BrowserGetVersion{}.Call(b)
-	g.E(err)
-	g.Eq(res.Revision, "@19d4547535ab5aba70b4730443f84e8153052174")
+
+	userDataDir := func(b *wand.Browser) string {
+		res, err := proto.BrowserGetBrowserCommandLine{}.Call(b)
+		g.E(err)
+		for _, arg := range res.Arguments {
+			if dir, ok := strings.CutPrefix(arg, "--user-data-dir="); ok {
+				g.PathExists(dir)
+				return dir
+			}
+		}
+		g.Fatal("no --user-data-dir in the browser command line")
+		return ""
+	}
+	gone := func(dir string) {
+		_, err := os.Stat(dir)
+		g.True(os.IsNotExist(err))
+	}
+
+	b := wand.New().MustConnect()
+	dir := userDataDir(b)
+	b.MustClose()
+	gone(dir)
+
+	// A close the browser does not take, here one whose context is over.
+	b = wand.New().MustConnect()
+	dir = userDataDir(b)
+	ctx, cancel := context.WithCancel(g.Context())
+	cancel()
+	g.Err(b.Context(ctx).Close())
+	gone(dir)
 }
 
 func TestBrowserLostConnection(t *testing.T) {
 	g := setup(t)
 
 	l := launcher.New()
-	p := wand.New().ControlURL(l.MustLaunch()).MustConnect().MustPage(g.blank())
+	p := wand.New().ControlURL(g.launch(l)).MustConnect().MustPage(g.blank())
 
 	go func() {
 		utils.Sleep(1)
@@ -516,7 +550,7 @@ func TestBrowserVersionMismatch(t *testing.T) {
 
 	// A browser of its own, so that each connection below is a fresh one
 	// whose Browser.getVersion answer the mock decides.
-	u := launcher.New().MustLaunch()
+	u := g.launch(launcher.New())
 
 	// connect a fresh client whose Browser.getVersion answer is stubbed, and
 	// return what the browser logged.

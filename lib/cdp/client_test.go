@@ -12,7 +12,6 @@ import (
 
 	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/leakcheck"
-	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher"
@@ -22,12 +21,22 @@ import (
 
 var setup = got.Setup(nil)
 
+// launch starts a browser through l and makes sure it is gone with its user
+// data directory when the test ends, whether the test closed it or not (the
+// launcher kills a browser that does not exit within its bound).
+func launch(g got.G, l *launcher.Launcher) string {
+	g.Helper()
+	u := l.MustLaunch()
+	g.Cleanup(l.Cleanup)
+	return u
+}
+
 func TestBasic(t *testing.T) {
 	g := setup(t)
 
 	ctx := g.Context()
 
-	client := cdp.New().Logger(defaults.CDP).Start(cdp.MustConnectWS(launcher.New().MustLaunch()))
+	client := cdp.New().Logger(defaults.CDP).Start(cdp.MustConnectWS(launch(g, launcher.New())))
 
 	defer func() {
 		_, _ = client.Call(ctx, "", "Browser.close", nil)
@@ -148,7 +157,7 @@ func TestCrash(t *testing.T) {
 
 	ctx := g.Context()
 
-	client := cdp.MustStartWithURL(ctx, launcher.New().MustLaunch(), nil)
+	client := cdp.MustStartWithURL(ctx, launch(g, launcher.New()), nil)
 
 	go func() {
 		for range client.Event() {
@@ -177,10 +186,15 @@ func TestCrash(t *testing.T) {
 	_, err = client.Call(ctx, sessionID, "Page.enable", nil)
 	g.E(err)
 
+	// The crash is asked for from another goroutine, which reports its result
+	// through the channel and asserts nothing itself: a goroutine that
+	// asserted after the test had returned was the "Fail in goroutine after
+	// TestCrash has completed" panic seen in the Gate.
+	crashed := make(chan error, 1)
 	go func() {
 		utils.Sleep(1)
 		_, err := client.Call(ctx, sessionID, "Browser.crash", nil)
-		g.Eq(err, io.EOF)
+		crashed <- err
 	}()
 
 	_, err = client.Call(ctx, sessionID, "Runtime.evaluate", map[string]interface{}{
@@ -188,6 +202,8 @@ func TestCrash(t *testing.T) {
 		"awaitPromise": true,
 	})
 	g.Eq(err, io.EOF)
+
+	g.Eq(<-crashed, io.EOF)
 
 	_, err = client.Call(ctx, sessionID, "Runtime.evaluate", map[string]interface{}{
 		"expression": `10`,
@@ -339,20 +355,38 @@ func TestConcurrentCall(t *testing.T) {
 	}
 }
 
-func TestMassBrowserClose(t *testing.T) {
-	t.Skip()
-
+// TestCallSendErrWhileClosing: the connection drops as a request goes out, so
+// Send fails while the message loop is already failing every pending call.
+// The loop must not block on the call that is about to return on its own:
+// it once did, on a send to a channel nobody read any more, and the client
+// never closed its event channel (a goroutine leak the root suite's
+// TestBrowserVersionMismatch reported in the Gate).
+func TestCallSendErrWhileClosing(t *testing.T) {
 	g := setup(t)
-	s := g.Serve()
 
-	for i := 0; i < 50; i++ {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			t.Parallel()
-			browser := wand.New().MustConnect()
-			browser.MustPage(s.URL()).MustWaitLoad().MustClose()
-			browser.MustClose()
-		})
+	dropped := make(chan struct{})
+	var client *cdp.Client
+	ws := &MockWebSocket{
+		read: func() ([]byte, error) {
+			<-dropped
+			return nil, errors.New("connection dropped")
+		},
+		send: func([]byte) error {
+			// The read side fails now, and the message loop is given time to
+			// finish with the pending call before Send reports its failure.
+			close(dropped)
+			select {
+			case <-client.Event():
+			case <-time.After(5 * time.Second):
+				g.Fatal("the message loop did not finish while a failed Send was pending")
+			}
+			return errors.New("send failed")
+		},
 	}
+	client = cdp.New().Start(ws)
+
+	_, err := client.Call(g.Context(), "", "method", nil)
+	g.Has(err.Error(), "send failed")
 }
 
 type MockWebSocket struct {

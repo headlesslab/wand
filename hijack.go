@@ -169,6 +169,11 @@ func (r *HijackRouter) new(ctx context.Context, e *proto.FetchRequestPaused) *Hi
 			payload: &proto.FetchFulfillRequest{
 				ResponseCode: 200,
 				RequestID:    e.RequestID,
+				// Empty rather than nil: a nil body is sent as null, which
+				// the browser rejects as invalid parameters, and a rejected
+				// fulfillRequest leaves the request paused for good, so a
+				// handler that set no body hung the navigation.
+				Body: []byte{},
 			},
 			fail: &proto.FetchFailRequest{
 				RequestID: e.RequestID,
