@@ -990,6 +990,22 @@ func TestPageNavigation(t *testing.T) {
 	wait()
 	g.Regex("fixtures/selector.html$", p.MustInfo().URL)
 
+	// When the navigation a script started begins before the reply of its
+	// evaluation is delivered (at once for an entry in the back/forward cache),
+	// the browser fails the reply with the context-destroyed error, under
+	// either of its messages; the navigation has started all the same. Once in
+	// six Gate runs, MustNavigateBack failed with it.
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(nil), &cdp.Error{Code: -32000, Message: "Inspected target navigated or closed"}
+	})
+	g.E(p.NavigateBack())
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(nil), cdp.ErrCtxDestroyed
+	})
+	g.E(p.NavigateForward())
+
+	g.mc.stubErr(1, proto.RuntimeCallFunctionOn{})
+	g.Err(p.NavigateBack())
 	g.mc.stubErr(1, proto.RuntimeCallFunctionOn{})
 	g.Err(p.Reload())
 }
