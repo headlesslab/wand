@@ -66,8 +66,9 @@ var execLogger = log.New(os.Stdout, "[exec] ", 0)
 // output; standard error is echoed when std is true and otherwise kept only
 // for the panic message on failure, so that a caller parsing the output, such
 // as UseNode, is not confused by the "go: downloading" lines that go run
-// prints on a cold module cache. The two streams get separate buffers: os/exec
-// copies them from separate goroutines, so one shared buffer would be a race.
+// prints on a cold module cache. Each stream gets a buffer of its own: os/exec
+// serves two distinct writers from two goroutines, so a buffer they shared
+// would be a data race (only one identical writer for both gets one goroutine).
 func ExecLine(std bool, line string, rest ...string) string {
 	args := rest
 	if line != "" {

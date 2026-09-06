@@ -131,7 +131,8 @@ func TestBrowserClearStates(t *testing.T) {
 func TestBrowserEvent(t *testing.T) {
 	g := setup(t)
 
-	messages := g.browser.Context(g.Context()).Event()
+	ctx := g.Context()
+	messages := g.browser.Context(ctx).Event()
 	p := g.newPage()
 	wait := make(chan struct{})
 	for msg := range messages {
@@ -143,6 +144,13 @@ func TestBrowserEvent(t *testing.T) {
 		}
 	}
 	<-wait
+
+	// Nobody reads messages any more: raise an event, let the forwarding
+	// goroutine block on delivering it, then end the context, so the context
+	// is what stops a delivery in progress.
+	p.MustNavigate(g.blank())
+	utils.Sleep(0.3)
+	ctx.Cancel()
 }
 
 func TestBrowserWaitEvent(t *testing.T) {

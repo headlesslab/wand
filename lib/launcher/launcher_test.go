@@ -99,13 +99,16 @@ func TestLaunch(t *testing.T) {
 	}
 }
 
-func TestWindowSizeAndPosition(t *testing.T) {
+func TestWindowSize(t *testing.T) {
 	g := setup(t)
 
-	l := launcher.New().WindowSize(800, 600).WindowPosition(10, 20)
+	g.Eq(launcher.New().WindowSize(800, 600).Get(flags.WindowSize), "800,600")
+}
 
-	g.Eq(l.Get(flags.WindowSize), "800,600")
-	g.Eq(l.Get(flags.WindowPosition), "10,20")
+func TestWindowPosition(t *testing.T) {
+	g := setup(t)
+
+	g.Eq(launcher.New().WindowPosition(10, 20).Get(flags.WindowPosition), "10,20")
 }
 
 func TestLaunchUserMode(t *testing.T) {

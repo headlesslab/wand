@@ -55,12 +55,12 @@ jobs:
       # tests; rod #1070 stays a documented limitation for users.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # The browser comes through the launcher's own download path on every
-      # run, never from a cache action; the pre-fetch command runs it before
-      # any test does. The launcher serializes downloads and validations
-      # behind one port lock, so a package suite that started while another
-      # package was still downloading would spend its timing budgets waiting
-      # behind that lock.
+      # The Managed browser arrives through Browser resolution's own download
+      # on every run, never through an Actions cache; the pre-fetch command
+      # runs that download before any test does. The launcher serializes
+      # downloads and validations behind one port lock, so a package suite
+      # that started while another package was still downloading would spend
+      # its timing budgets waiting behind that lock.
       - run: go run ./cmd/wand-fetch-browser
 
       # Everything runs from the workspace root. `./...` stops at the two
@@ -71,22 +71,28 @@ jobs:
       - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
 
       # The ci-test wrapper sets GODEBUG=tracebackancestors=100 for the leak
-      # checker. The browser comes through the launcher's own download path on
-      # every run, never from a cache, so every run exercises that path too.
-      # Examples reach the public internet until #52 lands and belong to the
-      # examples Nightly (#61), hence -run=^Test.
-      - run: go run ./internal/tools/ci-test -race -coverprofile=coverage.out -run=^Test ./...
+      # checker. -count=1 keeps go test from replaying results the restored
+      # build cache holds for a package whose inputs did not change. Examples
+      # reach the public internet until #52 lands and belong to the examples
+      # Nightly (#61), hence -run=^Test.
+      - run: go run ./internal/tools/ci-test -race -count=1 -coverprofile=coverage.out -run=^Test ./...
 
       # 100 % per file, checked by got's check-cov at the version go.mod pins
       # (go run resolves it from the build list, never @latest). Since Go 1.20
-      # the profile also lists packages without tests at 0 %; entry points
-      # (package main: the commands, the tools, the generators, the fixture
-      # binaries and the examples) are run rather than unit-tested and are
-      # dropped by that mechanical rule. Every other package must be at 100 %.
+      # the profile of ./... also lists packages without tests, at 0 %, which
+      # upstream avoided with a hand-written package list. This check instead
+      # drops entry points, package main (the commands, the tools, the
+      # generators, the fixture binaries and the examples), which are run
+      # rather than unit-tested and which upstream never held to 100 % either;
+      # every other package must be at 100 %. The awk matches a file's package
+      # exactly, so a package nested under an entry point stays in.
       - name: Coverage at 100 %
         run: |
-          go list -f '{{if eq .Name "main"}}{{.ImportPath}}/{{end}}' ./... > main-packages.txt
-          grep -v -F -f main-packages.txt coverage.out > coverage-lib.out
+          go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... > main-packages.txt
+          awk 'NR == FNR { main[$0] = 1; next }
+               /^mode:/ { print; next }
+               { dir = $1; sub(/:.*/, "", dir); sub(/\/[^\/]*$/, "", dir); if (!(dir in main)) print }' \
+            main-packages.txt coverage.out > coverage-lib.out
           go run github.com/ysmood/got/cmd/check-cov -cov-file=coverage-lib.out
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -52,7 +52,7 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires the minimal Gate of `.github/workflows/gate.yml` (#36); the remaining Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only after its workflow has run once on `main`.
+wand's `main` ruleset requires the minimal Gate of `.github/workflows/gate.yml`, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the remaining Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 
