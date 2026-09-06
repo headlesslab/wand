@@ -55,6 +55,14 @@ jobs:
       # tests; rod #1070 stays a documented limitation for users.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
+      # The browser comes through the launcher's own download path on every
+      # run, never from a cache action; the pre-fetch command runs it before
+      # any test does. The launcher serializes downloads and validations
+      # behind one port lock, so a package suite that started while another
+      # package was still downloading would spend its timing budgets waiting
+      # behind that lock.
+      - run: go run ./cmd/wand-fetch-browser
+
       # Everything runs from the workspace root. `./...` stops at the two
       # nested example modules, so they are named to be compiled against this
       # checkout; e2e-testing has only test files, hence vet but no build.

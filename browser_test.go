@@ -286,7 +286,10 @@ func TestBinarySize(t *testing.T) {
 	stat, err := os.Stat("tmp/translator")
 	g.E(err)
 
-	g.Lte(float64(stat.Size())/1024/1024, 11) // mb
+	// Go 1.27 builds it at 11.3 MB (Go 1.23: 10.2 MB); the bound still catches
+	// a test framework or another heavy dependency linked into user binaries.
+	// #53 lowers it once leakless and the runtime got import are gone.
+	g.Lte(float64(stat.Size())/1024/1024, 12) // mb
 }
 
 func TestBrowserCookies(t *testing.T) {

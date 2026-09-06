@@ -66,7 +66,8 @@ var execLogger = log.New(os.Stdout, "[exec] ", 0)
 // output; standard error is echoed when std is true and otherwise kept only
 // for the panic message on failure, so that a caller parsing the output, such
 // as UseNode, is not confused by the "go: downloading" lines that go run
-// prints on a cold module cache.
+// prints on a cold module cache. The two streams get separate buffers: os/exec
+// copies them from separate goroutines, so one shared buffer would be a race.
 func ExecLine(std bool, line string, rest ...string) string {
 	args := rest
 	if line != "" {
@@ -76,23 +77,23 @@ func ExecLine(std bool, line string, rest ...string) string {
 	execLogger.Println(utils.FormatCLIArgs(args))
 
 	stdout := bytes.NewBuffer(nil)
-	all := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
 
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stderr = all
-	cmd.Stdout = io.MultiWriter(all, stdout)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if std {
 		cmd.Stdin = os.Stdin
-		cmd.Stderr = os.Stderr
 		cmd.Stdout = io.MultiWriter(stdout, os.Stdout)
+		cmd.Stderr = os.Stderr
 	}
 
 	if err := cmd.Run(); err != nil {
 		if std {
 			panic(err)
 		}
-		panic(fmt.Sprintf("%v\n%v", err, all.String()))
+		panic(fmt.Sprintf("%v\n%v%v", err, stdout.String(), stderr.String()))
 	}
 
 	return stdout.String()
