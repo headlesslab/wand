@@ -1,4 +1,9 @@
-// Package main ...
+// Package main is the lint step of go generate and of the generate Gate: the
+// Node linters that internal/tools/package.json pins, then golangci-lint at
+// the version internal/devutil pins (its formatters rewrite, its linters
+// report), then upstream's Must-prefix rule and a clean git tree, so that a
+// generator whose output drifted from the committed files fails here (spec
+// #33, section 13). Node must be on PATH; the setup tool installs the tools.
 package main
 
 import (
@@ -6,15 +11,17 @@ import (
 )
 
 func main() {
-	devutil.UseNode(true)
+	devutil.NodeTool("cspell", "--no-progress", "**")
 
-	devutil.Exec("npx -ys -- cspell@6.31.1 --no-progress **")
+	// The html plugin lives beside the tools, not beside .eslintrc.yml.
+	devutil.NodeTool("eslint", "--ext=.js,.html", "--fix", "--ignore-path=.gitignore",
+		"--resolve-plugins-relative-to=internal/tools", ".")
 
-	devutil.Exec("npx -ys -- eslint@8.41.0 --ext=.js,.html --fix --ignore-path=.gitignore .")
+	devutil.NodeTool("prettier", "--loglevel=error", "--write", "--ignore-path=.gitignore", ".")
 
-	devutil.Exec("npx -ys -- prettier@2.8.8 --loglevel=error --write --ignore-path=.gitignore .")
+	devutil.GoTool(devutil.GolangciLint, "fmt", "./...")
 
-	devutil.Exec("go run github.com/ysmood/golangci-lint@latest")
+	devutil.GoTool(devutil.GolangciLint, "run", "./...")
 
 	lintMustPrefix()
 

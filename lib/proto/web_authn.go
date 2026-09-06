@@ -34,6 +34,9 @@ const (
 
 	// WebAuthnCtap2VersionCtap21 enum const.
 	WebAuthnCtap2VersionCtap21 WebAuthnCtap2Version = "ctap2_1"
+
+	// WebAuthnCtap2VersionCtap22 enum const.
+	WebAuthnCtap2VersionCtap22 WebAuthnCtap2Version = "ctap2_2"
 )
 
 // WebAuthnAuthenticatorTransport ...
@@ -93,6 +96,22 @@ type WebAuthnVirtualAuthenticatorOptions struct {
 	// Defaults to false.
 	HasPrf bool `json:"hasPrf,omitempty"`
 
+	// HasHmacSecret (optional) If set to true, the authenticator will support the hmac-secret extension.
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html#sctn-hmac-secret-extension
+	// Defaults to false.
+	HasHmacSecret bool `json:"hasHmacSecret,omitempty"`
+
+	// HasHmacSecretMc (optional) If set to true, the authenticator will support the hmac-secret-mc extension.
+	// https://fidoalliance.org/specs/fido-v2.2-rd-20241003/fido-client-to-authenticator-protocol-v2.2-rd-20241003.html#sctn-hmac-secret-make-cred-extension
+	// Defaults to false.
+	HasHmacSecretMc bool `json:"hasHmacSecretMc,omitempty"`
+
+	// HasCmtgKey (optional) If set to true, the authenticator will support the cmtgKey (Credential
+	// Manager Trust Group Key) extension.
+	// https://github.com/w3c/webauthn/pull/2377
+	// Defaults to false.
+	HasCmtgKey bool `json:"hasCmtgKey,omitempty"`
+
 	// AutomaticPresenceSimulation (optional) If set to true, tests of user presence will succeed immediately.
 	// Otherwise, they will not be resolved. Defaults to true.
 	AutomaticPresenceSimulation bool `json:"automaticPresenceSimulation,omitempty"`
@@ -103,12 +122,12 @@ type WebAuthnVirtualAuthenticatorOptions struct {
 
 	// DefaultBackupEligibility (optional) Credentials created by this authenticator will have the backup
 	// eligibility (BE) flag set to this value. Defaults to false.
-	// https://w3c.github.io/webauthn/#sctn-credential-backup
+	// https://w3c.github.io/webauthn/#sctn-credential-backup.
 	DefaultBackupEligibility bool `json:"defaultBackupEligibility,omitempty"`
 
 	// DefaultBackupState (optional) Credentials created by this authenticator will have the backup state
 	// (BS) flag set to this value. Defaults to false.
-	// https://w3c.github.io/webauthn/#sctn-credential-backup
+	// https://w3c.github.io/webauthn/#sctn-credential-backup.
 	DefaultBackupState bool `json:"defaultBackupState,omitempty"`
 }
 
@@ -124,20 +143,20 @@ type WebAuthnCredential struct {
 	// credential.
 	RpID string `json:"rpId,omitempty"`
 
-	// PrivateKey The ECDSA P-256 private key in PKCS#8 format.
+	// PrivateKey The ECDSA P-256 private key in PKCS#8 format. (Encoded as a base64 string when passed over JSON).
 	PrivateKey []byte `json:"privateKey"`
 
 	// UserHandle (optional) An opaque byte sequence with a maximum size of 64 bytes mapping the
-	// credential to a specific user.
+	// credential to a specific user. (Encoded as a base64 string when passed over JSON).
 	UserHandle []byte `json:"userHandle,omitempty"`
 
 	// SignCount Signature counter. This is incremented by one for each successful
 	// assertion.
-	// See https://w3c.github.io/webauthn/#signature-counter
+	// See https://w3c.github.io/webauthn/#signature-counter.
 	SignCount int `json:"signCount"`
 
 	// LargeBlob (optional) The large blob associated with the credential.
-	// See https://w3c.github.io/webauthn/#sctn-large-blob-extension
+	// See https://w3c.github.io/webauthn/#sctn-large-blob-extension (Encoded as a base64 string when passed over JSON).
 	LargeBlob []byte `json:"largeBlob,omitempty"`
 
 	// BackupEligibility (optional) Assertions returned by this credential will have the backup eligibility
@@ -149,6 +168,24 @@ type WebAuthnCredential struct {
 	// flag set to this value. Defaults to the authenticator's
 	// defaultBackupState value.
 	BackupState bool `json:"backupState,omitempty"`
+
+	// UserName (optional) The credential's user.name property. Equivalent to empty if not set.
+	// https://w3c.github.io/webauthn/#dom-publickeycredentialentity-name.
+	UserName string `json:"userName,omitempty"`
+
+	// UserDisplayName (optional) The credential's user.displayName property. Equivalent to empty if
+	// not set.
+	// https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-displayname.
+	UserDisplayName string `json:"userDisplayName,omitempty"`
+
+	// CmtgKeys (optional) The CMTG keys associated with the credential.
+	CmtgKeys [][]byte `json:"cmtgKeys,omitempty"`
+
+	// ActiveCmtgKeyIndex (optional) The 0-based index of the active key in cmtgKeys.
+	ActiveCmtgKeyIndex *int `json:"activeCmtgKeyIndex,omitempty"`
+
+	// GenerateCmtgKeyOnNextOperation (optional) If true, the authenticator will generate a new CMTG key on the next operation.
+	GenerateCmtgKeyOnNextOperation bool `json:"generateCmtgKeyOnNextOperation,omitempty"`
 }
 
 // WebAuthnEnable Enable the WebAuthn domain and start intercepting credential storage and
@@ -377,7 +414,7 @@ func (m WebAuthnSetAutomaticPresenceSimulation) Call(c Client) error {
 }
 
 // WebAuthnSetCredentialProperties Allows setting credential properties.
-// https://w3c.github.io/webauthn/#sctn-automation-set-credential-properties
+// https://w3c.github.io/webauthn/#sctn-automation-set-credential-properties.
 type WebAuthnSetCredentialProperties struct {
 	// AuthenticatorID ...
 	AuthenticatorID WebAuthnAuthenticatorID `json:"authenticatorId"`
@@ -390,6 +427,12 @@ type WebAuthnSetCredentialProperties struct {
 
 	// BackupState (optional) ...
 	BackupState bool `json:"backupState,omitempty"`
+
+	// ActiveCmtgKeyIndex (optional) ...
+	ActiveCmtgKeyIndex *int `json:"activeCmtgKeyIndex,omitempty"`
+
+	// GenerateCmtgKeyOnNextOperation (optional) ...
+	GenerateCmtgKeyOnNextOperation bool `json:"generateCmtgKeyOnNextOperation,omitempty"`
 }
 
 // ProtoReq name.
@@ -412,6 +455,36 @@ type WebAuthnCredentialAdded struct {
 // ProtoEvent name.
 func (evt WebAuthnCredentialAdded) ProtoEvent() string {
 	return "WebAuthn.credentialAdded"
+}
+
+// WebAuthnCredentialDeleted Triggered when a credential is deleted, e.g. through
+// PublicKeyCredential.signalUnknownCredential().
+type WebAuthnCredentialDeleted struct {
+	// AuthenticatorID ...
+	AuthenticatorID WebAuthnAuthenticatorID `json:"authenticatorId"`
+
+	// CredentialID ...
+	CredentialID []byte `json:"credentialId"`
+}
+
+// ProtoEvent name.
+func (evt WebAuthnCredentialDeleted) ProtoEvent() string {
+	return "WebAuthn.credentialDeleted"
+}
+
+// WebAuthnCredentialUpdated Triggered when a credential is updated, e.g. through
+// PublicKeyCredential.signalCurrentUserDetails().
+type WebAuthnCredentialUpdated struct {
+	// AuthenticatorID ...
+	AuthenticatorID WebAuthnAuthenticatorID `json:"authenticatorId"`
+
+	// Credential ...
+	Credential *WebAuthnCredential `json:"credential"`
+}
+
+// ProtoEvent name.
+func (evt WebAuthnCredentialUpdated) ProtoEvent() string {
+	return "WebAuthn.credentialUpdated"
 }
 
 // WebAuthnCredentialAsserted Triggered when a credential is used in a webauthn assertion.

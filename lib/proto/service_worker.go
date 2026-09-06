@@ -205,20 +205,6 @@ func (m ServiceWorkerEnable) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// ServiceWorkerInspectWorker ...
-type ServiceWorkerInspectWorker struct {
-	// VersionID ...
-	VersionID string `json:"versionId"`
-}
-
-// ProtoReq name.
-func (m ServiceWorkerInspectWorker) ProtoReq() string { return "ServiceWorker.inspectWorker" }
-
-// Call sends the request.
-func (m ServiceWorkerInspectWorker) Call(c Client) error {
-	return call(m.ProtoReq(), m, nil, c)
-}
-
 // ServiceWorkerSetForceUpdateOnPageLoad ...
 type ServiceWorkerSetForceUpdateOnPageLoad struct {
 	// ForceUpdateOnPageLoad ...

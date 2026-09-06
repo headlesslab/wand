@@ -37,6 +37,9 @@ const (
 
 	// WebAudioContextStateClosed enum const.
 	WebAudioContextStateClosed WebAudioContextState = "closed"
+
+	// WebAudioContextStateInterrupted enum const.
+	WebAudioContextStateInterrupted WebAudioContextState = "interrupted"
 )
 
 // WebAudioNodeType Enum of AudioNode types.

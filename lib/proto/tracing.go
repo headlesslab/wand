@@ -34,7 +34,7 @@ const (
 
 // TracingTraceConfig ...
 type TracingTraceConfig struct {
-	// RecordMode (experimental) (optional) Controls how the trace buffer stores data.
+	// RecordMode (experimental) (optional) Controls how the trace buffer stores data. The default is `recordUntilFull`.
 	RecordMode TracingTraceConfigRecordMode `json:"recordMode,omitempty"`
 
 	// TraceBufferSizeInKb (experimental) (optional) Size of the trace buffer in kilobytes. If not specified or zero is passed, a default value
@@ -149,9 +149,27 @@ type TracingGetCategoriesResult struct {
 	Categories []string `json:"categories"`
 }
 
+// TracingGetTrackEventDescriptor (experimental) Return a descriptor for all available tracing categories.
+type TracingGetTrackEventDescriptor struct{}
+
+// ProtoReq name.
+func (m TracingGetTrackEventDescriptor) ProtoReq() string { return "Tracing.getTrackEventDescriptor" }
+
+// Call the request.
+func (m TracingGetTrackEventDescriptor) Call(c Client) (*TracingGetTrackEventDescriptorResult, error) {
+	var res TracingGetTrackEventDescriptorResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// TracingGetTrackEventDescriptorResult (experimental) ...
+type TracingGetTrackEventDescriptorResult struct {
+	// Descriptor Base64-encoded serialized perfetto.protos.TrackEventDescriptor protobuf message. (Encoded as a base64 string when passed over JSON).
+	Descriptor []byte `json:"descriptor"`
+}
+
 // TracingRecordClockSyncMarker (experimental) Record a clock sync marker in the trace.
 type TracingRecordClockSyncMarker struct {
-	// SyncID The ID of this clock sync marker
+	// SyncID The ID of this clock sync marker.
 	SyncID string `json:"syncId"`
 }
 
@@ -165,7 +183,7 @@ func (m TracingRecordClockSyncMarker) Call(c Client) error {
 
 // TracingRequestMemoryDump (experimental) Request a global memory dump.
 type TracingRequestMemoryDump struct {
-	// Deterministic (optional) Enables more deterministic results by forcing garbage collection
+	// Deterministic (optional) Enables more deterministic results by forcing garbage collection.
 	Deterministic bool `json:"deterministic,omitempty"`
 
 	// LevelOfDetail (optional) Specifies level of details in memory dump. Defaults to "detailed".
@@ -203,13 +221,17 @@ const (
 
 // TracingStart Start trace events collection.
 type TracingStart struct {
-	// Categories (deprecated) (experimental) (optional) Category/tag filter
+	// Categories (deprecated) (experimental) (optional) Category/tag filter.
+	//
+	// Deprecated: Tracing.start.categories is deprecated in the Chrome DevTools Protocol.
 	Categories string `json:"categories,omitempty"`
 
-	// Options (deprecated) (experimental) (optional) Tracing options
+	// Options (deprecated) (experimental) (optional) Tracing options.
+	//
+	// Deprecated: Tracing.start.options is deprecated in the Chrome DevTools Protocol.
 	Options string `json:"options,omitempty"`
 
-	// BufferUsageReportingInterval (experimental) (optional) If set, the agent will issue bufferUsage events at this interval, specified in milliseconds
+	// BufferUsageReportingInterval (experimental) (optional) If set, the agent will issue bufferUsage events at this interval, specified in milliseconds.
 	BufferUsageReportingInterval *float64 `json:"bufferUsageReportingInterval,omitempty"`
 
 	// TransferMode (optional) Whether to report trace events as series of dataCollected events or to save trace to a
@@ -221,7 +243,7 @@ type TracingStart struct {
 	StreamFormat TracingStreamFormat `json:"streamFormat,omitempty"`
 
 	// StreamCompression (experimental) (optional) Compression format to use. This only applies when using `ReturnAsStream`
-	// transfer mode (defaults to `none`)
+	// transfer mode (defaults to `none`).
 	StreamCompression TracingStreamCompression `json:"streamCompression,omitempty"`
 
 	// TraceConfig (optional) ...
@@ -229,11 +251,24 @@ type TracingStart struct {
 
 	// PerfettoConfig (experimental) (optional) Base64-encoded serialized perfetto.protos.TraceConfig protobuf message
 	// When specified, the parameters `categories`, `options`, `traceConfig`
-	// are ignored.
+	// are ignored. (Encoded as a base64 string when passed over JSON).
 	PerfettoConfig []byte `json:"perfettoConfig,omitempty"`
 
-	// TracingBackend (experimental) (optional) Backend type (defaults to `auto`)
+	// TracingBackend (experimental) (optional) Backend type (defaults to `auto`).
 	TracingBackend TracingTracingBackend `json:"tracingBackend,omitempty"`
+
+	// ScreenshotMaxSize (experimental) (optional) Maximum width and height (in pixels) of each captured screenshot.
+	// Only used when the `disabled-by-default-devtools.screenshot` category is
+	// enabled. Defaults to 500. The combined memory footprint of screenshots
+	// (`screenshotMaxSize` * `screenshotMaxSize` * 4 * `screenshotMaxCount`)
+	// is clamped to the existing per-session budget.
+	ScreenshotMaxSize *int `json:"screenshotMaxSize,omitempty"`
+
+	// ScreenshotMaxCount (experimental) (optional) Maximum number of screenshots captured during a single tracing session.
+	// Only used when the `disabled-by-default-devtools.screenshot` category is
+	// enabled. Defaults to 450. Clamped together with `screenshotMaxSize` to
+	// stay within the per-session screenshot memory budget.
+	ScreenshotMaxCount *int `json:"screenshotMaxCount,omitempty"`
 }
 
 // ProtoReq name.

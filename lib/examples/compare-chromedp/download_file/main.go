@@ -26,13 +26,13 @@ func main() {
 
 	wait := page.Browser().WaitDownload(wd)
 
-	go browser.EachEvent(func(e *proto.PageDownloadProgress) bool {
+	go browser.EachEvent(func(e *proto.PageDownloadProgress) bool { //nolint: staticcheck // still fires; Browser.downloadProgress is API modernization
 		completed := "(unknown)"
 		if e.TotalBytes != 0 {
 			completed = fmt.Sprintf("%0.2f%%", e.ReceivedBytes/e.TotalBytes*100.0)
 		}
 		log.Printf("state: %s, completed: %s\n", e.State, completed)
-		return e.State == proto.PageDownloadProgressStateCompleted
+		return e.State == proto.PageDownloadProgressStateCompleted //nolint: staticcheck
 	})()
 
 	page.MustElementR("a", "Download ZIP").MustClick()

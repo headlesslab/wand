@@ -11,10 +11,10 @@ This domain allows interacting with the browser to control PWAs.
 */
 
 // PWAFileHandlerAccept The following types are the replica of
-// https://crsrc.org/c/chrome/browser/web_applications/proto/web_app_os_integration_state.proto;drc=9910d3be894c8f142c977ba1023f30a656bc13fc;l=67
+// https://crsrc.org/c/chrome/browser/web_applications/proto/web_app_os_integration_state.proto;drc=9910d3be894c8f142c977ba1023f30a656bc13fc;l=67.
 type PWAFileHandlerAccept struct {
 	// MediaType New name of the mimetype according to
-	// https://www.iana.org/assignments/media-types/media-types.xhtml
+	// https://www.iana.org/assignments/media-types/media-types.xhtml.
 	MediaType string `json:"mediaType"`
 
 	// FileExtensions ...
@@ -70,15 +70,31 @@ type PWAGetOsAppStateResult struct {
 	FileHandlers []*PWAFileHandler `json:"fileHandlers"`
 }
 
-// PWAInstall Installs the given manifest identity, optionally using the given install_url
-// or IWA bundle location.
+// PWAInstall Installs the given manifest identity, optionally using the given installUrlOrBundleUrl
 //
-// TODO(crbug.com/337872319) Support IWA to meet the following specific
-// requirement.
-// IWA-specific install description: If the manifest_id is isolated-app://,
-// install_url_or_bundle_url is required, and can be either an http(s) URL or
-// file:// URL pointing to a signed web bundle (.swbn). The .swbn file's
-// signing key must correspond to manifest_id. If Chrome is not in IWA dev
+// IWA-specific install description:
+// manifestId corresponds to isolated-app:// + web_package::SignedWebBundleId
+//
+// File installation mode:
+// The installUrlOrBundleUrl can be either file:// or http(s):// pointing
+// to a signed web bundle (.swbn). In this case SignedWebBundleId must correspond to
+// The .swbn file's signing key.
+//
+// Dev proxy installation mode:
+// installUrlOrBundleUrl must be http(s):// that serves dev mode IWA.
+// web_package::SignedWebBundleId must be of type dev proxy.
+//
+// The advantage of dev proxy mode is that all changes to IWA
+// automatically will be reflected in the running app without
+// reinstallation.
+//
+// To generate bundle id for proxy mode:
+//  1. Generate 32 random bytes.
+//  2. Add a specific suffix at the end following the documentation
+//     https://github.com/WICG/isolated-web-apps/blob/main/Scheme.md#suffix
+//  3. Encode the entire sequence using Base32 without padding.
+//
+// If Chrome is not in IWA dev
 // mode, the installation will fail, regardless of the state of the allowlist.
 type PWAInstall struct {
 	// ManifestID ...

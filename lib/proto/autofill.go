@@ -31,6 +31,8 @@ type AutofillCreditCard struct {
 // AutofillAddressField ...
 type AutofillAddressField struct {
 	// Name address field name, for example GIVEN_NAME.
+	// The full list of supported field names:
+	// https://source.chromium.org/chromium/chromium/src/+/main:components/autofill/core/browser/field_types.cc;l=38.
 	Name string `json:"name"`
 
 	// Value address field value, for example Jon Doe.
@@ -77,25 +79,25 @@ type AutofillFilledField struct {
 	// HTMLType The type of the field, e.g text, password etc.
 	HTMLType string `json:"htmlType"`
 
-	// ID the html id
+	// ID the html id.
 	ID string `json:"id"`
 
-	// Name the html name
+	// Name the html name.
 	Name string `json:"name"`
 
-	// Value the field value
+	// Value the field value.
 	Value string `json:"value"`
 
-	// AutofillType The actual field type, e.g FAMILY_NAME
+	// AutofillType The actual field type, e.g FAMILY_NAME.
 	AutofillType string `json:"autofillType"`
 
-	// FillingStrategy The filling strategy
+	// FillingStrategy The filling strategy.
 	FillingStrategy AutofillFillingStrategy `json:"fillingStrategy"`
 
-	// FrameID The frame the field belongs to
+	// FrameID The frame the field belongs to.
 	FrameID PageFrameID `json:"frameId"`
 
-	// FieldID The form field's DOM node
+	// FieldID The form field's DOM node.
 	FieldID DOMBackendNodeID `json:"fieldId"`
 }
 
@@ -108,8 +110,11 @@ type AutofillTrigger struct {
 	// FrameID (optional) Identifies the frame that field belongs to.
 	FrameID PageFrameID `json:"frameId,omitempty"`
 
-	// Card Credit card information to fill out the form. Credit card data is not saved.
-	Card *AutofillCreditCard `json:"card"`
+	// Card (optional) Credit card information to fill out the form. Credit card data is not saved.  Mutually exclusive with `address`.
+	Card *AutofillCreditCard `json:"card,omitempty"`
+
+	// Address (optional) Address to fill out the form. Address data is not saved. Mutually exclusive with `card`.
+	Address *AutofillAddress `json:"address,omitempty"`
 }
 
 // ProtoReq name.
@@ -158,7 +163,7 @@ func (m AutofillEnable) Call(c Client) error {
 
 // AutofillAddressFormFilled Emitted when an address form is filled.
 type AutofillAddressFormFilled struct {
-	// FilledFields Information about the fields that were filled
+	// FilledFields Information about the fields that were filled.
 	FilledFields []*AutofillFilledField `json:"filledFields"`
 
 	// AddressUI An UI representation of the address used to fill the form.

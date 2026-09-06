@@ -56,7 +56,17 @@ type MemoryModule struct {
 	Size float64 `json:"size"`
 }
 
-// MemoryGetDOMCounters ...
+// MemoryDOMCounter DOM object counter data.
+type MemoryDOMCounter struct {
+	// Name Object name. Note: object names should be presumed volatile and clients should not expect
+	// the returned names to be consistent across runs.
+	Name string `json:"name"`
+
+	// Count Object count.
+	Count int `json:"count"`
+}
+
+// MemoryGetDOMCounters Retruns current DOM object counters.
 type MemoryGetDOMCounters struct{}
 
 // ProtoReq name.
@@ -80,7 +90,28 @@ type MemoryGetDOMCountersResult struct {
 	JsEventListeners int `json:"jsEventListeners"`
 }
 
-// MemoryPrepareForLeakDetection ...
+// MemoryGetDOMCountersForLeakDetection Retruns DOM object counters after preparing renderer for leak detection.
+type MemoryGetDOMCountersForLeakDetection struct{}
+
+// ProtoReq name.
+func (m MemoryGetDOMCountersForLeakDetection) ProtoReq() string {
+	return "Memory.getDOMCountersForLeakDetection"
+}
+
+// Call the request.
+func (m MemoryGetDOMCountersForLeakDetection) Call(c Client) (*MemoryGetDOMCountersForLeakDetectionResult, error) {
+	var res MemoryGetDOMCountersForLeakDetectionResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// MemoryGetDOMCountersForLeakDetectionResult ...
+type MemoryGetDOMCountersForLeakDetectionResult struct {
+	// Counters DOM object counters.
+	Counters []*MemoryDOMCounter `json:"counters"`
+}
+
+// MemoryPrepareForLeakDetection Prepares for leak detection by terminating workers, stopping spellcheckers,
+// dropping non-essential internal caches, running garbage collections, etc.
 type MemoryPrepareForLeakDetection struct{}
 
 // ProtoReq name.

@@ -32,7 +32,7 @@ type HeadlessExperimentalScreenshotParams struct {
 	// Quality (optional) Compression quality from range [0..100] (jpeg and webp only).
 	Quality *int `json:"quality,omitempty"`
 
-	// OptimizeForSpeed (optional) Optimize image encoding for speed, not for resulting size (defaults to false)
+	// OptimizeForSpeed (optional) Optimize image encoding for speed, not for resulting size (defaults to false).
 	OptimizeForSpeed bool `json:"optimizeForSpeed,omitempty"`
 }
 
@@ -75,11 +75,13 @@ type HeadlessExperimentalBeginFrameResult struct {
 	// display. Reported for diagnostic uses, may be removed in the future.
 	HasDamage bool `json:"hasDamage"`
 
-	// ScreenshotData (optional) Base64-encoded image data of the screenshot, if one was requested and successfully taken.
+	// ScreenshotData (optional) Base64-encoded image data of the screenshot, if one was requested and successfully taken. (Encoded as a base64 string when passed over JSON).
 	ScreenshotData []byte `json:"screenshotData,omitempty"`
 }
 
 // HeadlessExperimentalDisable (deprecated) Disables headless events for the target.
+//
+// Deprecated: HeadlessExperimental.disable is deprecated in the Chrome DevTools Protocol.
 type HeadlessExperimentalDisable struct{}
 
 // ProtoReq name.
@@ -91,6 +93,8 @@ func (m HeadlessExperimentalDisable) Call(c Client) error {
 }
 
 // HeadlessExperimentalEnable (deprecated) Enables headless events for the target.
+//
+// Deprecated: HeadlessExperimental.enable is deprecated in the Chrome DevTools Protocol.
 type HeadlessExperimentalEnable struct{}
 
 // ProtoReq name.

@@ -70,6 +70,9 @@ const (
 	// NetworkResourceTypePreflight enum const.
 	NetworkResourceTypePreflight NetworkResourceType = "Preflight"
 
+	// NetworkResourceTypeFedCM enum const.
+	NetworkResourceTypeFedCM NetworkResourceType = "FedCM"
+
 	// NetworkResourceTypeOther enum const.
 	NetworkResourceTypeOther NetworkResourceType = "Other"
 )
@@ -77,7 +80,9 @@ const (
 // NetworkLoaderID Unique loader identifier.
 type NetworkLoaderID string
 
-// NetworkRequestID Unique request identifier.
+// NetworkRequestID Unique network request identifier.
+// Note that this does not identify individual HTTP requests that are part of
+// a network request.
 type NetworkRequestID string
 
 // NetworkInterceptionID Unique intercepted request identifier.
@@ -166,7 +171,7 @@ const (
 )
 
 // NetworkCookieSameSite Represents the cookie's 'SameSite' status:
-// https://tools.ietf.org/html/draft-west-first-party-cookies
+// https://tools.ietf.org/html/draft-west-first-party-cookies.
 type NetworkCookieSameSite string
 
 const (
@@ -181,7 +186,7 @@ const (
 )
 
 // NetworkCookiePriority (experimental) Represents the cookie's 'Priority' status:
-// https://tools.ietf.org/html/draft-west-cookie-priority-00
+// https://tools.ietf.org/html/draft-west-cookie-priority-00.
 type NetworkCookiePriority string
 
 const (
@@ -298,6 +303,26 @@ const (
 	NetworkResourcePriorityVeryHigh NetworkResourcePriority = "VeryHigh"
 )
 
+// NetworkRenderBlockingBehavior (experimental) The render-blocking behavior of a resource request.
+type NetworkRenderBlockingBehavior string
+
+const (
+	// NetworkRenderBlockingBehaviorBlocking enum const.
+	NetworkRenderBlockingBehaviorBlocking NetworkRenderBlockingBehavior = "Blocking"
+
+	// NetworkRenderBlockingBehaviorInBodyParserBlocking enum const.
+	NetworkRenderBlockingBehaviorInBodyParserBlocking NetworkRenderBlockingBehavior = "InBodyParserBlocking"
+
+	// NetworkRenderBlockingBehaviorNonBlocking enum const.
+	NetworkRenderBlockingBehaviorNonBlocking NetworkRenderBlockingBehavior = "NonBlocking"
+
+	// NetworkRenderBlockingBehaviorNonBlockingDynamic enum const.
+	NetworkRenderBlockingBehaviorNonBlockingDynamic NetworkRenderBlockingBehavior = "NonBlockingDynamic"
+
+	// NetworkRenderBlockingBehaviorPotentiallyBlocking enum const.
+	NetworkRenderBlockingBehaviorPotentiallyBlocking NetworkRenderBlockingBehavior = "PotentiallyBlocking"
+)
+
 // NetworkPostDataEntry Post data entry for HTTP request.
 type NetworkPostDataEntry struct {
 	// Bytes (optional) ...
@@ -349,6 +374,8 @@ type NetworkRequest struct {
 
 	// PostData (deprecated) (optional) HTTP POST request data.
 	// Use postDataEntries instead.
+	//
+	// Deprecated: Network.Request.postData is deprecated in the Chrome DevTools Protocol.
 	PostData string `json:"postData,omitempty"`
 
 	// HasPostData (optional) True when the request has POST data. Note that postData might still be omitted when this flag is true when the data is too long.
@@ -363,7 +390,7 @@ type NetworkRequest struct {
 	// InitialPriority Priority of the resource request at the time request is sent.
 	InitialPriority NetworkResourcePriority `json:"initialPriority"`
 
-	// ReferrerPolicy The referrer policy of the request, as defined in https://www.w3.org/TR/referrer-policy/
+	// ReferrerPolicy The referrer policy of the request, as defined in https://www.w3.org/TR/referrer-policy/.
 	ReferrerPolicy NetworkRequestReferrerPolicy `json:"referrerPolicy"`
 
 	// IsLinkPreload (optional) Whether is loaded via link preload.
@@ -376,6 +403,9 @@ type NetworkRequest struct {
 	// IsSameSite (experimental) (optional) True if this resource request is considered to be the 'same site' as the
 	// request corresponding to the main frame.
 	IsSameSite bool `json:"isSameSite,omitempty"`
+
+	// IsAdRelated (experimental) (optional) True when the resource request is ad-related.
+	IsAdRelated bool `json:"isAdRelated,omitempty"`
 }
 
 // NetworkSignedCertificateTimestamp Details of a signed certificate timestamp (SCT).
@@ -438,13 +468,13 @@ type NetworkSecurityDetails struct {
 	// ValidFrom Certificate valid from date.
 	ValidFrom TimeSinceEpoch `json:"validFrom"`
 
-	// ValidTo Certificate valid to (expiration) date
+	// ValidTo Certificate valid to (expiration) date.
 	ValidTo TimeSinceEpoch `json:"validTo"`
 
 	// SignedCertificateTimestampList List of signed certificate timestamps (SCTs).
 	SignedCertificateTimestampList []*NetworkSignedCertificateTimestamp `json:"signedCertificateTimestampList"`
 
-	// CertificateTransparencyCompliance Whether the request complied with Certificate Transparency policy
+	// CertificateTransparencyCompliance Whether the request complied with Certificate Transparency policy.
 	CertificateTransparencyCompliance NetworkCertificateTransparencyCompliance `json:"certificateTransparencyCompliance"`
 
 	// ServerSignatureAlgorithm (optional) The signature algorithm used by the server in the TLS server signature,
@@ -452,7 +482,7 @@ type NetworkSecurityDetails struct {
 	// applicable or not known.
 	ServerSignatureAlgorithm *int `json:"serverSignatureAlgorithm,omitempty"`
 
-	// EncryptedClientHello Whether the connection used Encrypted ClientHello
+	// EncryptedClientHello Whether the connection used Encrypted ClientHello.
 	EncryptedClientHello bool `json:"encryptedClientHello"`
 }
 
@@ -489,6 +519,9 @@ const (
 	// NetworkBlockedReasonInspector enum const.
 	NetworkBlockedReasonInspector NetworkBlockedReason = "inspector"
 
+	// NetworkBlockedReasonIntegrity enum const.
+	NetworkBlockedReasonIntegrity NetworkBlockedReason = "integrity"
+
 	// NetworkBlockedReasonSubresourceFilter enum const.
 	NetworkBlockedReasonSubresourceFilter NetworkBlockedReason = "subresource-filter"
 
@@ -515,6 +548,9 @@ const (
 
 	// NetworkBlockedReasonCorpNotSameSite enum const.
 	NetworkBlockedReasonCorpNotSameSite NetworkBlockedReason = "corp-not-same-site"
+
+	// NetworkBlockedReasonSriMessageSignatureMismatch enum const.
+	NetworkBlockedReasonSriMessageSignatureMismatch NetworkBlockedReason = "sri-message-signature-mismatch"
 )
 
 // NetworkCorsError The reason why request was blocked.
@@ -578,12 +614,6 @@ const (
 	// NetworkCorsErrorPreflightInvalidAllowExternal enum const.
 	NetworkCorsErrorPreflightInvalidAllowExternal NetworkCorsError = "PreflightInvalidAllowExternal"
 
-	// NetworkCorsErrorPreflightMissingAllowPrivateNetwork enum const.
-	NetworkCorsErrorPreflightMissingAllowPrivateNetwork NetworkCorsError = "PreflightMissingAllowPrivateNetwork"
-
-	// NetworkCorsErrorPreflightInvalidAllowPrivateNetwork enum const.
-	NetworkCorsErrorPreflightInvalidAllowPrivateNetwork NetworkCorsError = "PreflightInvalidAllowPrivateNetwork"
-
 	// NetworkCorsErrorInvalidAllowMethodsPreflightResponse enum const.
 	NetworkCorsErrorInvalidAllowMethodsPreflightResponse NetworkCorsError = "InvalidAllowMethodsPreflightResponse"
 
@@ -599,29 +629,17 @@ const (
 	// NetworkCorsErrorRedirectContainsCredentials enum const.
 	NetworkCorsErrorRedirectContainsCredentials NetworkCorsError = "RedirectContainsCredentials"
 
-	// NetworkCorsErrorInsecurePrivateNetwork enum const.
-	NetworkCorsErrorInsecurePrivateNetwork NetworkCorsError = "InsecurePrivateNetwork"
+	// NetworkCorsErrorInsecureLocalNetwork enum const.
+	NetworkCorsErrorInsecureLocalNetwork NetworkCorsError = "InsecureLocalNetwork"
 
-	// NetworkCorsErrorInvalidPrivateNetworkAccess enum const.
-	NetworkCorsErrorInvalidPrivateNetworkAccess NetworkCorsError = "InvalidPrivateNetworkAccess"
-
-	// NetworkCorsErrorUnexpectedPrivateNetworkAccess enum const.
-	NetworkCorsErrorUnexpectedPrivateNetworkAccess NetworkCorsError = "UnexpectedPrivateNetworkAccess"
+	// NetworkCorsErrorInvalidLocalNetworkAccess enum const.
+	NetworkCorsErrorInvalidLocalNetworkAccess NetworkCorsError = "InvalidLocalNetworkAccess"
 
 	// NetworkCorsErrorNoCorsRedirectModeNotFollow enum const.
 	NetworkCorsErrorNoCorsRedirectModeNotFollow NetworkCorsError = "NoCorsRedirectModeNotFollow"
 
-	// NetworkCorsErrorPreflightMissingPrivateNetworkAccessID enum const.
-	NetworkCorsErrorPreflightMissingPrivateNetworkAccessID NetworkCorsError = "PreflightMissingPrivateNetworkAccessId"
-
-	// NetworkCorsErrorPreflightMissingPrivateNetworkAccessName enum const.
-	NetworkCorsErrorPreflightMissingPrivateNetworkAccessName NetworkCorsError = "PreflightMissingPrivateNetworkAccessName"
-
-	// NetworkCorsErrorPrivateNetworkAccessPermissionUnavailable enum const.
-	NetworkCorsErrorPrivateNetworkAccessPermissionUnavailable NetworkCorsError = "PrivateNetworkAccessPermissionUnavailable"
-
-	// NetworkCorsErrorPrivateNetworkAccessPermissionDenied enum const.
-	NetworkCorsErrorPrivateNetworkAccessPermissionDenied NetworkCorsError = "PrivateNetworkAccessPermissionDenied"
+	// NetworkCorsErrorLocalNetworkAccessPermissionDenied enum const.
+	NetworkCorsErrorLocalNetworkAccessPermissionDenied NetworkCorsError = "LocalNetworkAccessPermissionDenied"
 )
 
 // NetworkCorsErrorStatus ...
@@ -735,6 +753,9 @@ const (
 
 	// NetworkServiceWorkerRouterSourceRaceNetworkAndFetchHandler enum const.
 	NetworkServiceWorkerRouterSourceRaceNetworkAndFetchHandler NetworkServiceWorkerRouterSource = "race-network-and-fetch-handler"
+
+	// NetworkServiceWorkerRouterSourceRaceNetworkAndCache enum const.
+	NetworkServiceWorkerRouterSourceRaceNetworkAndCache NetworkServiceWorkerRouterSource = "race-network-and-cache"
 )
 
 // NetworkServiceWorkerRouterInfo (experimental) ...
@@ -766,6 +787,8 @@ type NetworkResponse struct {
 	Headers NetworkHeaders `json:"headers"`
 
 	// HeadersText (deprecated) (optional) HTTP response headers text. This has been replaced by the headers in Network.responseReceivedExtraInfo.
+	//
+	// Deprecated: Network.Response.headersText is deprecated in the Chrome DevTools Protocol.
 	HeadersText string `json:"headersText,omitempty"`
 
 	// MIMEType Resource mimeType as determined by the browser.
@@ -778,6 +801,8 @@ type NetworkResponse struct {
 	RequestHeaders NetworkHeaders `json:"requestHeaders,omitempty"`
 
 	// RequestHeadersText (deprecated) (optional) HTTP request headers text. This has been replaced by the headers in Network.requestWillBeSentExtraInfo.
+	//
+	// Deprecated: Network.Response.requestHeadersText is deprecated in the Chrome DevTools Protocol.
 	RequestHeadersText string `json:"requestHeadersText,omitempty"`
 
 	// ConnectionReused Specifies whether physical connection was actually reused for this request.
@@ -913,6 +938,9 @@ const (
 	// NetworkInitiatorTypePreflight enum const.
 	NetworkInitiatorTypePreflight NetworkInitiatorType = "preflight"
 
+	// NetworkInitiatorTypeFedCM enum const.
+	NetworkInitiatorTypeFedCM NetworkInitiatorType = "FedCM"
+
 	// NetworkInitiatorTypeOther enum const.
 	NetworkInitiatorTypeOther NetworkInitiatorType = "other"
 )
@@ -923,6 +951,7 @@ type NetworkInitiator struct {
 	Type NetworkInitiatorType `json:"type"`
 
 	// Stack (optional) Initiator JavaScript stack trace, set for Script only.
+	// Requires the Debugger domain to be enabled.
 	Stack *RuntimeStackTrace `json:"stack,omitempty"`
 
 	// URL (optional) Initiator URL, set for Parser type or for Script type (when script is importing module) or for SignedExchange type.
@@ -965,7 +994,7 @@ type NetworkCookie struct {
 	// Path Cookie path.
 	Path string `json:"path"`
 
-	// Expires Cookie expiration date
+	// Expires Cookie expiration date.
 	Expires TimeSinceEpoch `json:"expires"`
 
 	// Size Cookie size.
@@ -983,11 +1012,8 @@ type NetworkCookie struct {
 	// SameSite (optional) Cookie SameSite type.
 	SameSite NetworkCookieSameSite `json:"sameSite,omitempty"`
 
-	// Priority (experimental) Cookie Priority
+	// Priority (experimental) Cookie Priority.
 	Priority NetworkCookiePriority `json:"priority"`
-
-	// SameParty (deprecated) (experimental) True if cookie is SameParty.
-	SameParty bool `json:"sameParty"`
 
 	// SourceScheme (experimental) Cookie source scheme type.
 	SourceScheme NetworkCookieSourceScheme `json:"sourceScheme"`
@@ -1059,12 +1085,6 @@ const (
 	// NetworkSetCookieBlockedReasonSchemefulSameSiteUnspecifiedTreatedAsLax enum const.
 	NetworkSetCookieBlockedReasonSchemefulSameSiteUnspecifiedTreatedAsLax NetworkSetCookieBlockedReason = "SchemefulSameSiteUnspecifiedTreatedAsLax"
 
-	// NetworkSetCookieBlockedReasonSamePartyFromCrossPartyContext enum const.
-	NetworkSetCookieBlockedReasonSamePartyFromCrossPartyContext NetworkSetCookieBlockedReason = "SamePartyFromCrossPartyContext"
-
-	// NetworkSetCookieBlockedReasonSamePartyConflictsWithOtherAttributes enum const.
-	NetworkSetCookieBlockedReasonSamePartyConflictsWithOtherAttributes NetworkSetCookieBlockedReason = "SamePartyConflictsWithOtherAttributes"
-
 	// NetworkSetCookieBlockedReasonNameValuePairExceedsMaxSize enum const.
 	NetworkSetCookieBlockedReasonNameValuePairExceedsMaxSize NetworkSetCookieBlockedReason = "NameValuePairExceedsMaxSize"
 
@@ -1121,11 +1141,17 @@ const (
 	// NetworkCookieBlockedReasonSchemefulSameSiteUnspecifiedTreatedAsLax enum const.
 	NetworkCookieBlockedReasonSchemefulSameSiteUnspecifiedTreatedAsLax NetworkCookieBlockedReason = "SchemefulSameSiteUnspecifiedTreatedAsLax"
 
-	// NetworkCookieBlockedReasonSamePartyFromCrossPartyContext enum const.
-	NetworkCookieBlockedReasonSamePartyFromCrossPartyContext NetworkCookieBlockedReason = "SamePartyFromCrossPartyContext"
-
 	// NetworkCookieBlockedReasonNameValuePairExceedsMaxSize enum const.
 	NetworkCookieBlockedReasonNameValuePairExceedsMaxSize NetworkCookieBlockedReason = "NameValuePairExceedsMaxSize"
+
+	// NetworkCookieBlockedReasonPortMismatch enum const.
+	NetworkCookieBlockedReasonPortMismatch NetworkCookieBlockedReason = "PortMismatch"
+
+	// NetworkCookieBlockedReasonSchemeMismatch enum const.
+	NetworkCookieBlockedReasonSchemeMismatch NetworkCookieBlockedReason = "SchemeMismatch"
+
+	// NetworkCookieBlockedReasonAnonymousContext enum const.
+	NetworkCookieBlockedReasonAnonymousContext NetworkCookieBlockedReason = "AnonymousContext"
 )
 
 // NetworkCookieExemptionReason (experimental) Types of reasons why a cookie should have been blocked by 3PCD but is exempted for the request.
@@ -1138,15 +1164,6 @@ const (
 	// NetworkCookieExemptionReasonUserSetting enum const.
 	NetworkCookieExemptionReasonUserSetting NetworkCookieExemptionReason = "UserSetting"
 
-	// NetworkCookieExemptionReasonTPCDMetadata enum const.
-	NetworkCookieExemptionReasonTPCDMetadata NetworkCookieExemptionReason = "TPCDMetadata"
-
-	// NetworkCookieExemptionReasonTPCDDeprecationTrial enum const.
-	NetworkCookieExemptionReasonTPCDDeprecationTrial NetworkCookieExemptionReason = "TPCDDeprecationTrial"
-
-	// NetworkCookieExemptionReasonTPCDHeuristics enum const.
-	NetworkCookieExemptionReasonTPCDHeuristics NetworkCookieExemptionReason = "TPCDHeuristics"
-
 	// NetworkCookieExemptionReasonEnterprisePolicy enum const.
 	NetworkCookieExemptionReasonEnterprisePolicy NetworkCookieExemptionReason = "EnterprisePolicy"
 
@@ -1156,11 +1173,11 @@ const (
 	// NetworkCookieExemptionReasonTopLevelStorageAccess enum const.
 	NetworkCookieExemptionReasonTopLevelStorageAccess NetworkCookieExemptionReason = "TopLevelStorageAccess"
 
-	// NetworkCookieExemptionReasonCorsOptIn enum const.
-	NetworkCookieExemptionReasonCorsOptIn NetworkCookieExemptionReason = "CorsOptIn"
-
 	// NetworkCookieExemptionReasonScheme enum const.
 	NetworkCookieExemptionReasonScheme NetworkCookieExemptionReason = "Scheme"
+
+	// NetworkCookieExemptionReasonSameSiteNoneCookiesInSandbox enum const.
+	NetworkCookieExemptionReasonSameSiteNoneCookiesInSandbox NetworkCookieExemptionReason = "SameSiteNoneCookiesInSandbox"
 )
 
 // NetworkBlockedSetCookieWithReason (experimental) A cookie which was not stored from a response with the corresponding reason.
@@ -1232,14 +1249,11 @@ type NetworkCookieParam struct {
 	// SameSite (optional) Cookie SameSite type.
 	SameSite NetworkCookieSameSite `json:"sameSite,omitempty"`
 
-	// Expires (optional) Cookie expiration date, session cookie if not set
+	// Expires (optional) Cookie expiration date, session cookie if not set.
 	Expires TimeSinceEpoch `json:"expires,omitempty"`
 
 	// Priority (experimental) (optional) Cookie Priority.
 	Priority NetworkCookiePriority `json:"priority,omitempty"`
-
-	// SameParty (experimental) (optional) True if cookie is SameParty.
-	SameParty bool `json:"sameParty,omitempty"`
 
 	// SourceScheme (experimental) (optional) Cookie source scheme type.
 	SourceScheme NetworkCookieSourceScheme `json:"sourceScheme,omitempty"`
@@ -1272,7 +1286,7 @@ type NetworkAuthChallenge struct {
 	// Origin of the challenger.
 	Origin string `json:"origin"`
 
-	// Scheme The authentication scheme used, such as basic or digest
+	// Scheme The authentication scheme used, such as basic or digest.
 	Scheme string `json:"scheme"`
 
 	// Realm The realm of the challenge. May be empty.
@@ -1335,7 +1349,7 @@ type NetworkRequestPattern struct {
 }
 
 // NetworkSignedExchangeSignature (experimental) Information about a signed exchange signature.
-// https://wicg.github.io/webpackage/draft-yasskin-httpbis-origin-signed-exchanges-impl.html#rfc.section.3.1
+// https://wicg.github.io/webpackage/draft-yasskin-httpbis-origin-signed-exchanges-impl.html#rfc.section.3.1.
 type NetworkSignedExchangeSignature struct {
 	// Label Signed exchange signature label.
 	Label string `json:"label"`
@@ -1366,7 +1380,7 @@ type NetworkSignedExchangeSignature struct {
 }
 
 // NetworkSignedExchangeHeader (experimental) Information about a signed exchange header.
-// https://wicg.github.io/webpackage/draft-yasskin-httpbis-origin-signed-exchanges-impl.html#cbor-representation
+// https://wicg.github.io/webpackage/draft-yasskin-httpbis-origin-signed-exchanges-impl.html#cbor-representation.
 type NetworkSignedExchangeHeader struct {
 	// RequestURL Signed exchange request URL.
 	RequestURL string `json:"requestUrl"`
@@ -1424,6 +1438,10 @@ type NetworkSignedExchangeInfo struct {
 	// OuterResponse The outer response of signed HTTP exchange which was received from network.
 	OuterResponse *NetworkResponse `json:"outerResponse"`
 
+	// HasExtraInfo Whether network response for the signed exchange was accompanied by
+	// extra headers.
+	HasExtraInfo bool `json:"hasExtraInfo"`
+
 	// Header (optional) Information about the signed exchange header.
 	Header *NetworkSignedExchangeHeader `json:"header,omitempty"`
 
@@ -1451,35 +1469,153 @@ const (
 	NetworkContentEncodingZstd NetworkContentEncoding = "zstd"
 )
 
-// NetworkPrivateNetworkRequestPolicy (experimental) ...
-type NetworkPrivateNetworkRequestPolicy string
+// NetworkNetworkConditions (experimental) ...
+type NetworkNetworkConditions struct {
+	// URLPattern Only matching requests will be affected by these conditions. Patterns use the URLPattern constructor string
+	// syntax (https://urlpattern.spec.whatwg.org/) and must be absolute. If the pattern is empty, all requests are
+	// matched (including p2p connections).
+	URLPattern string `json:"urlPattern"`
+
+	// Latency Minimum latency from request sent to response headers received (ms).
+	Latency float64 `json:"latency"`
+
+	// DownloadThroughput Maximal aggregated download throughput (bytes/sec). -1 disables download throttling.
+	DownloadThroughput float64 `json:"downloadThroughput"`
+
+	// UploadThroughput Maximal aggregated upload throughput (bytes/sec).  -1 disables upload throttling.
+	UploadThroughput float64 `json:"uploadThroughput"`
+
+	// ConnectionType (optional) Connection type if known.
+	ConnectionType NetworkConnectionType `json:"connectionType,omitempty"`
+
+	// PacketLoss (optional) WebRTC packet loss (percent, 0-100). 0 disables packet loss emulation, 100 drops all the packets.
+	PacketLoss *float64 `json:"packetLoss,omitempty"`
+
+	// PacketQueueLength (optional) WebRTC packet queue length (packet). 0 removes any queue length limitations.
+	PacketQueueLength *int `json:"packetQueueLength,omitempty"`
+
+	// PacketReordering (optional) WebRTC packetReordering feature.
+	PacketReordering bool `json:"packetReordering,omitempty"`
+
+	// Offline (optional) True to emulate internet disconnection.
+	Offline bool `json:"offline,omitempty"`
+}
+
+// NetworkBlockPattern (experimental) ...
+type NetworkBlockPattern struct {
+	// URLPattern URL pattern to match. Patterns use the URLPattern constructor string syntax
+	// (https://urlpattern.spec.whatwg.org/) and must be absolute. Example: `*://*:*/*.css`.
+	URLPattern string `json:"urlPattern"`
+
+	// Block Whether or not to block the pattern. If false, a matching request will not be blocked even if it matches a later
+	// `BlockPattern`.
+	Block bool `json:"block"`
+}
+
+// NetworkDirectSocketDNSQueryType (experimental) ...
+type NetworkDirectSocketDNSQueryType string
 
 const (
-	// NetworkPrivateNetworkRequestPolicyAllow enum const.
-	NetworkPrivateNetworkRequestPolicyAllow NetworkPrivateNetworkRequestPolicy = "Allow"
+	// NetworkDirectSocketDNSQueryTypeIpv4 enum const.
+	NetworkDirectSocketDNSQueryTypeIpv4 NetworkDirectSocketDNSQueryType = "ipv4"
 
-	// NetworkPrivateNetworkRequestPolicyBlockFromInsecureToMorePrivate enum const.
-	NetworkPrivateNetworkRequestPolicyBlockFromInsecureToMorePrivate NetworkPrivateNetworkRequestPolicy = "BlockFromInsecureToMorePrivate"
+	// NetworkDirectSocketDNSQueryTypeIpv6 enum const.
+	NetworkDirectSocketDNSQueryTypeIpv6 NetworkDirectSocketDNSQueryType = "ipv6"
+)
 
-	// NetworkPrivateNetworkRequestPolicyWarnFromInsecureToMorePrivate enum const.
-	NetworkPrivateNetworkRequestPolicyWarnFromInsecureToMorePrivate NetworkPrivateNetworkRequestPolicy = "WarnFromInsecureToMorePrivate"
+// NetworkDirectTCPSocketOptions (experimental) ...
+type NetworkDirectTCPSocketOptions struct {
+	// NoDelay TCP_NODELAY option.
+	NoDelay bool `json:"noDelay"`
 
-	// NetworkPrivateNetworkRequestPolicyPreflightBlock enum const.
-	NetworkPrivateNetworkRequestPolicyPreflightBlock NetworkPrivateNetworkRequestPolicy = "PreflightBlock"
+	// KeepAliveDelay (optional) Expected to be unsigned integer.
+	KeepAliveDelay *float64 `json:"keepAliveDelay,omitempty"`
 
-	// NetworkPrivateNetworkRequestPolicyPreflightWarn enum const.
-	NetworkPrivateNetworkRequestPolicyPreflightWarn NetworkPrivateNetworkRequestPolicy = "PreflightWarn"
+	// SendBufferSize (optional) Expected to be unsigned integer.
+	SendBufferSize *float64 `json:"sendBufferSize,omitempty"`
+
+	// ReceiveBufferSize (optional) Expected to be unsigned integer.
+	ReceiveBufferSize *float64 `json:"receiveBufferSize,omitempty"`
+
+	// DNSQueryType (optional) ...
+	DNSQueryType NetworkDirectSocketDNSQueryType `json:"dnsQueryType,omitempty"`
+}
+
+// NetworkDirectUDPSocketOptions (experimental) ...
+type NetworkDirectUDPSocketOptions struct {
+	// RemoteAddr (optional) ...
+	RemoteAddr string `json:"remoteAddr,omitempty"`
+
+	// RemotePort (optional) Unsigned int 16.
+	RemotePort *int `json:"remotePort,omitempty"`
+
+	// LocalAddr (optional) ...
+	LocalAddr string `json:"localAddr,omitempty"`
+
+	// LocalPort (optional) Unsigned int 16.
+	LocalPort *int `json:"localPort,omitempty"`
+
+	// DNSQueryType (optional) ...
+	DNSQueryType NetworkDirectSocketDNSQueryType `json:"dnsQueryType,omitempty"`
+
+	// SendBufferSize (optional) Expected to be unsigned integer.
+	SendBufferSize *float64 `json:"sendBufferSize,omitempty"`
+
+	// ReceiveBufferSize (optional) Expected to be unsigned integer.
+	ReceiveBufferSize *float64 `json:"receiveBufferSize,omitempty"`
+
+	// MulticastLoopback (optional) ...
+	MulticastLoopback bool `json:"multicastLoopback,omitempty"`
+
+	// MulticastTimeToLive (optional) Unsigned int 8.
+	MulticastTimeToLive *int `json:"multicastTimeToLive,omitempty"`
+
+	// MulticastAllowAddressSharing (optional) ...
+	MulticastAllowAddressSharing bool `json:"multicastAllowAddressSharing,omitempty"`
+}
+
+// NetworkDirectUDPMessage (experimental) ...
+type NetworkDirectUDPMessage struct {
+	// Data ...
+	Data []byte `json:"data"`
+
+	// RemoteAddr (optional) Null for connected mode.
+	RemoteAddr string `json:"remoteAddr,omitempty"`
+
+	// RemotePort (optional) Null for connected mode.
+	// Expected to be unsigned integer.
+	RemotePort *int `json:"remotePort,omitempty"`
+}
+
+// NetworkLocalNetworkAccessRequestPolicy (experimental) ...
+type NetworkLocalNetworkAccessRequestPolicy string
+
+const (
+	// NetworkLocalNetworkAccessRequestPolicyAllow enum const.
+	NetworkLocalNetworkAccessRequestPolicyAllow NetworkLocalNetworkAccessRequestPolicy = "Allow"
+
+	// NetworkLocalNetworkAccessRequestPolicyBlockFromInsecureToMorePrivate enum const.
+	NetworkLocalNetworkAccessRequestPolicyBlockFromInsecureToMorePrivate NetworkLocalNetworkAccessRequestPolicy = "BlockFromInsecureToMorePrivate"
+
+	// NetworkLocalNetworkAccessRequestPolicyWarnFromInsecureToMorePrivate enum const.
+	NetworkLocalNetworkAccessRequestPolicyWarnFromInsecureToMorePrivate NetworkLocalNetworkAccessRequestPolicy = "WarnFromInsecureToMorePrivate"
+
+	// NetworkLocalNetworkAccessRequestPolicyPermissionBlock enum const.
+	NetworkLocalNetworkAccessRequestPolicyPermissionBlock NetworkLocalNetworkAccessRequestPolicy = "PermissionBlock"
+
+	// NetworkLocalNetworkAccessRequestPolicyPermissionWarn enum const.
+	NetworkLocalNetworkAccessRequestPolicyPermissionWarn NetworkLocalNetworkAccessRequestPolicy = "PermissionWarn"
 )
 
 // NetworkIPAddressSpace (experimental) ...
 type NetworkIPAddressSpace string
 
 const (
+	// NetworkIPAddressSpaceLoopback enum const.
+	NetworkIPAddressSpaceLoopback NetworkIPAddressSpace = "Loopback"
+
 	// NetworkIPAddressSpaceLocal enum const.
 	NetworkIPAddressSpaceLocal NetworkIPAddressSpace = "Local"
-
-	// NetworkIPAddressSpacePrivate enum const.
-	NetworkIPAddressSpacePrivate NetworkIPAddressSpace = "Private"
 
 	// NetworkIPAddressSpacePublic enum const.
 	NetworkIPAddressSpacePublic NetworkIPAddressSpace = "Public"
@@ -1504,8 +1640,51 @@ type NetworkClientSecurityState struct {
 	// InitiatorIPAddressSpace ...
 	InitiatorIPAddressSpace NetworkIPAddressSpace `json:"initiatorIPAddressSpace"`
 
-	// PrivateNetworkRequestPolicy ...
-	PrivateNetworkRequestPolicy NetworkPrivateNetworkRequestPolicy `json:"privateNetworkRequestPolicy"`
+	// LocalNetworkAccessRequestPolicy ...
+	LocalNetworkAccessRequestPolicy NetworkLocalNetworkAccessRequestPolicy `json:"localNetworkAccessRequestPolicy"`
+}
+
+// NetworkAdScriptIdentifier (experimental) Identifies the script on the stack that caused a resource or element to be
+// labeled as an ad. For resources, this indicates the context that triggered
+// the fetch. For elements, this indicates the context that caused the element
+// to be appended to the DOM.
+type NetworkAdScriptIdentifier struct {
+	// ScriptID The script's V8 identifier.
+	ScriptID RuntimeScriptID `json:"scriptId"`
+
+	// DebuggerID V8's debugging ID for the v8::Context.
+	DebuggerID RuntimeUniqueDebuggerID `json:"debuggerId"`
+
+	// Name The script's url (or generated name based on id if inline script).
+	Name string `json:"name"`
+}
+
+// NetworkAdAncestry (experimental) Encapsulates the script ancestry and the root script filter list rule that
+// caused the resource or element to be labeled as an ad.
+type NetworkAdAncestry struct {
+	// AncestryChain A chain of `AdScriptIdentifier`s representing the ancestry of an ad
+	// script that led to the creation of a resource or element. The chain is
+	// ordered from the script itself (lowest level) up to its root ancestor
+	// that was flagged by a filter list.
+	AncestryChain []*NetworkAdScriptIdentifier `json:"ancestryChain"`
+
+	// RootScriptFilterlistRule (optional) The filter list rule that caused the root (last) script in
+	// `ancestryChain` to be tagged as an ad.
+	RootScriptFilterlistRule string `json:"rootScriptFilterlistRule,omitempty"`
+}
+
+// NetworkAdProvenance (experimental) Represents the provenance of an ad resource or element. Only one of
+// `filterlistRule` or `adScriptAncestry` can be set. If `filterlistRule`
+// is provided, the resource URL directly matches a filter list rule. If
+// `adScriptAncestry` is provided, an ad script initiated the resource fetch or
+// appended the element to the DOM. If neither is provided, the entity is
+// known to be an ad, but provenance tracking information is unavailable.
+type NetworkAdProvenance struct {
+	// FilterlistRule (optional) The filterlist rule that matched, if any.
+	FilterlistRule string `json:"filterlistRule,omitempty"`
+
+	// AdScriptAncestry (optional) The script ancestry that created the ad, if any.
+	AdScriptAncestry *NetworkAdAncestry `json:"adScriptAncestry,omitempty"`
 }
 
 // NetworkCrossOriginOpenerPolicyValue (experimental) ...
@@ -1529,6 +1708,9 @@ const (
 
 	// NetworkCrossOriginOpenerPolicyValueRestrictPropertiesPlusCoep enum const.
 	NetworkCrossOriginOpenerPolicyValueRestrictPropertiesPlusCoep NetworkCrossOriginOpenerPolicyValue = "RestrictPropertiesPlusCoep"
+
+	// NetworkCrossOriginOpenerPolicyValueNoopenerAllowPopups enum const.
+	NetworkCrossOriginOpenerPolicyValueNoopenerAllowPopups NetworkCrossOriginOpenerPolicyValue = "NoopenerAllowPopups"
 )
 
 // NetworkCrossOriginOpenerPolicyStatus (experimental) ...
@@ -1669,6 +1851,504 @@ type NetworkReportingAPIEndpoint struct {
 	GroupName string `json:"groupName"`
 }
 
+// NetworkDeviceBoundSessionKey (experimental) Unique identifier for a device bound session.
+type NetworkDeviceBoundSessionKey struct {
+	// Site The site the session is set up for.
+	Site string `json:"site"`
+
+	// ID The id of the session.
+	ID string `json:"id"`
+}
+
+// NetworkDeviceBoundSessionWithUsageUsage enum.
+type NetworkDeviceBoundSessionWithUsageUsage string
+
+const (
+	// NetworkDeviceBoundSessionWithUsageUsageNotInScope enum const.
+	NetworkDeviceBoundSessionWithUsageUsageNotInScope NetworkDeviceBoundSessionWithUsageUsage = "NotInScope"
+
+	// NetworkDeviceBoundSessionWithUsageUsageInScopeRefreshNotYetNeeded enum const.
+	NetworkDeviceBoundSessionWithUsageUsageInScopeRefreshNotYetNeeded NetworkDeviceBoundSessionWithUsageUsage = "InScopeRefreshNotYetNeeded"
+
+	// NetworkDeviceBoundSessionWithUsageUsageInScopeRefreshNotAllowed enum const.
+	NetworkDeviceBoundSessionWithUsageUsageInScopeRefreshNotAllowed NetworkDeviceBoundSessionWithUsageUsage = "InScopeRefreshNotAllowed"
+
+	// NetworkDeviceBoundSessionWithUsageUsageProactiveRefreshNotPossible enum const.
+	NetworkDeviceBoundSessionWithUsageUsageProactiveRefreshNotPossible NetworkDeviceBoundSessionWithUsageUsage = "ProactiveRefreshNotPossible"
+
+	// NetworkDeviceBoundSessionWithUsageUsageProactiveRefreshAttempted enum const.
+	NetworkDeviceBoundSessionWithUsageUsageProactiveRefreshAttempted NetworkDeviceBoundSessionWithUsageUsage = "ProactiveRefreshAttempted"
+
+	// NetworkDeviceBoundSessionWithUsageUsageDeferred enum const.
+	NetworkDeviceBoundSessionWithUsageUsageDeferred NetworkDeviceBoundSessionWithUsageUsage = "Deferred"
+)
+
+// NetworkDeviceBoundSessionWithUsage (experimental) How a device bound session was used during a request.
+type NetworkDeviceBoundSessionWithUsage struct {
+	// SessionKey The key for the session.
+	SessionKey *NetworkDeviceBoundSessionKey `json:"sessionKey"`
+
+	// Usage How the session was used (or not used).
+	Usage NetworkDeviceBoundSessionWithUsageUsage `json:"usage"`
+}
+
+// NetworkDeviceBoundSessionCookieCraving (experimental) A device bound session's cookie craving.
+type NetworkDeviceBoundSessionCookieCraving struct {
+	// Name The name of the craving.
+	Name string `json:"name"`
+
+	// Domain The domain of the craving.
+	Domain string `json:"domain"`
+
+	// Path The path of the craving.
+	Path string `json:"path"`
+
+	// Secure The `Secure` attribute of the craving attributes.
+	Secure bool `json:"secure"`
+
+	// HTTPOnly The `HttpOnly` attribute of the craving attributes.
+	HTTPOnly bool `json:"httpOnly"`
+
+	// SameSite (optional) The `SameSite` attribute of the craving attributes.
+	SameSite NetworkCookieSameSite `json:"sameSite,omitempty"`
+}
+
+// NetworkDeviceBoundSessionURLRuleRuleType enum.
+type NetworkDeviceBoundSessionURLRuleRuleType string
+
+const (
+	// NetworkDeviceBoundSessionURLRuleRuleTypeExclude enum const.
+	NetworkDeviceBoundSessionURLRuleRuleTypeExclude NetworkDeviceBoundSessionURLRuleRuleType = "Exclude"
+
+	// NetworkDeviceBoundSessionURLRuleRuleTypeInclude enum const.
+	NetworkDeviceBoundSessionURLRuleRuleTypeInclude NetworkDeviceBoundSessionURLRuleRuleType = "Include"
+)
+
+// NetworkDeviceBoundSessionURLRule (experimental) A device bound session's inclusion URL rule.
+type NetworkDeviceBoundSessionURLRule struct {
+	// RuleType See comments on `net::device_bound_sessions::SessionInclusionRules::UrlRule::rule_type`.
+	RuleType NetworkDeviceBoundSessionURLRuleRuleType `json:"ruleType"`
+
+	// HostPattern See comments on `net::device_bound_sessions::SessionInclusionRules::UrlRule::host_pattern`.
+	HostPattern string `json:"hostPattern"`
+
+	// PathPrefix See comments on `net::device_bound_sessions::SessionInclusionRules::UrlRule::path_prefix`.
+	PathPrefix string `json:"pathPrefix"`
+}
+
+// NetworkDeviceBoundSessionInclusionRules (experimental) A device bound session's inclusion rules.
+type NetworkDeviceBoundSessionInclusionRules struct {
+	// Origin See comments on `net::device_bound_sessions::SessionInclusionRules::origin_`.
+	Origin string `json:"origin"`
+
+	// IncludeSite Whether the whole site is included. See comments on
+	// `net::device_bound_sessions::SessionInclusionRules::include_site_` for more
+	// details; this boolean is true if that value is populated.
+	IncludeSite bool `json:"includeSite"`
+
+	// URLRules See comments on `net::device_bound_sessions::SessionInclusionRules::url_rules_`.
+	URLRules []*NetworkDeviceBoundSessionURLRule `json:"urlRules"`
+}
+
+// NetworkDeviceBoundSession (experimental) A device bound session.
+type NetworkDeviceBoundSession struct {
+	// Key The site and session ID of the session.
+	Key *NetworkDeviceBoundSessionKey `json:"key"`
+
+	// RefreshURL See comments on `net::device_bound_sessions::Session::refresh_url_`.
+	RefreshURL string `json:"refreshUrl"`
+
+	// InclusionRules See comments on `net::device_bound_sessions::Session::inclusion_rules_`.
+	InclusionRules *NetworkDeviceBoundSessionInclusionRules `json:"inclusionRules"`
+
+	// CookieCravings See comments on `net::device_bound_sessions::Session::cookie_cravings_`.
+	CookieCravings []*NetworkDeviceBoundSessionCookieCraving `json:"cookieCravings"`
+
+	// ExpiryDate See comments on `net::device_bound_sessions::Session::expiry_date_`.
+	ExpiryDate TimeSinceEpoch `json:"expiryDate"`
+
+	// CachedChallenge (optional) See comments on `net::device_bound_sessions::Session::cached_challenge__`.
+	CachedChallenge string `json:"cachedChallenge,omitempty"`
+
+	// AllowedRefreshInitiators See comments on `net::device_bound_sessions::Session::allowed_refresh_initiators_`.
+	AllowedRefreshInitiators []string `json:"allowedRefreshInitiators"`
+}
+
+// NetworkDeviceBoundSessionEventID (experimental) A unique identifier for a device bound session event.
+type NetworkDeviceBoundSessionEventID string
+
+// NetworkDeviceBoundSessionFetchResult (experimental) A fetch result for a device bound session creation or refresh.
+// LINT.IfChange(DeviceBoundSessionFetchResult).
+type NetworkDeviceBoundSessionFetchResult string
+
+const (
+	// NetworkDeviceBoundSessionFetchResultSuccess enum const.
+	NetworkDeviceBoundSessionFetchResultSuccess NetworkDeviceBoundSessionFetchResult = "Success"
+
+	// NetworkDeviceBoundSessionFetchResultSigningKeyGenerationError enum const.
+	NetworkDeviceBoundSessionFetchResultSigningKeyGenerationError NetworkDeviceBoundSessionFetchResult = "SigningKeyGenerationError"
+
+	// NetworkDeviceBoundSessionFetchResultAttestationKeyGenerationError enum const.
+	NetworkDeviceBoundSessionFetchResultAttestationKeyGenerationError NetworkDeviceBoundSessionFetchResult = "AttestationKeyGenerationError"
+
+	// NetworkDeviceBoundSessionFetchResultSigningError enum const.
+	NetworkDeviceBoundSessionFetchResultSigningError NetworkDeviceBoundSessionFetchResult = "SigningError"
+
+	// NetworkDeviceBoundSessionFetchResultTransientSigningError enum const.
+	NetworkDeviceBoundSessionFetchResultTransientSigningError NetworkDeviceBoundSessionFetchResult = "TransientSigningError"
+
+	// NetworkDeviceBoundSessionFetchResultServerRequestedTermination enum const.
+	NetworkDeviceBoundSessionFetchResultServerRequestedTermination NetworkDeviceBoundSessionFetchResult = "ServerRequestedTermination"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidSessionID enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidSessionID NetworkDeviceBoundSessionFetchResult = "InvalidSessionId"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidChallenge enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidChallenge NetworkDeviceBoundSessionFetchResult = "InvalidChallenge"
+
+	// NetworkDeviceBoundSessionFetchResultTooManyChallenges enum const.
+	NetworkDeviceBoundSessionFetchResultTooManyChallenges NetworkDeviceBoundSessionFetchResult = "TooManyChallenges"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidFetcherURL enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidFetcherURL NetworkDeviceBoundSessionFetchResult = "InvalidFetcherUrl"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidRefreshURL enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidRefreshURL NetworkDeviceBoundSessionFetchResult = "InvalidRefreshUrl"
+
+	// NetworkDeviceBoundSessionFetchResultTransientHTTPError enum const.
+	NetworkDeviceBoundSessionFetchResultTransientHTTPError NetworkDeviceBoundSessionFetchResult = "TransientHttpError"
+
+	// NetworkDeviceBoundSessionFetchResultScopeOriginSameSiteMismatch enum const.
+	NetworkDeviceBoundSessionFetchResultScopeOriginSameSiteMismatch NetworkDeviceBoundSessionFetchResult = "ScopeOriginSameSiteMismatch"
+
+	// NetworkDeviceBoundSessionFetchResultRefreshURLSameSiteMismatch enum const.
+	NetworkDeviceBoundSessionFetchResultRefreshURLSameSiteMismatch NetworkDeviceBoundSessionFetchResult = "RefreshUrlSameSiteMismatch"
+
+	// NetworkDeviceBoundSessionFetchResultMismatchedSessionID enum const.
+	NetworkDeviceBoundSessionFetchResultMismatchedSessionID NetworkDeviceBoundSessionFetchResult = "MismatchedSessionId"
+
+	// NetworkDeviceBoundSessionFetchResultMissingScope enum const.
+	NetworkDeviceBoundSessionFetchResultMissingScope NetworkDeviceBoundSessionFetchResult = "MissingScope"
+
+	// NetworkDeviceBoundSessionFetchResultNoCredentials enum const.
+	NetworkDeviceBoundSessionFetchResultNoCredentials NetworkDeviceBoundSessionFetchResult = "NoCredentials"
+
+	// NetworkDeviceBoundSessionFetchResultSubdomainRegistrationWellKnownUnavailable enum const.
+	NetworkDeviceBoundSessionFetchResultSubdomainRegistrationWellKnownUnavailable NetworkDeviceBoundSessionFetchResult = "SubdomainRegistrationWellKnownUnavailable"
+
+	// NetworkDeviceBoundSessionFetchResultSubdomainRegistrationUnauthorized enum const.
+	NetworkDeviceBoundSessionFetchResultSubdomainRegistrationUnauthorized NetworkDeviceBoundSessionFetchResult = "SubdomainRegistrationUnauthorized"
+
+	// NetworkDeviceBoundSessionFetchResultSubdomainRegistrationWellKnownMalformed enum const.
+	NetworkDeviceBoundSessionFetchResultSubdomainRegistrationWellKnownMalformed NetworkDeviceBoundSessionFetchResult = "SubdomainRegistrationWellKnownMalformed"
+
+	// NetworkDeviceBoundSessionFetchResultSessionProviderWellKnownUnavailable enum const.
+	NetworkDeviceBoundSessionFetchResultSessionProviderWellKnownUnavailable NetworkDeviceBoundSessionFetchResult = "SessionProviderWellKnownUnavailable"
+
+	// NetworkDeviceBoundSessionFetchResultRelyingPartyWellKnownUnavailable enum const.
+	NetworkDeviceBoundSessionFetchResultRelyingPartyWellKnownUnavailable NetworkDeviceBoundSessionFetchResult = "RelyingPartyWellKnownUnavailable"
+
+	// NetworkDeviceBoundSessionFetchResultFederatedKeyThumbprintMismatch enum const.
+	NetworkDeviceBoundSessionFetchResultFederatedKeyThumbprintMismatch NetworkDeviceBoundSessionFetchResult = "FederatedKeyThumbprintMismatch"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionURL enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionURL NetworkDeviceBoundSessionFetchResult = "InvalidFederatedSessionUrl"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidFederatedKey enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidFederatedKey NetworkDeviceBoundSessionFetchResult = "InvalidFederatedKey"
+
+	// NetworkDeviceBoundSessionFetchResultTooManyRelyingOriginLabels enum const.
+	NetworkDeviceBoundSessionFetchResultTooManyRelyingOriginLabels NetworkDeviceBoundSessionFetchResult = "TooManyRelyingOriginLabels"
+
+	// NetworkDeviceBoundSessionFetchResultBoundCookieSetForbidden enum const.
+	NetworkDeviceBoundSessionFetchResultBoundCookieSetForbidden NetworkDeviceBoundSessionFetchResult = "BoundCookieSetForbidden"
+
+	// NetworkDeviceBoundSessionFetchResultNetError enum const.
+	NetworkDeviceBoundSessionFetchResultNetError NetworkDeviceBoundSessionFetchResult = "NetError"
+
+	// NetworkDeviceBoundSessionFetchResultProxyError enum const.
+	NetworkDeviceBoundSessionFetchResultProxyError NetworkDeviceBoundSessionFetchResult = "ProxyError"
+
+	// NetworkDeviceBoundSessionFetchResultEmptySessionConfig enum const.
+	NetworkDeviceBoundSessionFetchResultEmptySessionConfig NetworkDeviceBoundSessionFetchResult = "EmptySessionConfig"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsConfig enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsConfig NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsConfig"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsType enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsType NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsType"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsEmptyName enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsEmptyName NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsEmptyName"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookie enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookie NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookie"
+
+	// NetworkDeviceBoundSessionFetchResultPersistentHTTPError enum const.
+	NetworkDeviceBoundSessionFetchResultPersistentHTTPError NetworkDeviceBoundSessionFetchResult = "PersistentHttpError"
+
+	// NetworkDeviceBoundSessionFetchResultRegistrationAttemptedChallenge enum const.
+	NetworkDeviceBoundSessionFetchResultRegistrationAttemptedChallenge NetworkDeviceBoundSessionFetchResult = "RegistrationAttemptedChallenge"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidScopeOrigin enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidScopeOrigin NetworkDeviceBoundSessionFetchResult = "InvalidScopeOrigin"
+
+	// NetworkDeviceBoundSessionFetchResultScopeOriginContainsPath enum const.
+	NetworkDeviceBoundSessionFetchResultScopeOriginContainsPath NetworkDeviceBoundSessionFetchResult = "ScopeOriginContainsPath"
+
+	// NetworkDeviceBoundSessionFetchResultRefreshInitiatorNotString enum const.
+	NetworkDeviceBoundSessionFetchResultRefreshInitiatorNotString NetworkDeviceBoundSessionFetchResult = "RefreshInitiatorNotString"
+
+	// NetworkDeviceBoundSessionFetchResultRefreshInitiatorInvalidHostPattern enum const.
+	NetworkDeviceBoundSessionFetchResultRefreshInitiatorInvalidHostPattern NetworkDeviceBoundSessionFetchResult = "RefreshInitiatorInvalidHostPattern"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidScopeSpecification enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidScopeSpecification NetworkDeviceBoundSessionFetchResult = "InvalidScopeSpecification"
+
+	// NetworkDeviceBoundSessionFetchResultMissingScopeSpecificationType enum const.
+	NetworkDeviceBoundSessionFetchResultMissingScopeSpecificationType NetworkDeviceBoundSessionFetchResult = "MissingScopeSpecificationType"
+
+	// NetworkDeviceBoundSessionFetchResultEmptyScopeSpecificationDomain enum const.
+	NetworkDeviceBoundSessionFetchResultEmptyScopeSpecificationDomain NetworkDeviceBoundSessionFetchResult = "EmptyScopeSpecificationDomain"
+
+	// NetworkDeviceBoundSessionFetchResultEmptyScopeSpecificationPath enum const.
+	NetworkDeviceBoundSessionFetchResultEmptyScopeSpecificationPath NetworkDeviceBoundSessionFetchResult = "EmptyScopeSpecificationPath"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidScopeSpecificationType enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidScopeSpecificationType NetworkDeviceBoundSessionFetchResult = "InvalidScopeSpecificationType"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidScopeIncludeSite enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidScopeIncludeSite NetworkDeviceBoundSessionFetchResult = "InvalidScopeIncludeSite"
+
+	// NetworkDeviceBoundSessionFetchResultMissingScopeIncludeSite enum const.
+	NetworkDeviceBoundSessionFetchResultMissingScopeIncludeSite NetworkDeviceBoundSessionFetchResult = "MissingScopeIncludeSite"
+
+	// NetworkDeviceBoundSessionFetchResultFederatedNotAuthorizedByProvider enum const.
+	NetworkDeviceBoundSessionFetchResultFederatedNotAuthorizedByProvider NetworkDeviceBoundSessionFetchResult = "FederatedNotAuthorizedByProvider"
+
+	// NetworkDeviceBoundSessionFetchResultFederatedNotAuthorizedByRelyingParty enum const.
+	NetworkDeviceBoundSessionFetchResultFederatedNotAuthorizedByRelyingParty NetworkDeviceBoundSessionFetchResult = "FederatedNotAuthorizedByRelyingParty"
+
+	// NetworkDeviceBoundSessionFetchResultSessionProviderWellKnownMalformed enum const.
+	NetworkDeviceBoundSessionFetchResultSessionProviderWellKnownMalformed NetworkDeviceBoundSessionFetchResult = "SessionProviderWellKnownMalformed"
+
+	// NetworkDeviceBoundSessionFetchResultSessionProviderWellKnownHasProviderOrigin enum const.
+	NetworkDeviceBoundSessionFetchResultSessionProviderWellKnownHasProviderOrigin NetworkDeviceBoundSessionFetchResult = "SessionProviderWellKnownHasProviderOrigin"
+
+	// NetworkDeviceBoundSessionFetchResultRelyingPartyWellKnownMalformed enum const.
+	NetworkDeviceBoundSessionFetchResultRelyingPartyWellKnownMalformed NetworkDeviceBoundSessionFetchResult = "RelyingPartyWellKnownMalformed"
+
+	// NetworkDeviceBoundSessionFetchResultRelyingPartyWellKnownHasRelyingOrigins enum const.
+	NetworkDeviceBoundSessionFetchResultRelyingPartyWellKnownHasRelyingOrigins NetworkDeviceBoundSessionFetchResult = "RelyingPartyWellKnownHasRelyingOrigins"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionProviderSessionMissing enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionProviderSessionMissing NetworkDeviceBoundSessionFetchResult = "InvalidFederatedSessionProviderSessionMissing"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionWrongProviderOrigin enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionWrongProviderOrigin NetworkDeviceBoundSessionFetchResult = "InvalidFederatedSessionWrongProviderOrigin"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieCreationTime enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieCreationTime NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookieCreationTime"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieName enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieName NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookieName"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieParsing enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieParsing NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookieParsing"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieUnpermittedAttribute enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieUnpermittedAttribute NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookieUnpermittedAttribute"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieInvalidDomain enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookieInvalidDomain NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookieInvalidDomain"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookiePrefix enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidCredentialsCookiePrefix NetworkDeviceBoundSessionFetchResult = "InvalidCredentialsCookiePrefix"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidScopeRulePath enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidScopeRulePath NetworkDeviceBoundSessionFetchResult = "InvalidScopeRulePath"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidScopeRuleHostPattern enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidScopeRuleHostPattern NetworkDeviceBoundSessionFetchResult = "InvalidScopeRuleHostPattern"
+
+	// NetworkDeviceBoundSessionFetchResultScopeRuleOriginScopedHostPatternMismatch enum const.
+	NetworkDeviceBoundSessionFetchResultScopeRuleOriginScopedHostPatternMismatch NetworkDeviceBoundSessionFetchResult = "ScopeRuleOriginScopedHostPatternMismatch"
+
+	// NetworkDeviceBoundSessionFetchResultScopeRuleSiteScopedHostPatternMismatch enum const.
+	NetworkDeviceBoundSessionFetchResultScopeRuleSiteScopedHostPatternMismatch NetworkDeviceBoundSessionFetchResult = "ScopeRuleSiteScopedHostPatternMismatch"
+
+	// NetworkDeviceBoundSessionFetchResultSigningQuotaExceeded enum const.
+	NetworkDeviceBoundSessionFetchResultSigningQuotaExceeded NetworkDeviceBoundSessionFetchResult = "SigningQuotaExceeded"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidConfigJSON enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidConfigJSON NetworkDeviceBoundSessionFetchResult = "InvalidConfigJson"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionProviderFailedToRestoreKey enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidFederatedSessionProviderFailedToRestoreKey NetworkDeviceBoundSessionFetchResult = "InvalidFederatedSessionProviderFailedToRestoreKey"
+
+	// NetworkDeviceBoundSessionFetchResultFailedToUnwrapKey enum const.
+	NetworkDeviceBoundSessionFetchResultFailedToUnwrapKey NetworkDeviceBoundSessionFetchResult = "FailedToUnwrapKey"
+
+	// NetworkDeviceBoundSessionFetchResultSessionDeletedDuringRefresh enum const.
+	NetworkDeviceBoundSessionFetchResultSessionDeletedDuringRefresh NetworkDeviceBoundSessionFetchResult = "SessionDeletedDuringRefresh"
+
+	// NetworkDeviceBoundSessionFetchResultCrossOriginRegistrationSiteNotIncluded enum const.
+	NetworkDeviceBoundSessionFetchResultCrossOriginRegistrationSiteNotIncluded NetworkDeviceBoundSessionFetchResult = "CrossOriginRegistrationSiteNotIncluded"
+
+	// NetworkDeviceBoundSessionFetchResultInvalidPreProvisionedKeyInitiatorMissing enum const.
+	NetworkDeviceBoundSessionFetchResultInvalidPreProvisionedKeyInitiatorMissing NetworkDeviceBoundSessionFetchResult = "InvalidPreProvisionedKeyInitiatorMissing"
+
+	// NetworkDeviceBoundSessionFetchResultPreProvisionedKeyAccessNotGranted enum const.
+	NetworkDeviceBoundSessionFetchResultPreProvisionedKeyAccessNotGranted NetworkDeviceBoundSessionFetchResult = "PreProvisionedKeyAccessNotGranted"
+
+	// NetworkDeviceBoundSessionFetchResultPreProvisionedKeyNotFound enum const.
+	NetworkDeviceBoundSessionFetchResultPreProvisionedKeyNotFound NetworkDeviceBoundSessionFetchResult = "PreProvisionedKeyNotFound"
+)
+
+// NetworkDeviceBoundSessionFailedRequest (experimental) Details about a failed device bound session network request.
+type NetworkDeviceBoundSessionFailedRequest struct {
+	// RequestURL The failed request URL.
+	RequestURL string `json:"requestUrl"`
+
+	// NetError (optional) The net error of the response if it was not OK.
+	NetError string `json:"netError,omitempty"`
+
+	// ResponseError (optional) The response code if the net error was OK and the response code was not
+	// 200.
+	ResponseError *int `json:"responseError,omitempty"`
+
+	// ResponseErrorBody (optional) The body of the response if the net error was OK, the response code was
+	// not 200, and the response body was not empty.
+	ResponseErrorBody string `json:"responseErrorBody,omitempty"`
+}
+
+// NetworkCreationEventDetails (experimental) Session event details specific to creation.
+type NetworkCreationEventDetails struct {
+	// FetchResult The result of the fetch attempt.
+	FetchResult NetworkDeviceBoundSessionFetchResult `json:"fetchResult"`
+
+	// NewSession (optional) The session if there was a newly created session. This is populated for
+	// all successful creation events.
+	NewSession *NetworkDeviceBoundSession `json:"newSession,omitempty"`
+
+	// FailedRequest (optional) Details about a failed device bound session network request if there was
+	// one.
+	FailedRequest *NetworkDeviceBoundSessionFailedRequest `json:"failedRequest,omitempty"`
+}
+
+// NetworkRefreshEventDetailsRefreshResult enum.
+type NetworkRefreshEventDetailsRefreshResult string
+
+const (
+	// NetworkRefreshEventDetailsRefreshResultRefreshed enum const.
+	NetworkRefreshEventDetailsRefreshResultRefreshed NetworkRefreshEventDetailsRefreshResult = "Refreshed"
+
+	// NetworkRefreshEventDetailsRefreshResultInitializedService enum const.
+	NetworkRefreshEventDetailsRefreshResultInitializedService NetworkRefreshEventDetailsRefreshResult = "InitializedService"
+
+	// NetworkRefreshEventDetailsRefreshResultUnreachable enum const.
+	NetworkRefreshEventDetailsRefreshResultUnreachable NetworkRefreshEventDetailsRefreshResult = "Unreachable"
+
+	// NetworkRefreshEventDetailsRefreshResultServerError enum const.
+	NetworkRefreshEventDetailsRefreshResultServerError NetworkRefreshEventDetailsRefreshResult = "ServerError"
+
+	// NetworkRefreshEventDetailsRefreshResultFatalError enum const.
+	NetworkRefreshEventDetailsRefreshResultFatalError NetworkRefreshEventDetailsRefreshResult = "FatalError"
+
+	// NetworkRefreshEventDetailsRefreshResultSigningQuotaExceeded enum const.
+	NetworkRefreshEventDetailsRefreshResultSigningQuotaExceeded NetworkRefreshEventDetailsRefreshResult = "SigningQuotaExceeded"
+
+	// NetworkRefreshEventDetailsRefreshResultRefreshedAsWaiter enum const.
+	NetworkRefreshEventDetailsRefreshResultRefreshedAsWaiter NetworkRefreshEventDetailsRefreshResult = "RefreshedAsWaiter"
+
+	// NetworkRefreshEventDetailsRefreshResultTransientSigningError enum const.
+	NetworkRefreshEventDetailsRefreshResultTransientSigningError NetworkRefreshEventDetailsRefreshResult = "TransientSigningError"
+)
+
+// NetworkRefreshEventDetails (experimental) Session event details specific to refresh.
+type NetworkRefreshEventDetails struct {
+	// RefreshResult The result of a refresh.
+	RefreshResult NetworkRefreshEventDetailsRefreshResult `json:"refreshResult"`
+
+	// FetchResult (optional) If there was a fetch attempt, the result of that.
+	FetchResult NetworkDeviceBoundSessionFetchResult `json:"fetchResult,omitempty"`
+
+	// NewSession (optional) The session display if there was a newly created session. This is populated
+	// for any refresh event that modifies the session config.
+	NewSession *NetworkDeviceBoundSession `json:"newSession,omitempty"`
+
+	// WasFullyProactiveRefresh See comments on `net::device_bound_sessions::RefreshEventResult::was_fully_proactive_refresh`.
+	WasFullyProactiveRefresh bool `json:"wasFullyProactiveRefresh"`
+
+	// FailedRequest (optional) Details about a failed device bound session network request if there was
+	// one.
+	FailedRequest *NetworkDeviceBoundSessionFailedRequest `json:"failedRequest,omitempty"`
+}
+
+// NetworkTerminationEventDetailsDeletionReason enum.
+type NetworkTerminationEventDetailsDeletionReason string
+
+const (
+	// NetworkTerminationEventDetailsDeletionReasonExpired enum const.
+	NetworkTerminationEventDetailsDeletionReasonExpired NetworkTerminationEventDetailsDeletionReason = "Expired"
+
+	// NetworkTerminationEventDetailsDeletionReasonFailedToRestoreKey enum const.
+	NetworkTerminationEventDetailsDeletionReasonFailedToRestoreKey NetworkTerminationEventDetailsDeletionReason = "FailedToRestoreKey"
+
+	// NetworkTerminationEventDetailsDeletionReasonFailedToUnwrapKey enum const.
+	NetworkTerminationEventDetailsDeletionReasonFailedToUnwrapKey NetworkTerminationEventDetailsDeletionReason = "FailedToUnwrapKey"
+
+	// NetworkTerminationEventDetailsDeletionReasonStoragePartitionCleared enum const.
+	NetworkTerminationEventDetailsDeletionReasonStoragePartitionCleared NetworkTerminationEventDetailsDeletionReason = "StoragePartitionCleared"
+
+	// NetworkTerminationEventDetailsDeletionReasonClearBrowsingData enum const.
+	NetworkTerminationEventDetailsDeletionReasonClearBrowsingData NetworkTerminationEventDetailsDeletionReason = "ClearBrowsingData"
+
+	// NetworkTerminationEventDetailsDeletionReasonServerRequested enum const.
+	NetworkTerminationEventDetailsDeletionReasonServerRequested NetworkTerminationEventDetailsDeletionReason = "ServerRequested"
+
+	// NetworkTerminationEventDetailsDeletionReasonInvalidSessionParams enum const.
+	NetworkTerminationEventDetailsDeletionReasonInvalidSessionParams NetworkTerminationEventDetailsDeletionReason = "InvalidSessionParams"
+
+	// NetworkTerminationEventDetailsDeletionReasonRefreshFatalError enum const.
+	NetworkTerminationEventDetailsDeletionReasonRefreshFatalError NetworkTerminationEventDetailsDeletionReason = "RefreshFatalError"
+
+	// NetworkTerminationEventDetailsDeletionReasonDevTools enum const.
+	NetworkTerminationEventDetailsDeletionReasonDevTools NetworkTerminationEventDetailsDeletionReason = "DevTools"
+)
+
+// NetworkTerminationEventDetails (experimental) Session event details specific to termination.
+type NetworkTerminationEventDetails struct {
+	// DeletionReason The reason for a session being deleted.
+	DeletionReason NetworkTerminationEventDetailsDeletionReason `json:"deletionReason"`
+}
+
+// NetworkChallengeEventDetailsChallengeResult enum.
+type NetworkChallengeEventDetailsChallengeResult string
+
+const (
+	// NetworkChallengeEventDetailsChallengeResultSuccess enum const.
+	NetworkChallengeEventDetailsChallengeResultSuccess NetworkChallengeEventDetailsChallengeResult = "Success"
+
+	// NetworkChallengeEventDetailsChallengeResultNoSessionID enum const.
+	NetworkChallengeEventDetailsChallengeResultNoSessionID NetworkChallengeEventDetailsChallengeResult = "NoSessionId"
+
+	// NetworkChallengeEventDetailsChallengeResultNoSessionMatch enum const.
+	NetworkChallengeEventDetailsChallengeResultNoSessionMatch NetworkChallengeEventDetailsChallengeResult = "NoSessionMatch"
+
+	// NetworkChallengeEventDetailsChallengeResultCantSetBoundCookie enum const.
+	NetworkChallengeEventDetailsChallengeResultCantSetBoundCookie NetworkChallengeEventDetailsChallengeResult = "CantSetBoundCookie"
+)
+
+// NetworkChallengeEventDetails (experimental) Session event details specific to challenges.
+type NetworkChallengeEventDetails struct {
+	// ChallengeResult The result of a challenge.
+	ChallengeResult NetworkChallengeEventDetailsChallengeResult `json:"challengeResult"`
+
+	// Challenge The challenge set.
+	Challenge string `json:"challenge"`
+}
+
 // NetworkLoadNetworkResourcePageResult (experimental) An object providing the result of a network resource load.
 type NetworkLoadNetworkResourcePageResult struct {
 	// Success ...
@@ -1728,6 +2408,8 @@ func (m NetworkClearAcceptedEncodingsOverride) Call(c Client) error {
 }
 
 // NetworkCanClearBrowserCache (deprecated) Tells whether clearing browser cache is supported.
+//
+// Deprecated: Network.canClearBrowserCache is deprecated in the Chrome DevTools Protocol.
 type NetworkCanClearBrowserCache struct{}
 
 // ProtoReq name.
@@ -1740,12 +2422,16 @@ func (m NetworkCanClearBrowserCache) Call(c Client) (*NetworkCanClearBrowserCach
 }
 
 // NetworkCanClearBrowserCacheResult (deprecated) ...
+//
+// Deprecated: Network.canClearBrowserCache is deprecated in the Chrome DevTools Protocol.
 type NetworkCanClearBrowserCacheResult struct {
 	// Result True if browser cache can be cleared.
 	Result bool `json:"result"`
 }
 
 // NetworkCanClearBrowserCookies (deprecated) Tells whether clearing browser cookies is supported.
+//
+// Deprecated: Network.canClearBrowserCookies is deprecated in the Chrome DevTools Protocol.
 type NetworkCanClearBrowserCookies struct{}
 
 // ProtoReq name.
@@ -1758,12 +2444,16 @@ func (m NetworkCanClearBrowserCookies) Call(c Client) (*NetworkCanClearBrowserCo
 }
 
 // NetworkCanClearBrowserCookiesResult (deprecated) ...
+//
+// Deprecated: Network.canClearBrowserCookies is deprecated in the Chrome DevTools Protocol.
 type NetworkCanClearBrowserCookiesResult struct {
 	// Result True if browser cookies can be cleared.
 	Result bool `json:"result"`
 }
 
 // NetworkCanEmulateNetworkConditions (deprecated) Tells whether emulation of network conditions is supported.
+//
+// Deprecated: Network.canEmulateNetworkConditions is deprecated in the Chrome DevTools Protocol.
 type NetworkCanEmulateNetworkConditions struct{}
 
 // ProtoReq name.
@@ -1778,6 +2468,8 @@ func (m NetworkCanEmulateNetworkConditions) Call(c Client) (*NetworkCanEmulateNe
 }
 
 // NetworkCanEmulateNetworkConditionsResult (deprecated) ...
+//
+// Deprecated: Network.canEmulateNetworkConditions is deprecated in the Chrome DevTools Protocol.
 type NetworkCanEmulateNetworkConditionsResult struct {
 	// Result True if emulation of network conditions is supported.
 	Result bool `json:"result"`
@@ -1810,6 +2502,8 @@ func (m NetworkClearBrowserCookies) Call(c Client) error {
 // fetch occurs as a result which encounters a redirect an additional Network.requestIntercepted
 // event will be sent with the same InterceptionId.
 // Deprecated, use Fetch.continueRequest, Fetch.fulfillRequest and Fetch.failRequest instead.
+//
+// Deprecated: Network.continueInterceptedRequest is deprecated in the Chrome DevTools Protocol.
 type NetworkContinueInterceptedRequest struct {
 	// InterceptionID ...
 	InterceptionID NetworkInterceptionID `json:"interceptionId"`
@@ -1820,7 +2514,7 @@ type NetworkContinueInterceptedRequest struct {
 	ErrorReason NetworkErrorReason `json:"errorReason,omitempty"`
 
 	// RawResponse (optional) If set the requests completes using with the provided base64 encoded raw response, including
-	// HTTP status line and headers etc... Must not be set in response to an authChallenge.
+	// HTTP status line and headers etc... Must not be set in response to an authChallenge. (Encoded as a base64 string when passed over JSON).
 	RawResponse []byte `json:"rawResponse,omitempty"`
 
 	// URL (optional) If set the request url will be modified in a way that's not observable by page. Must not be
@@ -1891,7 +2585,10 @@ func (m NetworkDisable) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// NetworkEmulateNetworkConditions Activates emulation of network conditions.
+// NetworkEmulateNetworkConditions (deprecated) Activates emulation of network conditions. This command is deprecated in favor of the emulateNetworkConditionsByRule
+// and overrideNetworkState commands, which can be used together to the same effect.
+//
+// Deprecated: Network.emulateNetworkConditions is deprecated in the Chrome DevTools Protocol.
 type NetworkEmulateNetworkConditions struct {
 	// Offline True to emulate internet disconnection.
 	Offline bool `json:"offline"`
@@ -1926,16 +2623,91 @@ func (m NetworkEmulateNetworkConditions) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// NetworkEmulateNetworkConditionsByRule (experimental) Activates emulation of network conditions for individual requests using URL match patterns. Unlike the deprecated
+// Network.emulateNetworkConditions this method does not affect `navigator` state. Use Network.overrideNetworkState to
+// explicitly modify `navigator` behavior.
+type NetworkEmulateNetworkConditionsByRule struct {
+	// Offline (deprecated) (optional) True to emulate internet disconnection. Deprecated, use the offline property in matchedNetworkConditions
+	// or emulateOfflineServiceWorker instead.
+	//
+	// Deprecated: Network.emulateNetworkConditionsByRule.offline is deprecated in the Chrome DevTools Protocol.
+	Offline bool `json:"offline,omitempty"`
+
+	// EmulateOfflineServiceWorker (optional) True to emulate offline service worker.
+	EmulateOfflineServiceWorker bool `json:"emulateOfflineServiceWorker,omitempty"`
+
+	// MatchedNetworkConditions Configure conditions for matching requests. If multiple entries match a request, the first entry wins.  Global
+	// conditions can be configured by leaving the urlPattern for the conditions empty. These global conditions are
+	// also applied for throttling of p2p connections.
+	MatchedNetworkConditions []*NetworkNetworkConditions `json:"matchedNetworkConditions"`
+}
+
+// ProtoReq name.
+func (m NetworkEmulateNetworkConditionsByRule) ProtoReq() string {
+	return "Network.emulateNetworkConditionsByRule"
+}
+
+// Call the request.
+func (m NetworkEmulateNetworkConditionsByRule) Call(c Client) (*NetworkEmulateNetworkConditionsByRuleResult, error) {
+	var res NetworkEmulateNetworkConditionsByRuleResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// NetworkEmulateNetworkConditionsByRuleResult (experimental) ...
+type NetworkEmulateNetworkConditionsByRuleResult struct {
+	// RuleIDs An id for each entry in matchedNetworkConditions. The id will be included in the requestWillBeSentExtraInfo for
+	// requests affected by a rule.
+	RuleIDs []string `json:"ruleIds"`
+}
+
+// NetworkOverrideNetworkState (experimental) Override the state of navigator.onLine and navigator.connection.
+type NetworkOverrideNetworkState struct {
+	// Offline True to emulate internet disconnection.
+	Offline bool `json:"offline"`
+
+	// Latency Minimum latency from request sent to response headers received (ms).
+	Latency float64 `json:"latency"`
+
+	// DownloadThroughput Maximal aggregated download throughput (bytes/sec). -1 disables download throttling.
+	DownloadThroughput float64 `json:"downloadThroughput"`
+
+	// UploadThroughput Maximal aggregated upload throughput (bytes/sec).  -1 disables upload throttling.
+	UploadThroughput float64 `json:"uploadThroughput"`
+
+	// ConnectionType (optional) Connection type if known.
+	ConnectionType NetworkConnectionType `json:"connectionType,omitempty"`
+}
+
+// ProtoReq name.
+func (m NetworkOverrideNetworkState) ProtoReq() string { return "Network.overrideNetworkState" }
+
+// Call sends the request.
+func (m NetworkOverrideNetworkState) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // NetworkEnable Enables network tracking, network events will now be delivered to the client.
 type NetworkEnable struct {
 	// MaxTotalBufferSize (experimental) (optional) Buffer size in bytes to use when preserving network payloads (XHRs, etc).
+	// This is the maximum number of bytes that will be collected by this
+	// DevTools session.
 	MaxTotalBufferSize *int `json:"maxTotalBufferSize,omitempty"`
 
 	// MaxResourceBufferSize (experimental) (optional) Per-resource buffer size in bytes to use when preserving network payloads (XHRs, etc).
 	MaxResourceBufferSize *int `json:"maxResourceBufferSize,omitempty"`
 
-	// MaxPostDataSize (optional) Longest post body size (in bytes) that would be included in requestWillBeSent notification
+	// MaxPostDataSize (optional) Longest post body size (in bytes) that would be included in requestWillBeSent notification.
 	MaxPostDataSize *int `json:"maxPostDataSize,omitempty"`
+
+	// ReportDirectSocketTraffic (experimental) (optional) Whether DirectSocket chunk send/receive events should be reported.
+	ReportDirectSocketTraffic bool `json:"reportDirectSocketTraffic,omitempty"`
+
+	// EnableDurableMessages (experimental) (optional) Enable storing response bodies outside of renderer, so that these survive
+	// a cross-process navigation. Requires maxTotalBufferSize to be set.
+	// Currently defaults to false. This field is being deprecated in favor of the dedicated
+	// configureDurableMessages command, due to the possibility of deadlocks when awaiting
+	// Network.enable before issuing Runtime.runIfWaitingForDebugger.
+	EnableDurableMessages bool `json:"enableDurableMessages,omitempty"`
 }
 
 // ProtoReq name.
@@ -1946,9 +2718,30 @@ func (m NetworkEnable) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// NetworkConfigureDurableMessages (experimental) Configures storing response bodies outside of renderer, so that these survive
+// a cross-process navigation.
+// If maxTotalBufferSize is not set, durable messages are disabled.
+type NetworkConfigureDurableMessages struct {
+	// MaxTotalBufferSize (optional) Buffer size in bytes to use when preserving network payloads (XHRs, etc).
+	MaxTotalBufferSize *int `json:"maxTotalBufferSize,omitempty"`
+
+	// MaxResourceBufferSize (optional) Per-resource buffer size in bytes to use when preserving network payloads (XHRs, etc).
+	MaxResourceBufferSize *int `json:"maxResourceBufferSize,omitempty"`
+}
+
+// ProtoReq name.
+func (m NetworkConfigureDurableMessages) ProtoReq() string { return "Network.configureDurableMessages" }
+
+// Call sends the request.
+func (m NetworkConfigureDurableMessages) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // NetworkGetAllCookies (deprecated) Returns all browser cookies. Depending on the backend support, will return detailed cookie
 // information in the `cookies` field.
 // Deprecated. Use Storage.getCookies instead.
+//
+// Deprecated: Network.getAllCookies is deprecated in the Chrome DevTools Protocol.
 type NetworkGetAllCookies struct{}
 
 // ProtoReq name.
@@ -1961,6 +2754,8 @@ func (m NetworkGetAllCookies) Call(c Client) (*NetworkGetAllCookiesResult, error
 }
 
 // NetworkGetAllCookiesResult (deprecated) ...
+//
+// Deprecated: Network.getAllCookies is deprecated in the Chrome DevTools Protocol.
 type NetworkGetAllCookiesResult struct {
 	// Cookies Array of cookie objects.
 	Cookies []*NetworkCookie `json:"cookies"`
@@ -2052,8 +2847,11 @@ func (m NetworkGetRequestPostData) Call(c Client) (*NetworkGetRequestPostDataRes
 
 // NetworkGetRequestPostDataResult ...
 type NetworkGetRequestPostDataResult struct {
-	// PostData Request body string, omitting files from multipart requests
+	// PostData Request body string, omitting files from multipart requests.
 	PostData string `json:"postData"`
+
+	// Base64Encoded True, if content was sent as base64.
+	Base64Encoded bool `json:"base64Encoded"`
 }
 
 // NetworkGetResponseBodyForInterception (experimental) Returns content served for the given currently intercepted request.
@@ -2156,8 +2954,14 @@ type NetworkSearchInResponseBodyResult struct {
 
 // NetworkSetBlockedURLs (experimental) Blocks URLs from loading.
 type NetworkSetBlockedURLs struct {
-	// Urls URL patterns to block. Wildcards ('*') are allowed.
-	Urls []string `json:"urls"`
+	// URLPatterns (optional) Patterns to match in the order in which they are given. These patterns
+	// also take precedence over any wildcard patterns defined in `urls`.
+	URLPatterns []*NetworkBlockPattern `json:"urlPatterns,omitempty"`
+
+	// Urls (deprecated) (optional) URL patterns to block. Wildcards ('*') are allowed.
+	//
+	// Deprecated: Network.setBlockedURLs.urls is deprecated in the Chrome DevTools Protocol.
+	Urls []string `json:"urls,omitempty"`
 }
 
 // ProtoReq name.
@@ -2223,14 +3027,11 @@ type NetworkSetCookie struct {
 	// SameSite (optional) Cookie SameSite type.
 	SameSite NetworkCookieSameSite `json:"sameSite,omitempty"`
 
-	// Expires (optional) Cookie expiration date, session cookie if not set
+	// Expires (optional) Cookie expiration date, session cookie if not set.
 	Expires TimeSinceEpoch `json:"expires,omitempty"`
 
 	// Priority (experimental) (optional) Cookie Priority type.
 	Priority NetworkCookiePriority `json:"priority,omitempty"`
-
-	// SameParty (experimental) (optional) True if cookie is SameParty.
-	SameParty bool `json:"sameParty,omitempty"`
 
 	// SourceScheme (experimental) (optional) Cookie source scheme type.
 	SourceScheme NetworkCookieSourceScheme `json:"sourceScheme,omitempty"`
@@ -2256,6 +3057,8 @@ func (m NetworkSetCookie) Call(c Client) (*NetworkSetCookieResult, error) {
 // NetworkSetCookieResult ...
 type NetworkSetCookieResult struct {
 	// Success (deprecated) Always set to true. If an error occurs, the response indicates protocol error.
+	//
+	// Deprecated: Network.setCookie.success is deprecated in the Chrome DevTools Protocol.
 	Success bool `json:"success"`
 }
 
@@ -2303,6 +3106,8 @@ func (m NetworkSetAttachDebugStack) Call(c Client) error {
 
 // NetworkSetRequestInterception (deprecated) (experimental) Sets the requests to intercept that match the provided patterns and optionally resource types.
 // Deprecated, please use Fetch.enable instead.
+//
+// Deprecated: Network.setRequestInterception is deprecated in the Chrome DevTools Protocol.
 type NetworkSetRequestInterception struct {
 	// Patterns Requests matching any of these patterns will be forwarded and wait for the corresponding
 	// continueInterceptedRequest call.
@@ -2328,7 +3133,7 @@ type NetworkSetUserAgentOverride struct {
 	// Platform (optional) The platform navigator.platform should return.
 	Platform string `json:"platform,omitempty"`
 
-	// UserAgentMetadata (experimental) (optional) To be sent in Sec-CH-UA-* headers and returned in navigator.userAgentData
+	// UserAgentMetadata (experimental) (optional) To be sent in Sec-CH-UA-* headers and returned in navigator.userAgentData.
 	UserAgentMetadata *EmulationUserAgentMetadata `json:"userAgentMetadata,omitempty"`
 }
 
@@ -2358,7 +3163,7 @@ func (m NetworkStreamResourceContent) Call(c Client) (*NetworkStreamResourceCont
 
 // NetworkStreamResourceContentResult (experimental) ...
 type NetworkStreamResourceContentResult struct {
-	// BufferedData Data that has been buffered until streaming is enabled.
+	// BufferedData Data that has been buffered until streaming is enabled. (Encoded as a base64 string when passed over JSON).
 	BufferedData []byte `json:"bufferedData"`
 }
 
@@ -2388,7 +3193,7 @@ type NetworkGetSecurityIsolationStatusResult struct {
 // NetworkEnableReportingAPI (experimental) Enables tracking for the Reporting API, events generated by the Reporting API will now be delivered to the client.
 // Enabling triggers 'reportingApiReportAdded' for all existing reports.
 type NetworkEnableReportingAPI struct {
-	// Enable Whether to enable or disable events for the Reporting API
+	// Enable Whether to enable or disable events for the Reporting API.
 	Enable bool `json:"enable"`
 }
 
@@ -2398,6 +3203,57 @@ func (m NetworkEnableReportingAPI) ProtoReq() string { return "Network.enableRep
 // Call sends the request.
 func (m NetworkEnableReportingAPI) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
+}
+
+// NetworkEnableDeviceBoundSessions (experimental) Sets up tracking device bound sessions and fetching of initial set of sessions.
+type NetworkEnableDeviceBoundSessions struct {
+	// Enable Whether to enable or disable events.
+	Enable bool `json:"enable"`
+}
+
+// ProtoReq name.
+func (m NetworkEnableDeviceBoundSessions) ProtoReq() string {
+	return "Network.enableDeviceBoundSessions"
+}
+
+// Call sends the request.
+func (m NetworkEnableDeviceBoundSessions) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// NetworkDeleteDeviceBoundSession (experimental) Deletes a device bound session.
+type NetworkDeleteDeviceBoundSession struct {
+	// Key ...
+	Key *NetworkDeviceBoundSessionKey `json:"key"`
+}
+
+// ProtoReq name.
+func (m NetworkDeleteDeviceBoundSession) ProtoReq() string { return "Network.deleteDeviceBoundSession" }
+
+// Call sends the request.
+func (m NetworkDeleteDeviceBoundSession) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// NetworkFetchSchemefulSite (experimental) Fetches the schemeful site for a specific origin.
+type NetworkFetchSchemefulSite struct {
+	// Origin The URL origin.
+	Origin string `json:"origin"`
+}
+
+// ProtoReq name.
+func (m NetworkFetchSchemefulSite) ProtoReq() string { return "Network.fetchSchemefulSite" }
+
+// Call the request.
+func (m NetworkFetchSchemefulSite) Call(c Client) (*NetworkFetchSchemefulSiteResult, error) {
+	var res NetworkFetchSchemefulSiteResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// NetworkFetchSchemefulSiteResult (experimental) ...
+type NetworkFetchSchemefulSiteResult struct {
+	// SchemefulSite The corresponding schemeful site.
+	SchemefulSite string `json:"schemefulSite"`
 }
 
 // NetworkLoadNetworkResource (experimental) Fetches the resource and returns the content.
@@ -2428,6 +3284,21 @@ type NetworkLoadNetworkResourceResult struct {
 	Resource *NetworkLoadNetworkResourcePageResult `json:"resource"`
 }
 
+// NetworkSetCookieControls (experimental) Sets Controls for third-party cookie access
+// Page reload is required before the new cookie behavior will be observed.
+type NetworkSetCookieControls struct {
+	// EnableThirdPartyCookieRestriction Whether 3pc restriction is enabled.
+	EnableThirdPartyCookieRestriction bool `json:"enableThirdPartyCookieRestriction"`
+}
+
+// ProtoReq name.
+func (m NetworkSetCookieControls) ProtoReq() string { return "Network.setCookieControls" }
+
+// Call sends the request.
+func (m NetworkSetCookieControls) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // NetworkDataReceived Fired when data chunk was received over the network.
 type NetworkDataReceived struct {
 	// RequestID Request identifier.
@@ -2442,7 +3313,7 @@ type NetworkDataReceived struct {
 	// EncodedDataLength Actual bytes received (might be less than dataLength for compressed encodings).
 	EncodedDataLength int `json:"encodedDataLength"`
 
-	// Data (experimental) (optional) Data that was received.
+	// Data (experimental) (optional) Data that was received. (Encoded as a base64 string when passed over JSON).
 	Data []byte `json:"data,omitempty"`
 }
 
@@ -2485,7 +3356,7 @@ type NetworkLoadingFailed struct {
 	// Type Resource type.
 	Type NetworkResourceType `json:"type"`
 
-	// ErrorText Error message. List of network errors: https://cs.chromium.org/chromium/src/net/base/net_error_list.h
+	// ErrorText Error message. List of network errors: https://cs.chromium.org/chromium/src/net/base/net_error_list.h.
 	ErrorText string `json:"errorText"`
 
 	// Canceled (optional) True if loading was canceled.
@@ -2523,6 +3394,8 @@ func (evt NetworkLoadingFinished) ProtoEvent() string {
 // NetworkRequestIntercepted (deprecated) (experimental) Details of an intercepted HTTP request, which must be either allowed, blocked, modified or
 // mocked.
 // Deprecated, use Fetch.requestPaused instead.
+//
+// Deprecated: Network.requestIntercepted is deprecated in the Chrome DevTools Protocol.
 type NetworkRequestIntercepted struct {
 	// InterceptionID Each request the page makes will have a unique id, however if any redirects are encountered
 	// while processing that fetch, they will be reported with the same id as the original fetch.
@@ -2624,6 +3497,9 @@ type NetworkRequestWillBeSent struct {
 
 	// HasUserGesture (optional) Whether the request is initiated by a user gesture. Defaults to false.
 	HasUserGesture bool `json:"hasUserGesture,omitempty"`
+
+	// RenderBlockingBehavior (experimental) (optional) The render-blocking behavior of the request.
+	RenderBlockingBehavior NetworkRenderBlockingBehavior `json:"renderBlockingBehavior,omitempty"`
 }
 
 // ProtoEvent name.
@@ -2636,7 +3512,7 @@ type NetworkResourceChangedPriority struct {
 	// RequestID Request identifier.
 	RequestID NetworkRequestID `json:"requestId"`
 
-	// NewPriority New priority
+	// NewPriority New priority.
 	NewPriority NetworkResourcePriority `json:"newPriority"`
 
 	// Timestamp.
@@ -2859,6 +3735,262 @@ func (evt NetworkWebTransportClosed) ProtoEvent() string {
 	return "Network.webTransportClosed"
 }
 
+// NetworkDirectTCPSocketCreated (experimental) Fired upon direct_socket.TCPSocket creation.
+type NetworkDirectTCPSocketCreated struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// RemoteAddr ...
+	RemoteAddr string `json:"remoteAddr"`
+
+	// RemotePort Unsigned int 16.
+	RemotePort int `json:"remotePort"`
+
+	// Options ...
+	Options *NetworkDirectTCPSocketOptions `json:"options"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+
+	// Initiator (optional) ...
+	Initiator *NetworkInitiator `json:"initiator,omitempty"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectTCPSocketCreated) ProtoEvent() string {
+	return "Network.directTCPSocketCreated"
+}
+
+// NetworkDirectTCPSocketOpened (experimental) Fired when direct_socket.TCPSocket connection is opened.
+type NetworkDirectTCPSocketOpened struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// RemoteAddr ...
+	RemoteAddr string `json:"remoteAddr"`
+
+	// RemotePort Expected to be unsigned integer.
+	RemotePort int `json:"remotePort"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+
+	// LocalAddr (optional) ...
+	LocalAddr string `json:"localAddr,omitempty"`
+
+	// LocalPort (optional) Expected to be unsigned integer.
+	LocalPort *int `json:"localPort,omitempty"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectTCPSocketOpened) ProtoEvent() string {
+	return "Network.directTCPSocketOpened"
+}
+
+// NetworkDirectTCPSocketAborted (experimental) Fired when direct_socket.TCPSocket is aborted.
+type NetworkDirectTCPSocketAborted struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// ErrorMessage ...
+	ErrorMessage string `json:"errorMessage"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectTCPSocketAborted) ProtoEvent() string {
+	return "Network.directTCPSocketAborted"
+}
+
+// NetworkDirectTCPSocketClosed (experimental) Fired when direct_socket.TCPSocket is closed.
+type NetworkDirectTCPSocketClosed struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectTCPSocketClosed) ProtoEvent() string {
+	return "Network.directTCPSocketClosed"
+}
+
+// NetworkDirectTCPSocketChunkSent (experimental) Fired when data is sent to tcp direct socket stream.
+type NetworkDirectTCPSocketChunkSent struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Data ...
+	Data []byte `json:"data"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectTCPSocketChunkSent) ProtoEvent() string {
+	return "Network.directTCPSocketChunkSent"
+}
+
+// NetworkDirectTCPSocketChunkReceived (experimental) Fired when data is received from tcp direct socket stream.
+type NetworkDirectTCPSocketChunkReceived struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Data ...
+	Data []byte `json:"data"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectTCPSocketChunkReceived) ProtoEvent() string {
+	return "Network.directTCPSocketChunkReceived"
+}
+
+// NetworkDirectUDPSocketJoinedMulticastGroup (experimental) ...
+type NetworkDirectUDPSocketJoinedMulticastGroup struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// IPAddress ...
+	IPAddress string `json:"IPAddress"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketJoinedMulticastGroup) ProtoEvent() string {
+	return "Network.directUDPSocketJoinedMulticastGroup"
+}
+
+// NetworkDirectUDPSocketLeftMulticastGroup (experimental) ...
+type NetworkDirectUDPSocketLeftMulticastGroup struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// IPAddress ...
+	IPAddress string `json:"IPAddress"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketLeftMulticastGroup) ProtoEvent() string {
+	return "Network.directUDPSocketLeftMulticastGroup"
+}
+
+// NetworkDirectUDPSocketCreated (experimental) Fired upon direct_socket.UDPSocket creation.
+type NetworkDirectUDPSocketCreated struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Options ...
+	Options *NetworkDirectUDPSocketOptions `json:"options"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+
+	// Initiator (optional) ...
+	Initiator *NetworkInitiator `json:"initiator,omitempty"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketCreated) ProtoEvent() string {
+	return "Network.directUDPSocketCreated"
+}
+
+// NetworkDirectUDPSocketOpened (experimental) Fired when direct_socket.UDPSocket connection is opened.
+type NetworkDirectUDPSocketOpened struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// LocalAddr ...
+	LocalAddr string `json:"localAddr"`
+
+	// LocalPort Expected to be unsigned integer.
+	LocalPort int `json:"localPort"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+
+	// RemoteAddr (optional) ...
+	RemoteAddr string `json:"remoteAddr,omitempty"`
+
+	// RemotePort (optional) Expected to be unsigned integer.
+	RemotePort *int `json:"remotePort,omitempty"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketOpened) ProtoEvent() string {
+	return "Network.directUDPSocketOpened"
+}
+
+// NetworkDirectUDPSocketAborted (experimental) Fired when direct_socket.UDPSocket is aborted.
+type NetworkDirectUDPSocketAborted struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// ErrorMessage ...
+	ErrorMessage string `json:"errorMessage"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketAborted) ProtoEvent() string {
+	return "Network.directUDPSocketAborted"
+}
+
+// NetworkDirectUDPSocketClosed (experimental) Fired when direct_socket.UDPSocket is closed.
+type NetworkDirectUDPSocketClosed struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketClosed) ProtoEvent() string {
+	return "Network.directUDPSocketClosed"
+}
+
+// NetworkDirectUDPSocketChunkSent (experimental) Fired when message is sent to udp direct socket stream.
+type NetworkDirectUDPSocketChunkSent struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Message ...
+	Message *NetworkDirectUDPMessage `json:"message"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketChunkSent) ProtoEvent() string {
+	return "Network.directUDPSocketChunkSent"
+}
+
+// NetworkDirectUDPSocketChunkReceived (experimental) Fired when message is received from udp direct socket stream.
+type NetworkDirectUDPSocketChunkReceived struct {
+	// Identifier ...
+	Identifier NetworkRequestID `json:"identifier"`
+
+	// Message ...
+	Message *NetworkDirectUDPMessage `json:"message"`
+
+	// Timestamp ...
+	Timestamp MonotonicTime `json:"timestamp"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDirectUDPSocketChunkReceived) ProtoEvent() string {
+	return "Network.directUDPSocketChunkReceived"
+}
+
 // NetworkRequestWillBeSentExtraInfo (experimental) Fired when additional information about a requestWillBeSent event is available from the
 // network stack. Not every requestWillBeSent event will have an additional
 // requestWillBeSentExtraInfo fired for it, and there is no guarantee whether requestWillBeSent
@@ -2877,11 +4009,18 @@ type NetworkRequestWillBeSentExtraInfo struct {
 	// ConnectTiming (experimental) Connection timing information for the request.
 	ConnectTiming *NetworkConnectTiming `json:"connectTiming"`
 
+	// DeviceBoundSessionUsages (optional) How the request site's device bound sessions were used during this request.
+	DeviceBoundSessionUsages []*NetworkDeviceBoundSessionWithUsage `json:"deviceBoundSessionUsages,omitempty"`
+
 	// ClientSecurityState (optional) The client security state set for the request.
 	ClientSecurityState *NetworkClientSecurityState `json:"clientSecurityState,omitempty"`
 
 	// SiteHasCookieInOtherPartition (optional) Whether the site has partitioned cookies stored in a partition different than the current one.
 	SiteHasCookieInOtherPartition bool `json:"siteHasCookieInOtherPartition,omitempty"`
+
+	// AppliedNetworkConditionsID (optional) The network conditions id if this request was affected by network conditions configured via
+	// emulateNetworkConditionsByRule.
+	AppliedNetworkConditionsID string `json:"appliedNetworkConditionsId,omitempty"`
 }
 
 // ProtoEvent name.
@@ -2902,6 +4041,9 @@ type NetworkResponseReceivedExtraInfo struct {
 	BlockedCookies []*NetworkBlockedSetCookieWithReason `json:"blockedCookies"`
 
 	// Headers Raw response headers as they were received over the wire.
+	// Duplicate headers in the response are represented as a single key with their values
+	// concatentated using `\n` as the separator.
+	// See also `headersText` that contains verbatim text for HTTP/1.*.
 	Headers NetworkHeaders `json:"headers"`
 
 	// ResourceIPAddressSpace The IP address space of the resource. The address space can only be determined once the transport
@@ -2942,6 +4084,9 @@ type NetworkResponseReceivedEarlyHints struct {
 	RequestID NetworkRequestID `json:"requestId"`
 
 	// Headers Raw response headers as they were received over the wire.
+	// Duplicate headers in the response are represented as a single key with their values
+	// concatentated using `\n` as the separator.
+	// See also `headersText` that contains verbatim text for HTTP/1.*.
 	Headers NetworkHeaders `json:"headers"`
 }
 
@@ -2989,6 +4134,9 @@ const (
 
 	// NetworkTrustTokenOperationDoneStatusFulfilledLocally enum const.
 	NetworkTrustTokenOperationDoneStatusFulfilledLocally NetworkTrustTokenOperationDoneStatus = "FulfilledLocally"
+
+	// NetworkTrustTokenOperationDoneStatusSiteIssuerLimit enum const.
+	NetworkTrustTokenOperationDoneStatusSiteIssuerLimit NetworkTrustTokenOperationDoneStatus = "SiteIssuerLimit"
 )
 
 // NetworkTrustTokenOperationDone (experimental) Fired exactly once for each Trust Token operation. Depending on
@@ -3031,77 +4179,6 @@ func (evt NetworkPolicyUpdated) ProtoEvent() string {
 	return "Network.policyUpdated"
 }
 
-// NetworkSubresourceWebBundleMetadataReceived (experimental) Fired once when parsing the .wbn file has succeeded.
-// The event contains the information about the web bundle contents.
-type NetworkSubresourceWebBundleMetadataReceived struct {
-	// RequestID Request identifier. Used to match this information to another event.
-	RequestID NetworkRequestID `json:"requestId"`
-
-	// Urls A list of URLs of resources in the subresource Web Bundle.
-	Urls []string `json:"urls"`
-}
-
-// ProtoEvent name.
-func (evt NetworkSubresourceWebBundleMetadataReceived) ProtoEvent() string {
-	return "Network.subresourceWebBundleMetadataReceived"
-}
-
-// NetworkSubresourceWebBundleMetadataError (experimental) Fired once when parsing the .wbn file has failed.
-type NetworkSubresourceWebBundleMetadataError struct {
-	// RequestID Request identifier. Used to match this information to another event.
-	RequestID NetworkRequestID `json:"requestId"`
-
-	// ErrorMessage Error message
-	ErrorMessage string `json:"errorMessage"`
-}
-
-// ProtoEvent name.
-func (evt NetworkSubresourceWebBundleMetadataError) ProtoEvent() string {
-	return "Network.subresourceWebBundleMetadataError"
-}
-
-// NetworkSubresourceWebBundleInnerResponseParsed (experimental) Fired when handling requests for resources within a .wbn file.
-// Note: this will only be fired for resources that are requested by the webpage.
-type NetworkSubresourceWebBundleInnerResponseParsed struct {
-	// InnerRequestID Request identifier of the subresource request
-	InnerRequestID NetworkRequestID `json:"innerRequestId"`
-
-	// InnerRequestURL URL of the subresource resource.
-	InnerRequestURL string `json:"innerRequestURL"`
-
-	// BundleRequestID (optional) Bundle request identifier. Used to match this information to another event.
-	// This made be absent in case when the instrumentation was enabled only
-	// after webbundle was parsed.
-	BundleRequestID NetworkRequestID `json:"bundleRequestId,omitempty"`
-}
-
-// ProtoEvent name.
-func (evt NetworkSubresourceWebBundleInnerResponseParsed) ProtoEvent() string {
-	return "Network.subresourceWebBundleInnerResponseParsed"
-}
-
-// NetworkSubresourceWebBundleInnerResponseError (experimental) Fired when request for resources within a .wbn file failed.
-type NetworkSubresourceWebBundleInnerResponseError struct {
-	// InnerRequestID Request identifier of the subresource request
-	InnerRequestID NetworkRequestID `json:"innerRequestId"`
-
-	// InnerRequestURL URL of the subresource resource.
-	InnerRequestURL string `json:"innerRequestURL"`
-
-	// ErrorMessage Error message
-	ErrorMessage string `json:"errorMessage"`
-
-	// BundleRequestID (optional) Bundle request identifier. Used to match this information to another event.
-	// This made be absent in case when the instrumentation was enabled only
-	// after webbundle was parsed.
-	BundleRequestID NetworkRequestID `json:"bundleRequestId,omitempty"`
-}
-
-// ProtoEvent name.
-func (evt NetworkSubresourceWebBundleInnerResponseError) ProtoEvent() string {
-	return "Network.subresourceWebBundleInnerResponseError"
-}
-
 // NetworkReportingAPIReportAdded (experimental) Is sent whenever a new report is added.
 // And after 'enableReportingApi' for all existing reports.
 type NetworkReportingAPIReportAdded struct {
@@ -3137,4 +4214,48 @@ type NetworkReportingAPIEndpointsChangedForOrigin struct {
 // ProtoEvent name.
 func (evt NetworkReportingAPIEndpointsChangedForOrigin) ProtoEvent() string {
 	return "Network.reportingApiEndpointsChangedForOrigin"
+}
+
+// NetworkDeviceBoundSessionsAdded (experimental) Triggered when the initial set of device bound sessions is added.
+type NetworkDeviceBoundSessionsAdded struct {
+	// Sessions The device bound sessions.
+	Sessions []*NetworkDeviceBoundSession `json:"sessions"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDeviceBoundSessionsAdded) ProtoEvent() string {
+	return "Network.deviceBoundSessionsAdded"
+}
+
+// NetworkDeviceBoundSessionEventOccurred (experimental) Triggered when a device bound session event occurs.
+type NetworkDeviceBoundSessionEventOccurred struct {
+	// EventID A unique identifier for this session event.
+	EventID NetworkDeviceBoundSessionEventID `json:"eventId"`
+
+	// Site The site this session event is associated with.
+	Site string `json:"site"`
+
+	// Succeeded Whether this event was considered successful.
+	Succeeded bool `json:"succeeded"`
+
+	// SessionID (optional) The session ID this event is associated with. May not be populated for
+	// failed events.
+	SessionID string `json:"sessionId,omitempty"`
+
+	// CreationEventDetails (optional) The below are the different session event type details. Exactly one is populated.
+	CreationEventDetails *NetworkCreationEventDetails `json:"creationEventDetails,omitempty"`
+
+	// RefreshEventDetails (optional) ...
+	RefreshEventDetails *NetworkRefreshEventDetails `json:"refreshEventDetails,omitempty"`
+
+	// TerminationEventDetails (optional) ...
+	TerminationEventDetails *NetworkTerminationEventDetails `json:"terminationEventDetails,omitempty"`
+
+	// ChallengeEventDetails (optional) ...
+	ChallengeEventDetails *NetworkChallengeEventDetails `json:"challengeEventDetails,omitempty"`
+}
+
+// ProtoEvent name.
+func (evt NetworkDeviceBoundSessionEventOccurred) ProtoEvent() string {
+	return "Network.deviceBoundSessionEventOccurred"
 }

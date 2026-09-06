@@ -53,22 +53,30 @@ func (m PerformanceEnable) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// PerformanceSetTimeDomainTimeDomain enum.
+// PerformanceSetTimeDomainTimeDomain (deprecated) enum.
+//
+// Deprecated: Performance.setTimeDomain is deprecated in the Chrome DevTools Protocol.
 type PerformanceSetTimeDomainTimeDomain string
 
 const (
 	// PerformanceSetTimeDomainTimeDomainTimeTicks enum const.
+	//
+	// Deprecated: Performance.setTimeDomain is deprecated in the Chrome DevTools Protocol.
 	PerformanceSetTimeDomainTimeDomainTimeTicks PerformanceSetTimeDomainTimeDomain = "timeTicks"
 
 	// PerformanceSetTimeDomainTimeDomainThreadTicks enum const.
+	//
+	// Deprecated: Performance.setTimeDomain is deprecated in the Chrome DevTools Protocol.
 	PerformanceSetTimeDomainTimeDomainThreadTicks PerformanceSetTimeDomainTimeDomain = "threadTicks"
 )
 
 // PerformanceSetTimeDomain (deprecated) (experimental) Sets time domain to use for collecting and reporting duration metrics.
 // Note that this must be called before enabling metrics collection. Calling
 // this method while metrics collection is enabled returns an error.
+//
+// Deprecated: Performance.setTimeDomain is deprecated in the Chrome DevTools Protocol.
 type PerformanceSetTimeDomain struct {
-	// TimeDomain Time domain
+	// TimeDomain Time domain.
 	TimeDomain PerformanceSetTimeDomainTimeDomain `json:"timeDomain"`
 }
 

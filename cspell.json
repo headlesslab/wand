@@ -2,8 +2,8 @@
 {
   // Version of the setting file.  Always 0.2
   "version": "0.2",
-  // language - current active spelling language
-  "language": "en",
+  // language - current active spelling language; the prose is British
+  "language": "en,en-GB",
   "ignorePaths": [
     "**/*.{out,sketch,svg}",
     "fixtures/fonts.html",
@@ -12,11 +12,49 @@
     "lib/js/helper.go",
     "lib/proto/!(a_*)",
     "**/go.{mod,sum}",
-    ".golangci.yml"
+    ".golangci.yml",
+    // Research notes are archived findings full of product and platform names.
+    "docs/research/**",
+    // The Node tools the setup tool installs under internal/tools.
+    "**/node_modules/**"
   ],
   // words - list of words to be always considered correct
   "words": [
+    "aarch",
     "APPDATA",
+    "cdproto",
+    "diffable",
+    "Dockerfiles",
+    "gjson",
+    "GOARCH",
+    "gofrs",
+    "googlesource",
+    "Hygon",
+    "Kunpeng",
+    "Kylin",
+    "lbrowser",
+    "libuv",
+    "loong",
+    "loongarch",
+    "Loongson",
+    "mattpocock",
+    "npmmirror",
+    "omitempty",
+    "Pdeathsig",
+    "Phytium",
+    "POSIX",
+    "Qianxin",
+    "Setpgid",
+    "struct",
+    "tidwall",
+    "uglifyjs",
+    "usesigil",
+    "wayfinder",
+    "Wayfinding",
+    "wontfix",
+    "WSAECONNRESET",
+    "xinchuang",
+    "Zhaoxin",
     "Arraybuffer",
     "backgrounding",
     "backoff",

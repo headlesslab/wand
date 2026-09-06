@@ -71,6 +71,8 @@ type DebuggerCallFrame struct {
 	// URL (deprecated) JavaScript script name or url.
 	// Deprecated in favor of using the `location.scriptId` to resolve the URL via a previously
 	// sent `Debugger.scriptParsed` event.
+	//
+	// Deprecated: Debugger.CallFrame.url is deprecated in the Chrome DevTools Protocol.
 	URL string `json:"url"`
 
 	// ScopeChain Scope chain for this call frame.
@@ -137,10 +139,10 @@ type DebuggerScope struct {
 	// Name (optional) ...
 	Name string `json:"name,omitempty"`
 
-	// StartLocation (optional) Location in the source code where scope starts
+	// StartLocation (optional) Location in the source code where scope starts.
 	StartLocation *DebuggerLocation `json:"startLocation,omitempty"`
 
-	// EndLocation (optional) Location in the source code where scope ends
+	// EndLocation (optional) Location in the source code where scope ends.
 	EndLocation *DebuggerLocation `json:"endLocation,omitempty"`
 }
 
@@ -206,9 +208,6 @@ const (
 type DebuggerDebugSymbolsType string
 
 const (
-	// DebuggerDebugSymbolsTypeNone enum const.
-	DebuggerDebugSymbolsTypeNone DebuggerDebugSymbolsType = "None"
-
 	// DebuggerDebugSymbolsTypeSourceMap enum const.
 	DebuggerDebugSymbolsTypeSourceMap DebuggerDebugSymbolsType = "SourceMap"
 
@@ -226,6 +225,15 @@ type DebuggerDebugSymbols struct {
 
 	// ExternalURL (optional) URL of the external symbol source.
 	ExternalURL string `json:"externalURL,omitempty"`
+}
+
+// DebuggerResolvedBreakpoint ...
+type DebuggerResolvedBreakpoint struct {
+	// BreakpointID Breakpoint unique identifier.
+	BreakpointID DebuggerBreakpointID `json:"breakpointId"`
+
+	// Location Actual breakpoint location.
+	Location *DebuggerLocation `json:"location"`
 }
 
 // DebuggerContinueToLocationTargetCallFrames enum.
@@ -390,13 +398,13 @@ type DebuggerGetScriptSourceResult struct {
 	// ScriptSource Script source (empty in case of Wasm bytecode).
 	ScriptSource string `json:"scriptSource"`
 
-	// Bytecode (optional) Wasm bytecode.
+	// Bytecode (optional) Wasm bytecode. (Encoded as a base64 string when passed over JSON).
 	Bytecode []byte `json:"bytecode,omitempty"`
 }
 
 // DebuggerDisassembleWasmModule (experimental) ...
 type DebuggerDisassembleWasmModule struct {
-	// ScriptID Id of the script to disassemble
+	// ScriptID Id of the script to disassemble.
 	ScriptID RuntimeScriptID `json:"scriptId"`
 }
 
@@ -453,6 +461,8 @@ type DebuggerNextWasmDisassemblyChunkResult struct {
 }
 
 // DebuggerGetWasmBytecode (deprecated) This command is deprecated. Use getScriptSource instead.
+//
+// Deprecated: Debugger.getWasmBytecode is deprecated in the Chrome DevTools Protocol.
 type DebuggerGetWasmBytecode struct {
 	// ScriptID Id of the Wasm script to get source for.
 	ScriptID RuntimeScriptID `json:"scriptId"`
@@ -468,8 +478,10 @@ func (m DebuggerGetWasmBytecode) Call(c Client) (*DebuggerGetWasmBytecodeResult,
 }
 
 // DebuggerGetWasmBytecodeResult (deprecated) ...
+//
+// Deprecated: Debugger.getWasmBytecode is deprecated in the Chrome DevTools Protocol.
 type DebuggerGetWasmBytecodeResult struct {
-	// Bytecode Script source.
+	// Bytecode Script source. (Encoded as a base64 string when passed over JSON).
 	Bytecode []byte `json:"bytecode"`
 }
 
@@ -506,6 +518,8 @@ func (m DebuggerPause) Call(c Client) error {
 }
 
 // DebuggerPauseOnAsyncCall (deprecated) (experimental) ...
+//
+// Deprecated: Debugger.pauseOnAsyncCall is deprecated in the Chrome DevTools Protocol.
 type DebuggerPauseOnAsyncCall struct {
 	// ParentStackTraceID Debugger will pause when async call with given stack trace is started.
 	ParentStackTraceID *RuntimeStackTraceID `json:"parentStackTraceId"`
@@ -544,7 +558,7 @@ const (
 // DebuggerRestartFrame Restarts particular call frame from the beginning. The old, deprecated
 // behavior of `restartFrame` is to stay paused and allow further CDP commands
 // after a restart was scheduled. This can cause problems with restarting, so
-// we now continue execution immediately after it has been scheduled until we
+// we now continue execution immediatly after it has been scheduled until we
 // reach the beginning of the restarted frame.
 //
 // To stay back-wards compatible, `restartFrame` now expects a `mode`
@@ -575,12 +589,18 @@ func (m DebuggerRestartFrame) Call(c Client) (*DebuggerRestartFrameResult, error
 // DebuggerRestartFrameResult ...
 type DebuggerRestartFrameResult struct {
 	// CallFrames (deprecated) New stack trace.
+	//
+	// Deprecated: Debugger.restartFrame.callFrames is deprecated in the Chrome DevTools Protocol.
 	CallFrames []*DebuggerCallFrame `json:"callFrames"`
 
 	// AsyncStackTrace (deprecated) (optional) Async stack trace, if any.
+	//
+	// Deprecated: Debugger.restartFrame.asyncStackTrace is deprecated in the Chrome DevTools Protocol.
 	AsyncStackTrace *RuntimeStackTrace `json:"asyncStackTrace,omitempty"`
 
 	// AsyncStackTraceID (deprecated) (optional) Async stack trace, if any.
+	//
+	// Deprecated: Debugger.restartFrame.asyncStackTraceId is deprecated in the Chrome DevTools Protocol.
 	AsyncStackTraceID *RuntimeStackTraceID `json:"asyncStackTraceId,omitempty"`
 }
 
@@ -647,12 +667,33 @@ func (m DebuggerSetAsyncCallStackDepth) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// DebuggerSetBlackboxExecutionContexts (experimental) Replace previous blackbox execution contexts with passed ones. Forces backend to skip
+// stepping/pausing in scripts in these execution contexts. VM will try to leave blackboxed script by
+// performing 'step in' several times, finally resorting to 'step out' if unsuccessful.
+type DebuggerSetBlackboxExecutionContexts struct {
+	// UniqueIDs Array of execution context unique ids for the debugger to ignore.
+	UniqueIDs []string `json:"uniqueIds"`
+}
+
+// ProtoReq name.
+func (m DebuggerSetBlackboxExecutionContexts) ProtoReq() string {
+	return "Debugger.setBlackboxExecutionContexts"
+}
+
+// Call sends the request.
+func (m DebuggerSetBlackboxExecutionContexts) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // DebuggerSetBlackboxPatterns (experimental) Replace previous blackbox patterns with passed ones. Forces backend to skip stepping/pausing in
 // scripts with url matching one of the patterns. VM will try to leave blackboxed script by
 // performing 'step in' several times, finally resorting to 'step out' if unsuccessful.
 type DebuggerSetBlackboxPatterns struct {
 	// Patterns Array of regexps that will be used to check script url for blackbox state.
 	Patterns []string `json:"patterns"`
+
+	// SkipAnonymous (optional) If true, also ignore scripts with no source url.
+	SkipAnonymous bool `json:"skipAnonymous,omitempty"`
 }
 
 // ProtoReq name.
@@ -933,15 +974,23 @@ const (
 // DebuggerSetScriptSourceResult ...
 type DebuggerSetScriptSourceResult struct {
 	// CallFrames (deprecated) (optional) New stack trace in case editing has happened while VM was stopped.
+	//
+	// Deprecated: Debugger.setScriptSource.callFrames is deprecated in the Chrome DevTools Protocol.
 	CallFrames []*DebuggerCallFrame `json:"callFrames,omitempty"`
 
 	// StackChanged (deprecated) (optional) Whether current call stack  was modified after applying the changes.
+	//
+	// Deprecated: Debugger.setScriptSource.stackChanged is deprecated in the Chrome DevTools Protocol.
 	StackChanged bool `json:"stackChanged,omitempty"`
 
 	// AsyncStackTrace (deprecated) (optional) Async stack trace, if any.
+	//
+	// Deprecated: Debugger.setScriptSource.asyncStackTrace is deprecated in the Chrome DevTools Protocol.
 	AsyncStackTrace *RuntimeStackTrace `json:"asyncStackTrace,omitempty"`
 
 	// AsyncStackTraceID (deprecated) (optional) Async stack trace, if any.
+	//
+	// Deprecated: Debugger.setScriptSource.asyncStackTraceId is deprecated in the Chrome DevTools Protocol.
 	AsyncStackTraceID *RuntimeStackTraceID `json:"asyncStackTraceId,omitempty"`
 
 	// Status (experimental) Whether the operation was successful or not. Only `Ok` denotes a
@@ -1035,7 +1084,10 @@ func (m DebuggerStepOver) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// DebuggerBreakpointResolved Fired when breakpoint is resolved to an actual script and location.
+// DebuggerBreakpointResolved (deprecated) Fired when breakpoint is resolved to an actual script and location.
+// Deprecated in favor of `resolvedBreakpoints` in the `scriptParsed` event.
+//
+// Deprecated: Debugger.breakpointResolved is deprecated in the Chrome DevTools Protocol.
 type DebuggerBreakpointResolved struct {
 	// BreakpointID Breakpoint unique identifier.
 	BreakpointID DebuggerBreakpointID `json:"breakpointId"`
@@ -1104,7 +1156,7 @@ type DebuggerPaused struct {
 	// Data (optional) Object containing break-specific auxiliary properties.
 	Data map[string]lazyjson.JSON `json:"data,omitempty"`
 
-	// HitBreakpoints (optional) Hit breakpoints IDs
+	// HitBreakpoints (optional) Hit breakpoints IDs.
 	HitBreakpoints []string `json:"hitBreakpoints,omitempty"`
 
 	// AsyncStackTrace (optional) Async stack trace, if any.
@@ -1114,6 +1166,8 @@ type DebuggerPaused struct {
 	AsyncStackTraceID *RuntimeStackTraceID `json:"asyncStackTraceId,omitempty"`
 
 	// AsyncCallStackTraceID (deprecated) (experimental) (optional) Never present, will be removed.
+	//
+	// Deprecated: Debugger.paused.asyncCallStackTraceId is deprecated in the Chrome DevTools Protocol.
 	AsyncCallStackTraceID *RuntimeStackTraceID `json:"asyncCallStackTraceId,omitempty"`
 }
 
@@ -1156,7 +1210,10 @@ type DebuggerScriptFailedToParse struct {
 	// Hash Content hash of the script, SHA-256.
 	Hash string `json:"hash"`
 
-	// ExecutionContextAuxData (optional) Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
+	// BuildID For Wasm modules, the content of the `build_id` custom section. For JavaScript the `debugId` magic comment.
+	BuildID string `json:"buildId"`
+
+	// ExecutionContextAuxData (optional) Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}.
 	ExecutionContextAuxData map[string]lazyjson.JSON `json:"executionContextAuxData,omitempty"`
 
 	// SourceMapURL (optional) URL of source map associated with script (if any).
@@ -1216,7 +1273,10 @@ type DebuggerScriptParsed struct {
 	// Hash Content hash of the script, SHA-256.
 	Hash string `json:"hash"`
 
-	// ExecutionContextAuxData (optional) Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
+	// BuildID For Wasm modules, the content of the `build_id` custom section. For JavaScript the `debugId` magic comment.
+	BuildID string `json:"buildId"`
+
+	// ExecutionContextAuxData (optional) Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}.
 	ExecutionContextAuxData map[string]lazyjson.JSON `json:"executionContextAuxData,omitempty"`
 
 	// IsLiveEdit (experimental) (optional) True, if this script is generated as a result of the live edit operation.
@@ -1243,11 +1303,16 @@ type DebuggerScriptParsed struct {
 	// ScriptLanguage (experimental) (optional) The language of the script.
 	ScriptLanguage DebuggerScriptLanguage `json:"scriptLanguage,omitempty"`
 
-	// DebugSymbols (experimental) (optional) If the scriptLanguage is WebASsembly, the source of debug symbols for the module.
-	DebugSymbols *DebuggerDebugSymbols `json:"debugSymbols,omitempty"`
+	// DebugSymbols (experimental) (optional) If the scriptLanguage is WebAssembly, the source of debug symbols for the module.
+	DebugSymbols []*DebuggerDebugSymbols `json:"debugSymbols,omitempty"`
 
 	// EmbedderName (experimental) (optional) The name the embedder supplied for this script.
 	EmbedderName string `json:"embedderName,omitempty"`
+
+	// ResolvedBreakpoints (experimental) (optional) The list of set breakpoints in this script if calls to `setBreakpointByUrl`
+	// matches this script's URL or hash. Clients that use this list can ignore the
+	// `breakpointResolved` event. They are equivalent.
+	ResolvedBreakpoints []*DebuggerResolvedBreakpoint `json:"resolvedBreakpoints,omitempty"`
 }
 
 // ProtoEvent name.

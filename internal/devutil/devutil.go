@@ -65,8 +65,8 @@ var execLogger = log.New(os.Stdout, "[exec] ", 0)
 // ExecLine of command. It returns what the command wrote to its standard
 // output; standard error is echoed when std is true and otherwise kept only
 // for the panic message on failure, so that a caller parsing the output, such
-// as UseNode, is not confused by the "go: downloading" lines that go run
-// prints on a cold module cache. Each stream gets a buffer of its own: os/exec
+// as the JS generator, is not confused by the "go: downloading" lines that go
+// run prints on a cold module cache. Each stream gets a buffer of its own: os/exec
 // serves two distinct writers from two goroutines, so a buffer they shared
 // would be a data race (only one identical writer for both gets one goroutine).
 func ExecLine(std bool, line string, rest ...string) string {
@@ -98,12 +98,6 @@ func ExecLine(std bool, line string, rest ...string) string {
 	}
 
 	return stdout.String()
-}
-
-// UseNode installs Node.js and set the bin path to PATH env var.
-func UseNode(std bool) {
-	binPath := strings.TrimSpace(ExecLine(std, "go run github.com/ysmood/use-node@latest -p v20"))
-	utils.E(os.Setenv("PATH", binPath+string(os.PathListSeparator)+os.Getenv("PATH")))
 }
 
 // EscapeGoString not using encoding like base64 or gzip because of they will

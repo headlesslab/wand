@@ -51,18 +51,18 @@ func printNodes(w io.Writer, nodes []*proto.DOMNode, padding, indent string) {
 	for _, node := range nodes {
 		switch {
 		case node.NodeName == "#text":
-			fmt.Fprintf(w, "%s#text: %q\n", padding, node.NodeValue)
+			_, _ = fmt.Fprintf(w, "%s#text: %q\n", padding, node.NodeValue)
 		default:
-			fmt.Fprintf(w, "%s%s:\n", padding, strings.ToLower(node.NodeName))
+			_, _ = fmt.Fprintf(w, "%s%s:\n", padding, strings.ToLower(node.NodeName))
 			if n := len(node.Attributes); n > 0 {
-				fmt.Fprintf(w, "%sattributes:\n", padding+indent)
+				_, _ = fmt.Fprintf(w, "%sattributes:\n", padding+indent)
 				for i := 0; i < n; i += 2 {
-					fmt.Fprintf(w, "%s%s: %q\n", padding+indent+indent, node.Attributes[i], node.Attributes[i+1])
+					_, _ = fmt.Fprintf(w, "%s%s: %q\n", padding+indent+indent, node.Attributes[i], node.Attributes[i+1])
 				}
 			}
 		}
 		if node.ChildNodeCount != nil {
-			fmt.Fprintf(w, "%schildren:\n", padding+indent)
+			_, _ = fmt.Fprintf(w, "%schildren:\n", padding+indent)
 			printNodes(w, node.Children, padding+indent+indent, indent)
 		}
 	}

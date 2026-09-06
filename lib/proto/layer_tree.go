@@ -37,34 +37,34 @@ type LayerTreeScrollRect struct {
 	// Rectangle itself.
 	Rect *DOMRect `json:"rect"`
 
-	// Type Reason for rectangle to force scrolling on the main thread
+	// Type Reason for rectangle to force scrolling on the main thread.
 	Type LayerTreeScrollRectType `json:"type"`
 }
 
 // LayerTreeStickyPositionConstraint Sticky position constraints.
 type LayerTreeStickyPositionConstraint struct {
-	// StickyBoxRect Layout rectangle of the sticky element before being shifted
+	// StickyBoxRect Layout rectangle of the sticky element before being shifted.
 	StickyBoxRect *DOMRect `json:"stickyBoxRect"`
 
-	// ContainingBlockRect Layout rectangle of the containing block of the sticky element
+	// ContainingBlockRect Layout rectangle of the containing block of the sticky element.
 	ContainingBlockRect *DOMRect `json:"containingBlockRect"`
 
-	// NearestLayerShiftingStickyBox (optional) The nearest sticky layer that shifts the sticky box
+	// NearestLayerShiftingStickyBox (optional) The nearest sticky layer that shifts the sticky box.
 	NearestLayerShiftingStickyBox LayerTreeLayerID `json:"nearestLayerShiftingStickyBox,omitempty"`
 
-	// NearestLayerShiftingContainingBlock (optional) The nearest sticky layer that shifts the containing block
+	// NearestLayerShiftingContainingBlock (optional) The nearest sticky layer that shifts the containing block.
 	NearestLayerShiftingContainingBlock LayerTreeLayerID `json:"nearestLayerShiftingContainingBlock,omitempty"`
 }
 
 // LayerTreePictureTile Serialized fragment of layer picture along with its offset within the layer.
 type LayerTreePictureTile struct {
-	// X Offset from owning layer left boundary
+	// X Offset from owning layer left boundary.
 	X float64 `json:"x"`
 
-	// Y Offset from owning layer top boundary
+	// Y Offset from owning layer top boundary.
 	Y float64 `json:"y"`
 
-	// Picture Base64-encoded snapshot data.
+	// Picture Base64-encoded snapshot data. (Encoded as a base64 string when passed over JSON).
 	Picture []byte `json:"picture"`
 }
 
@@ -91,16 +91,16 @@ type LayerTreeLayer struct {
 	// Height Layer height.
 	Height float64 `json:"height"`
 
-	// Transform (optional) Transformation matrix for layer, default is identity matrix
+	// Transform (optional) Transformation matrix for layer, default is identity matrix.
 	Transform []float64 `json:"transform,omitempty"`
 
-	// AnchorX (optional) Transform anchor point X, absent if no transform specified
+	// AnchorX (optional) Transform anchor point X, absent if no transform specified.
 	AnchorX *float64 `json:"anchorX,omitempty"`
 
-	// AnchorY (optional) Transform anchor point Y, absent if no transform specified
+	// AnchorY (optional) Transform anchor point Y, absent if no transform specified.
 	AnchorY *float64 `json:"anchorY,omitempty"`
 
-	// AnchorZ (optional) Transform anchor point Z, absent if no transform specified
+	// AnchorZ (optional) Transform anchor point Z, absent if no transform specified.
 	AnchorZ *float64 `json:"anchorZ,omitempty"`
 
 	// PaintCount Indicates how many time this layer has painted.
@@ -116,7 +116,7 @@ type LayerTreeLayer struct {
 	// ScrollRects (optional) Rectangles scrolling on main thread only.
 	ScrollRects []*LayerTreeScrollRect `json:"scrollRects,omitempty"`
 
-	// StickyPositionConstraint (optional) Sticky position constraint information
+	// StickyPositionConstraint (optional) Sticky position constraint information.
 	StickyPositionConstraint *LayerTreeStickyPositionConstraint `json:"stickyPositionConstraint,omitempty"`
 }
 

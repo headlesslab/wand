@@ -23,7 +23,7 @@ func main() {
 
 		code += devutil.S(`
 
-			// {{.name}} device
+			// {{.name}} device.
 			{{.name}} = Device{
 				Title:        "{{.title}}",
 				Capabilities: {{.capabilities}},
@@ -65,12 +65,7 @@ func main() {
 	path := "./lib/devices/list.go"
 	utils.E(utils.OutputFile(path, code))
 
-	devutil.Exec("gofumpt -w", path)
-	devutil.Exec(
-		"go run github.com/ysmood/golangci-lint@latest -- "+
-			"run --fix",
-		filepath.Dir(path),
-	)
+	devutil.GoTool(devutil.GolangciLint, "fmt", filepath.Dir(path))
 }
 
 func getDeviceList() lazyjson.JSON {

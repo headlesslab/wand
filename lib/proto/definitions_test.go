@@ -64,6 +64,12 @@ func (t T) AccessibilityNodesUpdated() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) AdsGetAdMetrics() {
+	c := &Client{}
+	_, err := proto.AdsGetAdMetrics{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) AnimationDisable() {
 	c := &Client{}
 	err := proto.AnimationDisable{}.Call(c)
@@ -162,12 +168,6 @@ func (t T) AuditsEnable() {
 	t.Nil(err)
 }
 
-func (t T) AuditsCheckContrast() {
-	c := &Client{}
-	err := proto.AuditsCheckContrast{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) AuditsCheckFormsIssues() {
 	c := &Client{}
 	_, err := proto.AuditsCheckFormsIssues{}.Call(c)
@@ -177,12 +177,6 @@ func (t T) AuditsCheckFormsIssues() {
 func (t T) AuditsIssueAdded() {
 	e := proto.AuditsIssueAdded{}
 	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) ExtensionsLoadUnpacked() {
-	c := &Client{}
-	_, err := proto.ExtensionsLoadUnpacked{}.Call(c)
-	t.Nil(err)
 }
 
 func (t T) AutofillTrigger() {
@@ -245,6 +239,111 @@ func (t T) BackgroundServiceRecordingStateChanged() {
 
 func (t T) BackgroundServiceBackgroundServiceEventReceived() {
 	e := proto.BackgroundServiceBackgroundServiceEventReceived{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) BluetoothEmulationEnable() {
+	c := &Client{}
+	err := proto.BluetoothEmulationEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSetSimulatedCentralState() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSetSimulatedCentralState{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationDisable() {
+	c := &Client{}
+	err := proto.BluetoothEmulationDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSimulatePreconnectedPeripheral() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSimulatePreconnectedPeripheral{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSimulateAdvertisement() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSimulateAdvertisement{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSimulateGATTOperationResponse() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSimulateGATTOperationResponse{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSimulateCharacteristicOperationResponse() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSimulateCharacteristicOperationResponse{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSimulateDescriptorOperationResponse() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSimulateDescriptorOperationResponse{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationAddService() {
+	c := &Client{}
+	_, err := proto.BluetoothEmulationAddService{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationRemoveService() {
+	c := &Client{}
+	err := proto.BluetoothEmulationRemoveService{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationAddCharacteristic() {
+	c := &Client{}
+	_, err := proto.BluetoothEmulationAddCharacteristic{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationRemoveCharacteristic() {
+	c := &Client{}
+	err := proto.BluetoothEmulationRemoveCharacteristic{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationAddDescriptor() {
+	c := &Client{}
+	_, err := proto.BluetoothEmulationAddDescriptor{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationRemoveDescriptor() {
+	c := &Client{}
+	err := proto.BluetoothEmulationRemoveDescriptor{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationSimulateGATTDisconnection() {
+	c := &Client{}
+	err := proto.BluetoothEmulationSimulateGATTDisconnection{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BluetoothEmulationGattOperationReceived() {
+	e := proto.BluetoothEmulationGattOperationReceived{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) BluetoothEmulationCharacteristicOperationReceived() {
+	e := proto.BluetoothEmulationCharacteristicOperationReceived{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) BluetoothEmulationDescriptorOperationReceived() {
+	e := proto.BluetoothEmulationDescriptorOperationReceived{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -338,6 +437,12 @@ func (t T) BrowserSetWindowBounds() {
 	t.Nil(err)
 }
 
+func (t T) BrowserSetContentsSize() {
+	c := &Client{}
+	err := proto.BrowserSetContentsSize{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) BrowserSetDockTile() {
 	c := &Client{}
 	err := proto.BrowserSetDockTile{}.Call(c)
@@ -402,6 +507,12 @@ func (t T) CSSForcePseudoState() {
 	t.Nil(err)
 }
 
+func (t T) CSSForceStartingStyle() {
+	c := &Client{}
+	err := proto.CSSForceStartingStyle{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) CSSGetBackgroundColors() {
 	c := &Client{}
 	_, err := proto.CSSGetBackgroundColors{}.Call(c)
@@ -414,15 +525,39 @@ func (t T) CSSGetComputedStyleForNode() {
 	t.Nil(err)
 }
 
+func (t T) CSSResolveValues() {
+	c := &Client{}
+	_, err := proto.CSSResolveValues{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) CSSGetLonghandProperties() {
+	c := &Client{}
+	_, err := proto.CSSGetLonghandProperties{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) CSSGetInlineStylesForNode() {
 	c := &Client{}
 	_, err := proto.CSSGetInlineStylesForNode{}.Call(c)
 	t.Nil(err)
 }
 
+func (t T) CSSGetAnimatedStylesForNode() {
+	c := &Client{}
+	_, err := proto.CSSGetAnimatedStylesForNode{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) CSSGetMatchedStylesForNode() {
 	c := &Client{}
 	_, err := proto.CSSGetMatchedStylesForNode{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) CSSGetEnvironmentVariables() {
+	c := &Client{}
+	_, err := proto.CSSGetEnvironmentVariables{}.Call(c)
 	t.Nil(err)
 }
 
@@ -453,6 +588,12 @@ func (t T) CSSGetLayersForNode() {
 func (t T) CSSGetLocationForSelector() {
 	c := &Client{}
 	_, err := proto.CSSGetLocationForSelector{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) CSSTrackComputedStyleUpdatesForNode() {
+	c := &Client{}
+	err := proto.CSSTrackComputedStyleUpdatesForNode{}.Call(c)
 	t.Nil(err)
 }
 
@@ -498,9 +639,21 @@ func (t T) CSSSetContainerQueryText() {
 	t.Nil(err)
 }
 
+func (t T) CSSSetContainerQueryConditionText() {
+	c := &Client{}
+	_, err := proto.CSSSetContainerQueryConditionText{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) CSSSetSupportsText() {
 	c := &Client{}
 	_, err := proto.CSSSetSupportsText{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) CSSSetNavigationText() {
+	c := &Client{}
+	_, err := proto.CSSSetNavigationText{}.Call(c)
 	t.Nil(err)
 }
 
@@ -574,6 +727,11 @@ func (t T) CSSStyleSheetChanged() {
 
 func (t T) CSSStyleSheetRemoved() {
 	e := proto.CSSStyleSheetRemoved{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) CSSComputedStyleUpdated() {
+	e := proto.CSSComputedStyleUpdated{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -651,6 +809,12 @@ func (t T) CastSinksUpdated() {
 func (t T) CastIssueUpdated() {
 	e := proto.CastIssueUpdated{}
 	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) CrashReportContextGetEntries() {
+	c := &Client{}
+	_, err := proto.CrashReportContextGetEntries{}.Call(c)
+	t.Nil(err)
 }
 
 func (t T) DOMCollectClassNamesFromSubtree() {
@@ -905,6 +1069,12 @@ func (t T) DOMGetFileInfo() {
 	t.Nil(err)
 }
 
+func (t T) DOMGetDetachedDomNodes() {
+	c := &Client{}
+	_, err := proto.DOMGetDetachedDomNodes{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) DOMSetInspectedNode() {
 	c := &Client{}
 	err := proto.DOMSetInspectedNode{}.Call(c)
@@ -959,8 +1129,19 @@ func (t T) DOMGetAnchorElement() {
 	t.Nil(err)
 }
 
+func (t T) DOMForceShowPopover() {
+	c := &Client{}
+	_, err := proto.DOMForceShowPopover{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) DOMAttributeModified() {
 	e := proto.DOMAttributeModified{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) DOMAdoptedStyleSheetsModified() {
+	e := proto.DOMAdoptedStyleSheetsModified{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -1011,6 +1192,21 @@ func (t T) DOMPseudoElementAdded() {
 
 func (t T) DOMTopLayerElementsUpdated() {
 	e := proto.DOMTopLayerElementsUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) DOMScrollableFlagUpdated() {
+	e := proto.DOMScrollableFlagUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) DOMAdRelatedStateUpdated() {
+	e := proto.DOMAdRelatedStateUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) DOMAffectedByStartingStylesFlagUpdated() {
+	e := proto.DOMAffectedByStartingStylesFlagUpdated{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -1094,24 +1290,6 @@ func (t T) DOMDebuggerSetXHRBreakpoint() {
 	t.Nil(err)
 }
 
-func (t T) EventBreakpointsSetInstrumentationBreakpoint() {
-	c := &Client{}
-	err := proto.EventBreakpointsSetInstrumentationBreakpoint{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) EventBreakpointsRemoveInstrumentationBreakpoint() {
-	c := &Client{}
-	err := proto.EventBreakpointsRemoveInstrumentationBreakpoint{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) EventBreakpointsDisable() {
-	c := &Client{}
-	err := proto.EventBreakpointsDisable{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) DOMSnapshotDisable() {
 	c := &Client{}
 	err := proto.DOMSnapshotDisable{}.Call(c)
@@ -1192,32 +1370,32 @@ func (t T) DOMStorageDomStorageItemsCleared() {
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) DatabaseDisable() {
+func (t T) DeviceAccessEnable() {
 	c := &Client{}
-	err := proto.DatabaseDisable{}.Call(c)
+	err := proto.DeviceAccessEnable{}.Call(c)
 	t.Nil(err)
 }
 
-func (t T) DatabaseEnable() {
+func (t T) DeviceAccessDisable() {
 	c := &Client{}
-	err := proto.DatabaseEnable{}.Call(c)
+	err := proto.DeviceAccessDisable{}.Call(c)
 	t.Nil(err)
 }
 
-func (t T) DatabaseExecuteSQL() {
+func (t T) DeviceAccessSelectPrompt() {
 	c := &Client{}
-	_, err := proto.DatabaseExecuteSQL{}.Call(c)
+	err := proto.DeviceAccessSelectPrompt{}.Call(c)
 	t.Nil(err)
 }
 
-func (t T) DatabaseGetDatabaseTableNames() {
+func (t T) DeviceAccessCancelPrompt() {
 	c := &Client{}
-	_, err := proto.DatabaseGetDatabaseTableNames{}.Call(c)
+	err := proto.DeviceAccessCancelPrompt{}.Call(c)
 	t.Nil(err)
 }
 
-func (t T) DatabaseAddDatabase() {
-	e := proto.DatabaseAddDatabase{}
+func (t T) DeviceAccessDeviceRequestPrompted() {
+	e := proto.DeviceAccessDeviceRequestPrompted{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -1230,6 +1408,12 @@ func (t T) DeviceOrientationClearDeviceOrientationOverride() {
 func (t T) DeviceOrientationSetDeviceOrientationOverride() {
 	c := &Client{}
 	err := proto.DeviceOrientationSetDeviceOrientationOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) DigitalCredentialsSetVirtualWalletBehavior() {
+	c := &Client{}
+	err := proto.DigitalCredentialsSetVirtualWalletBehavior{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1281,6 +1465,12 @@ func (t T) EmulationSetDefaultBackgroundColorOverride() {
 	t.Nil(err)
 }
 
+func (t T) EmulationSetSafeAreaInsetsOverride() {
+	c := &Client{}
+	err := proto.EmulationSetSafeAreaInsetsOverride{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) EmulationSetDeviceMetricsOverride() {
 	c := &Client{}
 	err := proto.EmulationSetDeviceMetricsOverride{}.Call(c)
@@ -1296,6 +1486,18 @@ func (t T) EmulationSetDevicePostureOverride() {
 func (t T) EmulationClearDevicePostureOverride() {
 	c := &Client{}
 	err := proto.EmulationClearDevicePostureOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationSetDisplayFeaturesOverride() {
+	c := &Client{}
+	err := proto.EmulationSetDisplayFeaturesOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationClearDisplayFeaturesOverride() {
+	c := &Client{}
+	err := proto.EmulationClearDisplayFeaturesOverride{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1329,6 +1531,12 @@ func (t T) EmulationSetEmulatedVisionDeficiency() {
 	t.Nil(err)
 }
 
+func (t T) EmulationSetEmulatedOSTextScale() {
+	c := &Client{}
+	err := proto.EmulationSetEmulatedOSTextScale{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) EmulationSetGeolocationOverride() {
 	c := &Client{}
 	err := proto.EmulationSetGeolocationOverride{}.Call(c)
@@ -1350,6 +1558,18 @@ func (t T) EmulationSetSensorOverrideEnabled() {
 func (t T) EmulationSetSensorOverrideReadings() {
 	c := &Client{}
 	err := proto.EmulationSetSensorOverrideReadings{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationSetPressureSourceOverrideEnabled() {
+	c := &Client{}
+	err := proto.EmulationSetPressureSourceOverrideEnabled{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationSetPressureStateOverride() {
+	c := &Client{}
+	err := proto.EmulationSetPressureStateOverride{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1419,6 +1639,12 @@ func (t T) EmulationSetDisabledImageTypes() {
 	t.Nil(err)
 }
 
+func (t T) EmulationSetDataSaverOverride() {
+	c := &Client{}
+	err := proto.EmulationSetDataSaverOverride{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) EmulationSetHardwareConcurrencyOverride() {
 	c := &Client{}
 	err := proto.EmulationSetHardwareConcurrencyOverride{}.Call(c)
@@ -1437,9 +1663,238 @@ func (t T) EmulationSetAutomationOverride() {
 	t.Nil(err)
 }
 
+func (t T) EmulationSetSmallViewportHeightDifferenceOverride() {
+	c := &Client{}
+	err := proto.EmulationSetSmallViewportHeightDifferenceOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationGetScreenInfos() {
+	c := &Client{}
+	_, err := proto.EmulationGetScreenInfos{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationAddScreen() {
+	c := &Client{}
+	_, err := proto.EmulationAddScreen{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationUpdateScreen() {
+	c := &Client{}
+	_, err := proto.EmulationUpdateScreen{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationRemoveScreen() {
+	c := &Client{}
+	err := proto.EmulationRemoveScreen{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationSetPrimaryScreen() {
+	c := &Client{}
+	err := proto.EmulationSetPrimaryScreen{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) EmulationVirtualTimeBudgetExpired() {
 	e := proto.EmulationVirtualTimeBudgetExpired{}
 	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) EmulationScreenOrientationLockChanged() {
+	e := proto.EmulationScreenOrientationLockChanged{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) EventBreakpointsSetInstrumentationBreakpoint() {
+	c := &Client{}
+	err := proto.EventBreakpointsSetInstrumentationBreakpoint{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EventBreakpointsRemoveInstrumentationBreakpoint() {
+	c := &Client{}
+	err := proto.EventBreakpointsRemoveInstrumentationBreakpoint{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EventBreakpointsDisable() {
+	c := &Client{}
+	err := proto.EventBreakpointsDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsTriggerAction() {
+	c := &Client{}
+	err := proto.ExtensionsTriggerAction{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsLoadUnpacked() {
+	c := &Client{}
+	_, err := proto.ExtensionsLoadUnpacked{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsGetExtensions() {
+	c := &Client{}
+	_, err := proto.ExtensionsGetExtensions{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsUninstall() {
+	c := &Client{}
+	err := proto.ExtensionsUninstall{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsGetStorageItems() {
+	c := &Client{}
+	_, err := proto.ExtensionsGetStorageItems{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsRemoveStorageItems() {
+	c := &Client{}
+	err := proto.ExtensionsRemoveStorageItems{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsClearStorageItems() {
+	c := &Client{}
+	err := proto.ExtensionsClearStorageItems{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) ExtensionsSetStorageItems() {
+	c := &Client{}
+	err := proto.ExtensionsSetStorageItems{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmEnable() {
+	c := &Client{}
+	err := proto.FedCmEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmDisable() {
+	c := &Client{}
+	err := proto.FedCmDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmSelectAccount() {
+	c := &Client{}
+	err := proto.FedCmSelectAccount{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmClickDialogButton() {
+	c := &Client{}
+	err := proto.FedCmClickDialogButton{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmOpenURL() {
+	c := &Client{}
+	err := proto.FedCmOpenURL{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmDismissDialog() {
+	c := &Client{}
+	err := proto.FedCmDismissDialog{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmResetCooldown() {
+	c := &Client{}
+	err := proto.FedCmResetCooldown{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FedCmDialogShown() {
+	e := proto.FedCmDialogShown{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) FedCmDialogClosed() {
+	e := proto.FedCmDialogClosed{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) FetchDisable() {
+	c := &Client{}
+	err := proto.FetchDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchEnable() {
+	c := &Client{}
+	err := proto.FetchEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchFailRequest() {
+	c := &Client{}
+	err := proto.FetchFailRequest{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchFulfillRequest() {
+	c := &Client{}
+	err := proto.FetchFulfillRequest{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchContinueRequest() {
+	c := &Client{}
+	err := proto.FetchContinueRequest{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchContinueWithAuth() {
+	c := &Client{}
+	err := proto.FetchContinueWithAuth{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchContinueResponse() {
+	c := &Client{}
+	err := proto.FetchContinueResponse{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchGetResponseBody() {
+	c := &Client{}
+	_, err := proto.FetchGetResponseBody{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchTakeResponseBodyAsStream() {
+	c := &Client{}
+	_, err := proto.FetchTakeResponseBodyAsStream{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FetchRequestPaused() {
+	e := proto.FetchRequestPaused{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) FetchAuthRequired() {
+	e := proto.FetchAuthRequired{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) FileSystemGetDirectory() {
+	c := &Client{}
+	_, err := proto.FileSystemGetDirectory{}.Call(c)
+	t.Nil(err)
 }
 
 func (t T) HeadlessExperimentalBeginFrame() {
@@ -1642,6 +2097,11 @@ func (t T) InspectorTargetReloadedAfterCrash() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) InspectorWorkerScriptLoaded() {
+	e := proto.InspectorWorkerScriptLoaded{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) LayerTreeCompositingReasons() {
 	c := &Client{}
 	_, err := proto.LayerTreeCompositingReasons{}.Call(c)
@@ -1741,9 +2201,52 @@ func (t T) LogEntryAdded() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) MediaEnable() {
+	c := &Client{}
+	err := proto.MediaEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) MediaDisable() {
+	c := &Client{}
+	err := proto.MediaDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) MediaPlayerPropertiesChanged() {
+	e := proto.MediaPlayerPropertiesChanged{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) MediaPlayerEventsAdded() {
+	e := proto.MediaPlayerEventsAdded{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) MediaPlayerMessagesLogged() {
+	e := proto.MediaPlayerMessagesLogged{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) MediaPlayerErrorsRaised() {
+	e := proto.MediaPlayerErrorsRaised{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) MediaPlayerCreated() {
+	e := proto.MediaPlayerCreated{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) MemoryGetDOMCounters() {
 	c := &Client{}
 	_, err := proto.MemoryGetDOMCounters{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) MemoryGetDOMCountersForLeakDetection() {
+	c := &Client{}
+	_, err := proto.MemoryGetDOMCountersForLeakDetection{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1867,9 +2370,27 @@ func (t T) NetworkEmulateNetworkConditions() {
 	t.Nil(err)
 }
 
+func (t T) NetworkEmulateNetworkConditionsByRule() {
+	c := &Client{}
+	_, err := proto.NetworkEmulateNetworkConditionsByRule{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) NetworkOverrideNetworkState() {
+	c := &Client{}
+	err := proto.NetworkOverrideNetworkState{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) NetworkEnable() {
 	c := &Client{}
 	err := proto.NetworkEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) NetworkConfigureDurableMessages() {
+	c := &Client{}
+	err := proto.NetworkConfigureDurableMessages{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1999,9 +2520,33 @@ func (t T) NetworkEnableReportingAPI() {
 	t.Nil(err)
 }
 
+func (t T) NetworkEnableDeviceBoundSessions() {
+	c := &Client{}
+	err := proto.NetworkEnableDeviceBoundSessions{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) NetworkDeleteDeviceBoundSession() {
+	c := &Client{}
+	err := proto.NetworkDeleteDeviceBoundSession{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) NetworkFetchSchemefulSite() {
+	c := &Client{}
+	_, err := proto.NetworkFetchSchemefulSite{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) NetworkLoadNetworkResource() {
 	c := &Client{}
 	_, err := proto.NetworkLoadNetworkResource{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) NetworkSetCookieControls() {
+	c := &Client{}
+	err := proto.NetworkSetCookieControls{}.Call(c)
 	t.Nil(err)
 }
 
@@ -2105,6 +2650,76 @@ func (t T) NetworkWebTransportClosed() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) NetworkDirectTCPSocketCreated() {
+	e := proto.NetworkDirectTCPSocketCreated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectTCPSocketOpened() {
+	e := proto.NetworkDirectTCPSocketOpened{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectTCPSocketAborted() {
+	e := proto.NetworkDirectTCPSocketAborted{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectTCPSocketClosed() {
+	e := proto.NetworkDirectTCPSocketClosed{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectTCPSocketChunkSent() {
+	e := proto.NetworkDirectTCPSocketChunkSent{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectTCPSocketChunkReceived() {
+	e := proto.NetworkDirectTCPSocketChunkReceived{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketJoinedMulticastGroup() {
+	e := proto.NetworkDirectUDPSocketJoinedMulticastGroup{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketLeftMulticastGroup() {
+	e := proto.NetworkDirectUDPSocketLeftMulticastGroup{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketCreated() {
+	e := proto.NetworkDirectUDPSocketCreated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketOpened() {
+	e := proto.NetworkDirectUDPSocketOpened{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketAborted() {
+	e := proto.NetworkDirectUDPSocketAborted{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketClosed() {
+	e := proto.NetworkDirectUDPSocketClosed{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketChunkSent() {
+	e := proto.NetworkDirectUDPSocketChunkSent{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDirectUDPSocketChunkReceived() {
+	e := proto.NetworkDirectUDPSocketChunkReceived{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) NetworkRequestWillBeSentExtraInfo() {
 	e := proto.NetworkRequestWillBeSentExtraInfo{}
 	t.Regex("", e.ProtoEvent())
@@ -2130,26 +2745,6 @@ func (t T) NetworkPolicyUpdated() {
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) NetworkSubresourceWebBundleMetadataReceived() {
-	e := proto.NetworkSubresourceWebBundleMetadataReceived{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) NetworkSubresourceWebBundleMetadataError() {
-	e := proto.NetworkSubresourceWebBundleMetadataError{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) NetworkSubresourceWebBundleInnerResponseParsed() {
-	e := proto.NetworkSubresourceWebBundleInnerResponseParsed{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) NetworkSubresourceWebBundleInnerResponseError() {
-	e := proto.NetworkSubresourceWebBundleInnerResponseError{}
-	t.Regex("", e.ProtoEvent())
-}
-
 func (t T) NetworkReportingAPIReportAdded() {
 	e := proto.NetworkReportingAPIReportAdded{}
 	t.Regex("", e.ProtoEvent())
@@ -2162,6 +2757,16 @@ func (t T) NetworkReportingAPIReportUpdated() {
 
 func (t T) NetworkReportingAPIEndpointsChangedForOrigin() {
 	e := proto.NetworkReportingAPIEndpointsChangedForOrigin{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDeviceBoundSessionsAdded() {
+	e := proto.NetworkDeviceBoundSessionsAdded{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) NetworkDeviceBoundSessionEventOccurred() {
+	e := proto.NetworkDeviceBoundSessionEventOccurred{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -2285,6 +2890,12 @@ func (t T) OverlaySetShowContainerQueryOverlays() {
 	t.Nil(err)
 }
 
+func (t T) OverlaySetShowInspectedElementAnchor() {
+	c := &Client{}
+	err := proto.OverlaySetShowInspectedElementAnchor{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) OverlaySetShowPaintRects() {
 	c := &Client{}
 	err := proto.OverlaySetShowPaintRects{}.Call(c)
@@ -2327,6 +2938,12 @@ func (t T) OverlaySetShowHinge() {
 	t.Nil(err)
 }
 
+func (t T) OverlaySetShowDisplayCutout() {
+	c := &Client{}
+	err := proto.OverlaySetShowDisplayCutout{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) OverlaySetShowIsolatedElements() {
 	c := &Client{}
 	err := proto.OverlaySetShowIsolatedElements{}.Call(c)
@@ -2354,9 +2971,61 @@ func (t T) OverlayScreenshotRequested() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) OverlayInspectPanelShowRequested() {
+	e := proto.OverlayInspectPanelShowRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) OverlayInspectedElementWindowRestored() {
+	e := proto.OverlayInspectedElementWindowRestored{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) OverlayInspectModeCanceled() {
 	e := proto.OverlayInspectModeCanceled{}
 	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PWAGetOsAppState() {
+	c := &Client{}
+	_, err := proto.PWAGetOsAppState{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PWAInstall() {
+	c := &Client{}
+	err := proto.PWAInstall{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PWAUninstall() {
+	c := &Client{}
+	err := proto.PWAUninstall{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PWALaunch() {
+	c := &Client{}
+	_, err := proto.PWALaunch{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PWALaunchFilesInApp() {
+	c := &Client{}
+	_, err := proto.PWALaunchFilesInApp{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PWAOpenCurrentPageInApp() {
+	c := &Client{}
+	err := proto.PWAOpenCurrentPageInApp{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PWAChangeAppUserSettings() {
+	c := &Client{}
+	err := proto.PWAChangeAppUserSettings{}.Call(c)
+	t.Nil(err)
 }
 
 func (t T) PageAddScriptToEvaluateOnLoad() {
@@ -2455,9 +3124,9 @@ func (t T) PageGetAppID() {
 	t.Nil(err)
 }
 
-func (t T) PageGetAdScriptID() {
+func (t T) PageGetAdScriptAncestry() {
 	c := &Client{}
-	_, err := proto.PageGetAdScriptID{}.Call(c)
+	_, err := proto.PageGetAdScriptAncestry{}.Call(c)
 	t.Nil(err)
 }
 
@@ -2719,6 +3388,12 @@ func (t T) PageSetPrerenderingAllowed() {
 	t.Nil(err)
 }
 
+func (t T) PageGetAnnotatedPageContent() {
+	c := &Client{}
+	_, err := proto.PageGetAnnotatedPageContent{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) PageDomContentEventFired() {
 	e := proto.PageDomContentEventFired{}
 	t.Regex("", e.ProtoEvent())
@@ -2744,6 +3419,11 @@ func (t T) PageFrameDetached() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) PageFrameSubtreeWillBeDetached() {
+	e := proto.PageFrameSubtreeWillBeDetached{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) PageFrameNavigated() {
 	e := proto.PageFrameNavigated{}
 	t.Regex("", e.ProtoEvent())
@@ -2756,6 +3436,11 @@ func (t T) PageDocumentOpened() {
 
 func (t T) PageFrameResized() {
 	e := proto.PageFrameResized{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PageFrameStartedNavigating() {
+	e := proto.PageFrameStartedNavigating{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -2889,6 +3574,48 @@ func (t T) PerformanceTimelineTimelineEventAdded() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) PreloadEnable() {
+	c := &Client{}
+	err := proto.PreloadEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PreloadDisable() {
+	c := &Client{}
+	err := proto.PreloadDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PreloadRuleSetUpdated() {
+	e := proto.PreloadRuleSetUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PreloadRuleSetRemoved() {
+	e := proto.PreloadRuleSetRemoved{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PreloadPreloadEnabledStateUpdated() {
+	e := proto.PreloadPreloadEnabledStateUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PreloadPrefetchStatusUpdated() {
+	e := proto.PreloadPrefetchStatusUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PreloadPrerenderStatusUpdated() {
+	e := proto.PreloadPrerenderStatusUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) PreloadPreloadingAttemptSourcesUpdated() {
+	e := proto.PreloadPreloadingAttemptSourcesUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) SecurityDisable() {
 	c := &Client{}
 	err := proto.SecurityDisable{}.Call(c)
@@ -2964,12 +3691,6 @@ func (t T) ServiceWorkerEnable() {
 	t.Nil(err)
 }
 
-func (t T) ServiceWorkerInspectWorker() {
-	c := &Client{}
-	err := proto.ServiceWorkerInspectWorker{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) ServiceWorkerSetForceUpdateOnPageLoad() {
 	c := &Client{}
 	err := proto.ServiceWorkerSetForceUpdateOnPageLoad{}.Call(c)
@@ -3027,9 +3748,157 @@ func (t T) ServiceWorkerWorkerVersionUpdated() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) SmartCardEmulationEnable() {
+	c := &Client{}
+	err := proto.SmartCardEmulationEnable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationDisable() {
+	c := &Client{}
+	err := proto.SmartCardEmulationDisable{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportEstablishContextResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportEstablishContextResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportReleaseContextResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportReleaseContextResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportListReadersResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportListReadersResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportGetStatusChangeResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportGetStatusChangeResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportBeginTransactionResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportBeginTransactionResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportPlainResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportPlainResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportConnectResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportConnectResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportDataResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportDataResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportStatusResult() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportStatusResult{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationReportError() {
+	c := &Client{}
+	err := proto.SmartCardEmulationReportError{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) SmartCardEmulationEstablishContextRequested() {
+	e := proto.SmartCardEmulationEstablishContextRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationReleaseContextRequested() {
+	e := proto.SmartCardEmulationReleaseContextRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationListReadersRequested() {
+	e := proto.SmartCardEmulationListReadersRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationGetStatusChangeRequested() {
+	e := proto.SmartCardEmulationGetStatusChangeRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationCancelRequested() {
+	e := proto.SmartCardEmulationCancelRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationConnectRequested() {
+	e := proto.SmartCardEmulationConnectRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationDisconnectRequested() {
+	e := proto.SmartCardEmulationDisconnectRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationTransmitRequested() {
+	e := proto.SmartCardEmulationTransmitRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationControlRequested() {
+	e := proto.SmartCardEmulationControlRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationGetAttribRequested() {
+	e := proto.SmartCardEmulationGetAttribRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationSetAttribRequested() {
+	e := proto.SmartCardEmulationSetAttribRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationStatusRequested() {
+	e := proto.SmartCardEmulationStatusRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationBeginTransactionRequested() {
+	e := proto.SmartCardEmulationBeginTransactionRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) SmartCardEmulationEndTransactionRequested() {
+	e := proto.SmartCardEmulationEndTransactionRequested{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) StorageGetStorageKeyForFrame() {
 	c := &Client{}
 	_, err := proto.StorageGetStorageKeyForFrame{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageGetStorageKey() {
+	c := &Client{}
+	_, err := proto.StorageGetStorageKey{}.Call(c)
 	t.Nil(err)
 }
 
@@ -3135,24 +4004,6 @@ func (t T) StorageClearTrustTokens() {
 	t.Nil(err)
 }
 
-func (t T) StorageGetInterestGroupDetails() {
-	c := &Client{}
-	_, err := proto.StorageGetInterestGroupDetails{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageSetInterestGroupTracking() {
-	c := &Client{}
-	err := proto.StorageSetInterestGroupTracking{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageSetInterestGroupAuctionTracking() {
-	c := &Client{}
-	err := proto.StorageSetInterestGroupAuctionTracking{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) StorageGetSharedStorageMetadata() {
 	c := &Client{}
 	_, err := proto.StorageGetSharedStorageMetadata{}.Call(c)
@@ -3213,24 +4064,6 @@ func (t T) StorageRunBounceTrackingMitigations() {
 	t.Nil(err)
 }
 
-func (t T) StorageSetAttributionReportingLocalTestingMode() {
-	c := &Client{}
-	err := proto.StorageSetAttributionReportingLocalTestingMode{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageSetAttributionReportingTracking() {
-	c := &Client{}
-	err := proto.StorageSetAttributionReportingTracking{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageSendPendingAttributionReports() {
-	c := &Client{}
-	_, err := proto.StorageSendPendingAttributionReports{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) StorageGetRelatedWebsiteSets() {
 	c := &Client{}
 	_, err := proto.StorageGetRelatedWebsiteSets{}.Call(c)
@@ -3257,23 +4090,13 @@ func (t T) StorageIndexedDBListUpdated() {
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) StorageInterestGroupAccessed() {
-	e := proto.StorageInterestGroupAccessed{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) StorageInterestGroupAuctionEventOccurred() {
-	e := proto.StorageInterestGroupAuctionEventOccurred{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) StorageInterestGroupAuctionNetworkRequestCreated() {
-	e := proto.StorageInterestGroupAuctionNetworkRequestCreated{}
-	t.Regex("", e.ProtoEvent())
-}
-
 func (t T) StorageSharedStorageAccessed() {
 	e := proto.StorageSharedStorageAccessed{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) StorageSharedStorageWorkletOperationExecutionFinished() {
+	e := proto.StorageSharedStorageWorkletOperationExecutionFinished{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -3284,16 +4107,6 @@ func (t T) StorageStorageBucketCreatedOrUpdated() {
 
 func (t T) StorageStorageBucketDeleted() {
 	e := proto.StorageStorageBucketDeleted{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) StorageAttributionReportingSourceRegistered() {
-	e := proto.StorageAttributionReportingSourceRegistered{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) StorageAttributionReportingTriggerRegistered() {
-	e := proto.StorageAttributionReportingTriggerRegistered{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -3417,6 +4230,18 @@ func (t T) TargetSetRemoteLocations() {
 	t.Nil(err)
 }
 
+func (t T) TargetGetDevToolsTarget() {
+	c := &Client{}
+	_, err := proto.TargetGetDevToolsTarget{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) TargetOpenDevTools() {
+	c := &Client{}
+	_, err := proto.TargetOpenDevTools{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) TargetAttachedToTarget() {
 	e := proto.TargetAttachedToTarget{}
 	t.Regex("", e.ProtoEvent())
@@ -3481,6 +4306,12 @@ func (t T) TracingGetCategories() {
 	t.Nil(err)
 }
 
+func (t T) TracingGetTrackEventDescriptor() {
+	c := &Client{}
+	_, err := proto.TracingGetTrackEventDescriptor{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) TracingRecordClockSyncMarker() {
 	c := &Client{}
 	err := proto.TracingRecordClockSyncMarker{}.Call(c)
@@ -3511,70 +4342,6 @@ func (t T) TracingDataCollected() {
 
 func (t T) TracingTracingComplete() {
 	e := proto.TracingTracingComplete{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) FetchDisable() {
-	c := &Client{}
-	err := proto.FetchDisable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchEnable() {
-	c := &Client{}
-	err := proto.FetchEnable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchFailRequest() {
-	c := &Client{}
-	err := proto.FetchFailRequest{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchFulfillRequest() {
-	c := &Client{}
-	err := proto.FetchFulfillRequest{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchContinueRequest() {
-	c := &Client{}
-	err := proto.FetchContinueRequest{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchContinueWithAuth() {
-	c := &Client{}
-	err := proto.FetchContinueWithAuth{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchContinueResponse() {
-	c := &Client{}
-	err := proto.FetchContinueResponse{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchGetResponseBody() {
-	c := &Client{}
-	_, err := proto.FetchGetResponseBody{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchTakeResponseBodyAsStream() {
-	c := &Client{}
-	_, err := proto.FetchTakeResponseBodyAsStream{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FetchRequestPaused() {
-	e := proto.FetchRequestPaused{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) FetchAuthRequired() {
-	e := proto.FetchAuthRequired{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -3744,211 +4511,63 @@ func (t T) WebAuthnCredentialAdded() {
 	t.Regex("", e.ProtoEvent())
 }
 
+func (t T) WebAuthnCredentialDeleted() {
+	e := proto.WebAuthnCredentialDeleted{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) WebAuthnCredentialUpdated() {
+	e := proto.WebAuthnCredentialUpdated{}
+	t.Regex("", e.ProtoEvent())
+}
+
 func (t T) WebAuthnCredentialAsserted() {
 	e := proto.WebAuthnCredentialAsserted{}
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) MediaEnable() {
+func (t T) WebMCPEnable() {
 	c := &Client{}
-	err := proto.MediaEnable{}.Call(c)
+	err := proto.WebMCPEnable{}.Call(c)
 	t.Nil(err)
 }
 
-func (t T) MediaDisable() {
+func (t T) WebMCPDisable() {
 	c := &Client{}
-	err := proto.MediaDisable{}.Call(c)
+	err := proto.WebMCPDisable{}.Call(c)
 	t.Nil(err)
 }
 
-func (t T) MediaPlayerPropertiesChanged() {
-	e := proto.MediaPlayerPropertiesChanged{}
+func (t T) WebMCPInvokeTool() {
+	c := &Client{}
+	_, err := proto.WebMCPInvokeTool{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) WebMCPCancelInvocation() {
+	c := &Client{}
+	err := proto.WebMCPCancelInvocation{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) WebMCPToolsAdded() {
+	e := proto.WebMCPToolsAdded{}
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) MediaPlayerEventsAdded() {
-	e := proto.MediaPlayerEventsAdded{}
+func (t T) WebMCPToolsRemoved() {
+	e := proto.WebMCPToolsRemoved{}
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) MediaPlayerMessagesLogged() {
-	e := proto.MediaPlayerMessagesLogged{}
+func (t T) WebMCPToolInvoked() {
+	e := proto.WebMCPToolInvoked{}
 	t.Regex("", e.ProtoEvent())
 }
 
-func (t T) MediaPlayerErrorsRaised() {
-	e := proto.MediaPlayerErrorsRaised{}
+func (t T) WebMCPToolResponded() {
+	e := proto.WebMCPToolResponded{}
 	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) MediaPlayersCreated() {
-	e := proto.MediaPlayersCreated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) DeviceAccessEnable() {
-	c := &Client{}
-	err := proto.DeviceAccessEnable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) DeviceAccessDisable() {
-	c := &Client{}
-	err := proto.DeviceAccessDisable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) DeviceAccessSelectPrompt() {
-	c := &Client{}
-	err := proto.DeviceAccessSelectPrompt{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) DeviceAccessCancelPrompt() {
-	c := &Client{}
-	err := proto.DeviceAccessCancelPrompt{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) DeviceAccessDeviceRequestPrompted() {
-	e := proto.DeviceAccessDeviceRequestPrompted{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PreloadEnable() {
-	c := &Client{}
-	err := proto.PreloadEnable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PreloadDisable() {
-	c := &Client{}
-	err := proto.PreloadDisable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PreloadRuleSetUpdated() {
-	e := proto.PreloadRuleSetUpdated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PreloadRuleSetRemoved() {
-	e := proto.PreloadRuleSetRemoved{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PreloadPreloadEnabledStateUpdated() {
-	e := proto.PreloadPreloadEnabledStateUpdated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PreloadPrefetchStatusUpdated() {
-	e := proto.PreloadPrefetchStatusUpdated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PreloadPrerenderStatusUpdated() {
-	e := proto.PreloadPrerenderStatusUpdated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PreloadPreloadingAttemptSourcesUpdated() {
-	e := proto.PreloadPreloadingAttemptSourcesUpdated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) FedCmEnable() {
-	c := &Client{}
-	err := proto.FedCmEnable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmDisable() {
-	c := &Client{}
-	err := proto.FedCmDisable{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmSelectAccount() {
-	c := &Client{}
-	err := proto.FedCmSelectAccount{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmClickDialogButton() {
-	c := &Client{}
-	err := proto.FedCmClickDialogButton{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmOpenURL() {
-	c := &Client{}
-	err := proto.FedCmOpenURL{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmDismissDialog() {
-	c := &Client{}
-	err := proto.FedCmDismissDialog{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmResetCooldown() {
-	c := &Client{}
-	err := proto.FedCmResetCooldown{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) FedCmDialogShown() {
-	e := proto.FedCmDialogShown{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) FedCmDialogClosed() {
-	e := proto.FedCmDialogClosed{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) PWAGetOsAppState() {
-	c := &Client{}
-	_, err := proto.PWAGetOsAppState{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PWAInstall() {
-	c := &Client{}
-	err := proto.PWAInstall{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PWAUninstall() {
-	c := &Client{}
-	err := proto.PWAUninstall{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PWALaunch() {
-	c := &Client{}
-	_, err := proto.PWALaunch{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PWALaunchFilesInApp() {
-	c := &Client{}
-	_, err := proto.PWALaunchFilesInApp{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PWAOpenCurrentPageInApp() {
-	c := &Client{}
-	err := proto.PWAOpenCurrentPageInApp{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) PWAChangeAppUserSettings() {
-	c := &Client{}
-	err := proto.PWAChangeAppUserSettings{}.Call(c)
-	t.Nil(err)
 }
 
 func (t T) ConsoleClearMessages() {
@@ -4073,6 +4692,12 @@ func (t T) DebuggerSearchInContent() {
 func (t T) DebuggerSetAsyncCallStackDepth() {
 	c := &Client{}
 	err := proto.DebuggerSetAsyncCallStackDepth{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) DebuggerSetBlackboxExecutionContexts() {
+	c := &Client{}
+	err := proto.DebuggerSetBlackboxExecutionContexts{}.Call(c)
 	t.Nil(err)
 }
 

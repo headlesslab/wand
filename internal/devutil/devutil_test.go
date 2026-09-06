@@ -2,11 +2,12 @@ package devutil_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/headlesslab/wand/internal/devutil"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/ysmood/got"
 )
 
@@ -75,13 +76,24 @@ func TestEscapeGoString(t *testing.T) {
 	g.Eq("`` + \"`\" + `test` + \"`\" + ``", devutil.EscapeGoString("`test`"))
 }
 
-func TestUseNode(t *testing.T) {
+// TestTools runs the tool runners for real, from the module root as go
+// generate does: npm ci installs the Node tools from the lockfile, prettier
+// answers with its pinned version through both NodeTool forms, and GoTool
+// runs a tool of this module. The pinned golangci-lint is left to the
+// generate Gate: building it takes a runner every core for over a minute,
+// which would starve the browser suites sharing the test job.
+func TestTools(t *testing.T) {
 	g := setup(t)
 
-	devutil.UseNode(false)
-
-	p, err := exec.LookPath("npx")
+	wd, err := os.Getwd()
 	g.E(err)
+	g.E(os.Chdir(filepath.Join("..", "..")))
+	defer func() { _ = os.Chdir(wd) }()
 
-	g.Has(p, "v20")
+	devutil.InstallNodeTools()
+
+	g.Has(devutil.NodeToolOutput("prettier", "--version"), "2.8.8")
+	g.Has(devutil.NodeTool("prettier", "--version"), "2.8.8")
+
+	g.Has(devutil.GoTool("./internal/tools/print-pins"), strconv.Itoa(pins.ProtocolRoll))
 }

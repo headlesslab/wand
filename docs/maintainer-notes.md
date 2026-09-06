@@ -33,6 +33,7 @@ Run each line from the wand checkout. The Gates are the check names the reusable
 ```sh
 go run ./internal/tools/repo-settings \
   -check "Tier 1 linux/amd64 (Go stable)" \
+  -check "Generate (zero diff)" \
   headlesslab/wand
 
 go run ./internal/tools/repo-settings \
@@ -52,7 +53,7 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires the minimal Gate of `.github/workflows/gate.yml`, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the remaining Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`.
+wand's `main` ruleset requires the two jobs of `.github/workflows/gate.yml`: the test job, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check, and the generate job (ticket #42), added to the line above by its pull request and applied by re-running the line once the job had reported; the remaining Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 
@@ -89,4 +90,29 @@ go run ./internal/tools/print-pins -json   # {"chrome":"<version>","protocol":<r
 ### What stays human
 
 - Deciding to roll: the tool computes and downloads, it opens no pull request. The reviewed Roll pull request is the trust anchor for every managed-browser hash (ADR-0005), so its reviewer reads the hash diff as the thing being approved.
-- Regenerating the protocol layer for the new Protocol roll and reading its symbol-level summary, until the Roll workflow does both.
+- Running the protocol generator for the new Protocol roll (below) and putting its symbol-level summary in the pull request, until the Roll workflow does both.
+
+## The protocol layer
+
+`lib/proto` is generated from `ChromeDevTools/devtools-protocol` at the Protocol roll the pins name, with no browser involved (ADR-0004). After a Roll, or when the generator itself changes, run it from the module root:
+
+```sh
+go run ./lib/proto/generate                 # tag v0.0.<ProtocolRoll> from GitHub
+go run ./lib/proto/generate -schema <dir>   # a checkout of that tag instead, offline
+```
+
+The generator downloads the tag's `json/browser_protocol.json` and `json/js_protocol.json` and merges them (the same content a browser serves at `/json/protocol`), applies upstream's patches, and restores `[]byte` for the fields the JSON lowered to `string`: from the "Encoded as a base64 string when passed over JSON" marker in a field's description, and from the hand-kept list `binaryFields` in `lib/proto/generate/patch.go` for the fields that have no description. It then counts the `binary` occurrences in the tag's PDL files and refuses to write anything when that count differs from the `[]byte` fields it would generate; the message lists both sides, so the fix is to add the missing field to the list, or to drop from it a field the roll removed (a listed field the schema lacks is an error on its own). Every generated file under `lib/proto` is replaced (the `a_` files are hand-written and stay), formatted with the pinned golangci-lint, and the Protocol roll is written as `proto.ProtocolRoll` beside `proto.Version`; the `lib/proto` suite holds it equal to the pins. Deprecated entities and fields carry Go's `Deprecated:` paragraph, so `staticcheck` flags their use; experimental ones are generated like any other; entities the roll removed are gone, with no stub.
+
+The run ends with a summary of the removed, renamed and newly deprecated Go identifiers, printed and written to `tmp/proto-summary.md`; it goes into the Roll pull request and the release notes. Running the generator again on a committed tree prints an empty summary and changes nothing, which is what the generate Gate checks. The `-schema` checkout must be at the pinned tag: the generator reads its `package.json` version and refuses any other roll.
+
+Known limitation, kept on purpose (spec #33, section 4; rod #1196): an optional boolean is a plain `bool` with `omitempty`, so a `false` that differs from Chrome's default is never sent. Changing the field types is API modernization.
+
+On Windows an editor's language server that holds the freshly written files can make the formatting step fail with "a file with a user-mapped section open"; running the generator in a copy of the tree the editor does not watch avoids it.
+
+## The generate Gate and the tools it pins
+
+`go generate` from the module root runs, in this order: the setup tool (`go mod download`, `npm ci` for the Node tools, `.dockerignore`), the Roll tool's `-check`, the protocol generator, the JS helper generator, the assets generator, the devices generator, then the lint tool (cspell, eslint, prettier, `golangci-lint fmt` and `run`, the `Must` prefix rule, and a clean `git status`). The generate job of `.github/workflows/gate.yml` runs the same steps on linux/amd64 and fails on any drift, so the committed generated code is always what the pinned inputs give (spec #33, section 13).
+
+Nothing in that chain resolves a version at run time: the Node tools (cspell, eslint with its html plugin, prettier, uglify-js) are named at exact versions in `internal/tools/package.json` and installed from `internal/tools/package-lock.json` with `npm ci`; golangci-lint is run through `go run` at the version `internal/devutil/tools.go` pins, and its formatters (gofmt, gofumpt, goimports, gci) run at the versions its own module pins, so that one line moves them all. Node must be on `PATH` locally; the Gate installs it with `actions/setup-node`. To move a tool, change the version in `package.json` and run `npm install --prefix internal/tools` for the lockfile, or change the line in `tools.go`, then run `go generate` and commit whatever it reformats.
+
+The repository's `.golangci.yml` is upstream's configuration migrated to the v2 schema, the way `headlesslab/.github` did for the Satellite modules, with the linters newer than upstream's set that would restyle the Snapshot disabled and each reason written beside the name; turning one on is a change of its own, once the upstream pull requests are harvested.

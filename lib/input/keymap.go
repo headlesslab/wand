@@ -4,7 +4,7 @@ package input
 // Reference: https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/server/usKeyboardLayout.ts
 var (
 	// Functions row.
-	//
+
 	Escape = AddKey("Escape", "", "Escape", 27, 0)
 	F1     = AddKey("F1", "", "F1", 112, 0)
 	F2     = AddKey("F2", "", "F2", 113, 0)
@@ -20,7 +20,7 @@ var (
 	F12    = AddKey("F12", "", "F12", 123, 0)
 
 	// Numbers row.
-	//
+
 	Backquote = AddKey("`", "~", "Backquote", 192, 0)
 	Digit1    = AddKey("1", "!", "Digit1", 49, 0)
 	Digit2    = AddKey("2", "@", "Digit2", 50, 0)
@@ -38,7 +38,7 @@ var (
 	Backspace = AddKey("Backspace", "", "Backspace", 8, 0)
 
 	// First row.
-	//
+
 	Tab          = AddKey("\t", "", "Tab", 9, 0)
 	KeyQ         = AddKey("q", "Q", "KeyQ", 81, 0)
 	KeyW         = AddKey("w", "W", "KeyW", 87, 0)
@@ -54,7 +54,7 @@ var (
 	BracketRight = AddKey("]", "}", "BracketRight", 221, 0)
 
 	// Second row.
-	//
+
 	CapsLock  = AddKey("CapsLock", "", "CapsLock", 20, 0)
 	KeyA      = AddKey("a", "A", "KeyA", 65, 0)
 	KeyS      = AddKey("s", "S", "KeyS", 83, 0)
@@ -70,7 +70,7 @@ var (
 	Enter     = AddKey("\r", "", "Enter", 13, 0)
 
 	// Third row.
-	//
+
 	ShiftLeft  = AddKey("Shift", "", "ShiftLeft", 16, 1)
 	KeyZ       = AddKey("z", "Z", "KeyZ", 90, 0)
 	KeyX       = AddKey("x", "X", "KeyX", 88, 0)
@@ -85,7 +85,7 @@ var (
 	ShiftRight = AddKey("Shift", "", "ShiftRight", 16, 2)
 
 	// Last row.
-	//
+
 	ControlLeft  = AddKey("Control", "", "ControlLeft", 17, 1)
 	MetaLeft     = AddKey("Meta", "", "MetaLeft", 91, 1)
 	AltLeft      = AddKey("Alt", "", "AltLeft", 18, 1)
@@ -97,7 +97,7 @@ var (
 	ControlRight = AddKey("Control", "", "ControlRight", 17, 2)
 
 	// Center block.
-	//
+
 	PrintScreen = AddKey("PrintScreen", "", "PrintScreen", 44, 0)
 	ScrollLock  = AddKey("ScrollLock", "", "ScrollLock", 145, 0)
 	Pause       = AddKey("Pause", "", "Pause", 19, 0)
@@ -113,7 +113,7 @@ var (
 	ArrowDown   = AddKey("ArrowDown", "", "ArrowDown", 40, 0)
 
 	// Numpad.
-	//
+
 	NumLock        = AddKey("NumLock", "", "NumLock", 144, 0)
 	NumpadDivide   = AddKey("/", "", "NumpadDivide", 111, 3)
 	NumpadMultiply = AddKey("*", "", "NumpadMultiply", 106, 3)

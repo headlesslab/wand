@@ -25,7 +25,7 @@ type PreloadRuleSet struct {
 	//
 	// See also:
 	// - https://wicg.github.io/nav-speculation/speculation-rules.html
-	// - https://github.com/WICG/nav-speculation/blob/main/triggers.md
+	// - https://github.com/WICG/nav-speculation/blob/main/triggers.md.
 	SourceText string `json:"sourceText"`
 
 	// BackendNodeID (optional) A speculation rule set is either added through an inline
@@ -37,7 +37,7 @@ type PreloadRuleSet struct {
 	//
 	// See also:
 	// - https://wicg.github.io/nav-speculation/speculation-rules.html#speculation-rules-script
-	// - https://wicg.github.io/nav-speculation/speculation-rules.html#speculation-rules-header
+	// - https://wicg.github.io/nav-speculation/speculation-rules.html#speculation-rules-header.
 	BackendNodeID DOMBackendNodeID `json:"backendNodeId,omitempty"`
 
 	// URL (optional) ...
@@ -51,7 +51,13 @@ type PreloadRuleSet struct {
 	ErrorType PreloadRuleSetErrorType `json:"errorType,omitempty"`
 
 	// ErrorMessage (deprecated) (optional) TODO(https://crbug.com/1425354): Replace this property with structured error.
+	//
+	// Deprecated: Preload.RuleSet.errorMessage is deprecated in the Chrome DevTools Protocol.
 	ErrorMessage string `json:"errorMessage,omitempty"`
+
+	// Tag (optional) For more details, see:
+	// https://github.com/WICG/nav-speculation/blob/main/speculation-rules-tags.md.
+	Tag string `json:"tag,omitempty"`
 }
 
 // PreloadRuleSetErrorType ...
@@ -63,6 +69,9 @@ const (
 
 	// PreloadRuleSetErrorTypeInvalidRulesSkipped enum const.
 	PreloadRuleSetErrorTypeInvalidRulesSkipped PreloadRuleSetErrorType = "InvalidRulesSkipped"
+
+	// PreloadRuleSetErrorTypeInvalidRulesetLevelTag enum const.
+	PreloadRuleSetErrorTypeInvalidRulesetLevelTag PreloadRuleSetErrorType = "InvalidRulesetLevelTag"
 )
 
 // PreloadSpeculationAction The type of preloading attempted. It corresponds to
@@ -76,10 +85,13 @@ const (
 
 	// PreloadSpeculationActionPrerender enum const.
 	PreloadSpeculationActionPrerender PreloadSpeculationAction = "Prerender"
+
+	// PreloadSpeculationActionPrerenderUntilScript enum const.
+	PreloadSpeculationActionPrerenderUntilScript PreloadSpeculationAction = "PrerenderUntilScript"
 )
 
 // PreloadSpeculationTargetHint Corresponds to mojom::SpeculationTargetHint.
-// See https://github.com/WICG/nav-speculation/blob/main/triggers.md#window-name-targeting-hints
+// See https://github.com/WICG/nav-speculation/blob/main/triggers.md#window-name-targeting-hints.
 type PreloadSpeculationTargetHint string
 
 const (
@@ -106,6 +118,9 @@ type PreloadPreloadingAttemptKey struct {
 	// URL ...
 	URL string `json:"url"`
 
+	// FormSubmission (optional) ...
+	FormSubmission bool `json:"formSubmission,omitempty"`
+
 	// TargetHint (optional) ...
 	TargetHint PreloadSpeculationTargetHint `json:"targetHint,omitempty"`
 }
@@ -125,6 +140,15 @@ type PreloadPreloadingAttemptSource struct {
 	// NodeIDs ...
 	NodeIDs []DOMBackendNodeID `json:"nodeIds"`
 }
+
+// PreloadPreloadPipelineID Chrome manages different types of preloads together using a
+// concept of preloading pipeline. For example, if a site uses a
+// SpeculationRules for prerender, Chrome first starts a prefetch and
+// then upgrades it to prerender.
+//
+// CDP events for them are emitted separately but they share
+// `PreloadPipelineId`.
+type PreloadPreloadPipelineID string
 
 // PreloadPrerenderFinalStatus List of FinalStatus reasons for Prerender2.
 type PreloadPrerenderFinalStatus string
@@ -147,9 +171,6 @@ const (
 
 	// PreloadPrerenderFinalStatusNavigationRequestBlockedByCsp enum const.
 	PreloadPrerenderFinalStatusNavigationRequestBlockedByCsp PreloadPrerenderFinalStatus = "NavigationRequestBlockedByCsp"
-
-	// PreloadPrerenderFinalStatusMainFrameNavigation enum const.
-	PreloadPrerenderFinalStatusMainFrameNavigation PreloadPrerenderFinalStatus = "MainFrameNavigation"
 
 	// PreloadPrerenderFinalStatusMojoBinderPolicy enum const.
 	PreloadPrerenderFinalStatusMojoBinderPolicy PreloadPrerenderFinalStatus = "MojoBinderPolicy"
@@ -333,6 +354,33 @@ const (
 
 	// PreloadPrerenderFinalStatusAllPrerenderingCanceled enum const.
 	PreloadPrerenderFinalStatusAllPrerenderingCanceled PreloadPrerenderFinalStatus = "AllPrerenderingCanceled"
+
+	// PreloadPrerenderFinalStatusWindowClosed enum const.
+	PreloadPrerenderFinalStatusWindowClosed PreloadPrerenderFinalStatus = "WindowClosed"
+
+	// PreloadPrerenderFinalStatusSlowNetwork enum const.
+	PreloadPrerenderFinalStatusSlowNetwork PreloadPrerenderFinalStatus = "SlowNetwork"
+
+	// PreloadPrerenderFinalStatusOtherPrerenderedPageActivated enum const.
+	PreloadPrerenderFinalStatusOtherPrerenderedPageActivated PreloadPrerenderFinalStatus = "OtherPrerenderedPageActivated"
+
+	// PreloadPrerenderFinalStatusV8OptimizerDisabled enum const.
+	PreloadPrerenderFinalStatusV8OptimizerDisabled PreloadPrerenderFinalStatus = "V8OptimizerDisabled"
+
+	// PreloadPrerenderFinalStatusPrerenderFailedDuringPrefetch enum const.
+	PreloadPrerenderFinalStatusPrerenderFailedDuringPrefetch PreloadPrerenderFinalStatus = "PrerenderFailedDuringPrefetch"
+
+	// PreloadPrerenderFinalStatusBrowsingDataRemoved enum const.
+	PreloadPrerenderFinalStatusBrowsingDataRemoved PreloadPrerenderFinalStatus = "BrowsingDataRemoved"
+
+	// PreloadPrerenderFinalStatusPrerenderHostReused enum const.
+	PreloadPrerenderFinalStatusPrerenderHostReused PreloadPrerenderFinalStatus = "PrerenderHostReused"
+
+	// PreloadPrerenderFinalStatusFormSubmitWhenPrerendering enum const.
+	PreloadPrerenderFinalStatusFormSubmitWhenPrerendering PreloadPrerenderFinalStatus = "FormSubmitWhenPrerendering"
+
+	// PreloadPrerenderFinalStatusCrossDocumentRestart enum const.
+	PreloadPrerenderFinalStatusCrossDocumentRestart PreloadPrerenderFinalStatus = "CrossDocumentRestart"
 )
 
 // PreloadPreloadingStatus Preloading status values, see also PreloadingTriggeringOutcome. This
@@ -382,8 +430,8 @@ const (
 	// PreloadPrefetchStatusPrefetchFailedNon2XX enum const.
 	PreloadPrefetchStatusPrefetchFailedNon2XX PreloadPrefetchStatus = "PrefetchFailedNon2XX"
 
-	// PreloadPrefetchStatusPrefetchFailedPerPageLimitExceeded enum const.
-	PreloadPrefetchStatusPrefetchFailedPerPageLimitExceeded PreloadPrefetchStatus = "PrefetchFailedPerPageLimitExceeded"
+	// PreloadPrefetchStatusPrefetchEvictedAfterBrowsingDataRemoved enum const.
+	PreloadPrefetchStatusPrefetchEvictedAfterBrowsingDataRemoved PreloadPrefetchStatus = "PrefetchEvictedAfterBrowsingDataRemoved"
 
 	// PreloadPrefetchStatusPrefetchEvictedAfterCandidateRemoved enum const.
 	PreloadPrefetchStatusPrefetchEvictedAfterCandidateRemoved PreloadPrefetchStatus = "PrefetchEvictedAfterCandidateRemoved"
@@ -402,6 +450,9 @@ const (
 
 	// PreloadPrefetchStatusPrefetchIsStale enum const.
 	PreloadPrefetchStatusPrefetchIsStale PreloadPrefetchStatus = "PrefetchIsStale"
+
+	// PreloadPrefetchStatusPrefetchNotEligibleBlockedByConnectionAllowlist enum const.
+	PreloadPrefetchStatusPrefetchNotEligibleBlockedByConnectionAllowlist PreloadPrefetchStatus = "PrefetchNotEligibleBlockedByConnectionAllowlist"
 
 	// PreloadPrefetchStatusPrefetchNotEligibleBrowserContextOffTheRecord enum const.
 	PreloadPrefetchStatusPrefetchNotEligibleBrowserContextOffTheRecord PreloadPrefetchStatus = "PrefetchNotEligibleBrowserContextOffTheRecord"
@@ -430,6 +481,15 @@ const (
 	// PreloadPrefetchStatusPrefetchNotEligibleUserHasServiceWorker enum const.
 	PreloadPrefetchStatusPrefetchNotEligibleUserHasServiceWorker PreloadPrefetchStatus = "PrefetchNotEligibleUserHasServiceWorker"
 
+	// PreloadPrefetchStatusPrefetchNotEligibleUserHasServiceWorkerNoFetchHandler enum const.
+	PreloadPrefetchStatusPrefetchNotEligibleUserHasServiceWorkerNoFetchHandler PreloadPrefetchStatus = "PrefetchNotEligibleUserHasServiceWorkerNoFetchHandler"
+
+	// PreloadPrefetchStatusPrefetchNotEligibleRedirectFromServiceWorker enum const.
+	PreloadPrefetchStatusPrefetchNotEligibleRedirectFromServiceWorker PreloadPrefetchStatus = "PrefetchNotEligibleRedirectFromServiceWorker"
+
+	// PreloadPrefetchStatusPrefetchNotEligibleRedirectToServiceWorker enum const.
+	PreloadPrefetchStatusPrefetchNotEligibleRedirectToServiceWorker PreloadPrefetchStatus = "PrefetchNotEligibleRedirectToServiceWorker"
+
 	// PreloadPrefetchStatusPrefetchNotEligibleBatterySaverEnabled enum const.
 	PreloadPrefetchStatusPrefetchNotEligibleBatterySaverEnabled PreloadPrefetchStatus = "PrefetchNotEligibleBatterySaverEnabled"
 
@@ -456,6 +516,9 @@ const (
 
 	// PreloadPrefetchStatusPrefetchNotUsedProbeFailed enum const.
 	PreloadPrefetchStatusPrefetchNotUsedProbeFailed PreloadPrefetchStatus = "PrefetchNotUsedProbeFailed"
+
+	// PreloadPrefetchStatusPrefetchCancelledOnUserNavigation enum const.
+	PreloadPrefetchStatusPrefetchCancelledOnUserNavigation PreloadPrefetchStatus = "PrefetchCancelledOnUserNavigation"
 )
 
 // PreloadPrerenderMismatchedHeaders Information of headers to be displayed when the header mismatch occurred.
@@ -542,6 +605,9 @@ type PreloadPrefetchStatusUpdated struct {
 	// Key ...
 	Key *PreloadPreloadingAttemptKey `json:"key"`
 
+	// PipelineID ...
+	PipelineID PreloadPreloadPipelineID `json:"pipelineId"`
+
 	// InitiatingFrameID The frame id of the frame initiating prefetch.
 	InitiatingFrameID PageFrameID `json:"initiatingFrameId"`
 
@@ -567,6 +633,9 @@ func (evt PreloadPrefetchStatusUpdated) ProtoEvent() string {
 type PreloadPrerenderStatusUpdated struct {
 	// Key ...
 	Key *PreloadPreloadingAttemptKey `json:"key"`
+
+	// PipelineID ...
+	PipelineID PreloadPreloadPipelineID `json:"pipelineId"`
 
 	// Status ...
 	Status PreloadPreloadingStatus `json:"status"`

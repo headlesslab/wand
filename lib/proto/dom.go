@@ -27,6 +27,9 @@ type DOMNodeID int
 // front-end.
 type DOMBackendNodeID int
 
+// DOMStyleSheetID Unique identifier for a CSS stylesheet.
+type DOMStyleSheetID string
+
 // DOMBackendNode Backend node with a friendly name.
 type DOMBackendNode struct {
 	// NodeType `Node`'s nodeType.
@@ -49,17 +52,32 @@ const (
 	// DOMPseudoTypeFirstLetter enum const.
 	DOMPseudoTypeFirstLetter DOMPseudoType = "first-letter"
 
+	// DOMPseudoTypeCheckmark enum const.
+	DOMPseudoTypeCheckmark DOMPseudoType = "checkmark"
+
 	// DOMPseudoTypeBefore enum const.
 	DOMPseudoTypeBefore DOMPseudoType = "before"
 
 	// DOMPseudoTypeAfter enum const.
 	DOMPseudoTypeAfter DOMPseudoType = "after"
 
+	// DOMPseudoTypeExpandIcon enum const.
+	DOMPseudoTypeExpandIcon DOMPseudoType = "expand-icon"
+
+	// DOMPseudoTypePickerIcon enum const.
+	DOMPseudoTypePickerIcon DOMPseudoType = "picker-icon"
+
+	// DOMPseudoTypeInterestButton enum const.
+	DOMPseudoTypeInterestButton DOMPseudoType = "interest-button"
+
 	// DOMPseudoTypeMarker enum const.
 	DOMPseudoTypeMarker DOMPseudoType = "marker"
 
 	// DOMPseudoTypeBackdrop enum const.
 	DOMPseudoTypeBackdrop DOMPseudoType = "backdrop"
+
+	// DOMPseudoTypeColumn enum const.
+	DOMPseudoTypeColumn DOMPseudoType = "column"
 
 	// DOMPseudoTypeSelection enum const.
 	DOMPseudoTypeSelection DOMPseudoType = "selection"
@@ -87,6 +105,9 @@ const (
 
 	// DOMPseudoTypeScrollMarkerGroup enum const.
 	DOMPseudoTypeScrollMarkerGroup DOMPseudoType = "scroll-marker-group"
+
+	// DOMPseudoTypeScrollButton enum const.
+	DOMPseudoTypeScrollButton DOMPseudoType = "scroll-button"
 
 	// DOMPseudoTypeScrollbar enum const.
 	DOMPseudoTypeScrollbar DOMPseudoType = "scrollbar"
@@ -121,11 +142,41 @@ const (
 	// DOMPseudoTypeViewTransitionImagePair enum const.
 	DOMPseudoTypeViewTransitionImagePair DOMPseudoType = "view-transition-image-pair"
 
+	// DOMPseudoTypeViewTransitionGroupChildren enum const.
+	DOMPseudoTypeViewTransitionGroupChildren DOMPseudoType = "view-transition-group-children"
+
 	// DOMPseudoTypeViewTransitionOld enum const.
 	DOMPseudoTypeViewTransitionOld DOMPseudoType = "view-transition-old"
 
 	// DOMPseudoTypeViewTransitionNew enum const.
 	DOMPseudoTypeViewTransitionNew DOMPseudoType = "view-transition-new"
+
+	// DOMPseudoTypePlaceholder enum const.
+	DOMPseudoTypePlaceholder DOMPseudoType = "placeholder"
+
+	// DOMPseudoTypeFileSelectorButton enum const.
+	DOMPseudoTypeFileSelectorButton DOMPseudoType = "file-selector-button"
+
+	// DOMPseudoTypeDetailsContent enum const.
+	DOMPseudoTypeDetailsContent DOMPseudoType = "details-content"
+
+	// DOMPseudoTypePicker enum const.
+	DOMPseudoTypePicker DOMPseudoType = "picker"
+
+	// DOMPseudoTypeSelectListbox enum const.
+	DOMPseudoTypeSelectListbox DOMPseudoType = "select-listbox"
+
+	// DOMPseudoTypePermissionIcon enum const.
+	DOMPseudoTypePermissionIcon DOMPseudoType = "permission-icon"
+
+	// DOMPseudoTypeOverscrollAreaParent enum const.
+	DOMPseudoTypeOverscrollAreaParent DOMPseudoType = "overscroll-area-parent"
+
+	// DOMPseudoTypeOverscrollBackdrop enum const.
+	DOMPseudoTypeOverscrollBackdrop DOMPseudoType = "overscroll-backdrop"
+
+	// DOMPseudoTypeSkeleton enum const.
+	DOMPseudoTypeSkeleton DOMPseudoType = "skeleton"
 )
 
 // DOMShadowRootType Shadow root type.
@@ -282,6 +333,8 @@ type DOMNode struct {
 	// ImportedDocument (deprecated) (optional) Deprecated, as the HTML Imports API has been removed (crbug.com/937746).
 	// This property used to return the imported document for the HTMLImport links.
 	// The property is always undefined now.
+	//
+	// Deprecated: DOM.Node.importedDocument is deprecated in the Chrome DevTools Protocol.
 	ImportedDocument *DOMNode `json:"importedDocument,omitempty"`
 
 	// DistributedNodes (optional) Distributed nodes for given insertion point.
@@ -295,6 +348,27 @@ type DOMNode struct {
 
 	// AssignedSlot (optional) ...
 	AssignedSlot *DOMBackendNode `json:"assignedSlot,omitempty"`
+
+	// IsScrollable (experimental) (optional) ...
+	IsScrollable bool `json:"isScrollable,omitempty"`
+
+	// AffectedByStartingStyles (experimental) (optional) ...
+	AffectedByStartingStyles bool `json:"affectedByStartingStyles,omitempty"`
+
+	// AdoptedStyleSheets (experimental) (optional) ...
+	AdoptedStyleSheets []DOMStyleSheetID `json:"adoptedStyleSheets,omitempty"`
+
+	// AdProvenance (experimental) (optional) ...
+	AdProvenance *NetworkAdProvenance `json:"adProvenance,omitempty"`
+}
+
+// DOMDetachedElementInfo A structure to hold the top-level node of a detached tree and an array of its retained descendants.
+type DOMDetachedElementInfo struct {
+	// TreeNode ...
+	TreeNode *DOMNode `json:"treeNode"`
+
+	// RetainedNodeIDs ...
+	RetainedNodeIDs []DOMNodeID `json:"retainedNodeIds"`
 }
 
 // DOMRGBA A structure holding an RGBA color.
@@ -317,52 +391,52 @@ type DOMQuad []float64
 
 // DOMBoxModel Box model.
 type DOMBoxModel struct {
-	// Content box
+	// Content box.
 	Content DOMQuad `json:"content"`
 
-	// Padding box
+	// Padding box.
 	Padding DOMQuad `json:"padding"`
 
-	// Border box
+	// Border box.
 	Border DOMQuad `json:"border"`
 
-	// Margin box
+	// Margin box.
 	Margin DOMQuad `json:"margin"`
 
-	// Width Node width
+	// Width Node width.
 	Width int `json:"width"`
 
-	// Height Node height
+	// Height Node height.
 	Height int `json:"height"`
 
-	// ShapeOutside (optional) Shape outside coordinates
+	// ShapeOutside (optional) Shape outside coordinates.
 	ShapeOutside *DOMShapeOutsideInfo `json:"shapeOutside,omitempty"`
 }
 
 // DOMShapeOutsideInfo CSS Shape Outside details.
 type DOMShapeOutsideInfo struct {
-	// Bounds Shape bounds
+	// Bounds Shape bounds.
 	Bounds DOMQuad `json:"bounds"`
 
-	// Shape coordinate details
+	// Shape coordinate details.
 	Shape []lazyjson.JSON `json:"shape"`
 
-	// MarginShape Margin shape bounds
+	// MarginShape Margin shape bounds.
 	MarginShape []lazyjson.JSON `json:"marginShape"`
 }
 
 // DOMRect Rectangle.
 type DOMRect struct {
-	// X coordinate
+	// X coordinate.
 	X float64 `json:"x"`
 
-	// Y coordinate
+	// Y coordinate.
 	Y float64 `json:"y"`
 
-	// Width Rectangle width
+	// Width Rectangle width.
 	Width float64 `json:"width"`
 
-	// Height Rectangle height
+	// Height Rectangle height.
 	Height float64 `json:"height"`
 }
 
@@ -664,6 +738,8 @@ type DOMGetDocumentResult struct {
 // DOMGetFlattenedDocument (deprecated) Returns the root DOM node (and optionally the subtree) to the caller.
 // Deprecated, as it is not designed to work well with the rest of the DOM agent.
 // Use DOMSnapshot.captureSnapshot instead.
+//
+// Deprecated: DOM.getFlattenedDocument is deprecated in the Chrome DevTools Protocol.
 type DOMGetFlattenedDocument struct {
 	// Depth (optional) The maximum depth at which children should be retrieved, defaults to 1. Use -1 for the
 	// entire subtree or provide an integer larger than 0.
@@ -684,6 +760,8 @@ func (m DOMGetFlattenedDocument) Call(c Client) (*DOMGetFlattenedDocumentResult,
 }
 
 // DOMGetFlattenedDocumentResult (deprecated) ...
+//
+// Deprecated: DOM.getFlattenedDocument is deprecated in the Chrome DevTools Protocol.
 type DOMGetFlattenedDocumentResult struct {
 	// Nodes Resulting node.
 	Nodes []*DOMNode `json:"nodes"`
@@ -764,6 +842,9 @@ type DOMGetOuterHTML struct {
 
 	// ObjectID (optional) JavaScript object id of the node wrapper.
 	ObjectID RuntimeRemoteObjectID `json:"objectId,omitempty"`
+
+	// IncludeShadowDOM (experimental) (optional) Include all shadow roots. Equals to false if not specified.
+	IncludeShadowDOM bool `json:"includeShadowDOM,omitempty"`
 }
 
 // ProtoReq name.
@@ -1039,7 +1120,7 @@ func (m DOMGetTopLayerElements) Call(c Client) (*DOMGetTopLayerElementsResult, e
 
 // DOMGetTopLayerElementsResult (experimental) ...
 type DOMGetTopLayerElementsResult struct {
-	// NodeIDs NodeIds of top layer elements
+	// NodeIDs NodeIds of top layer elements.
 	NodeIDs []DOMNodeID `json:"nodeIds"`
 }
 
@@ -1049,6 +1130,12 @@ type DOMGetElementByRelationRelation string
 const (
 	// DOMGetElementByRelationRelationPopoverTarget enum const.
 	DOMGetElementByRelationRelationPopoverTarget DOMGetElementByRelationRelation = "PopoverTarget"
+
+	// DOMGetElementByRelationRelationInterestTarget enum const.
+	DOMGetElementByRelationRelationInterestTarget DOMGetElementByRelationRelation = "InterestTarget"
+
+	// DOMGetElementByRelationRelationCommandFor enum const.
+	DOMGetElementByRelationRelationCommandFor DOMGetElementByRelationRelation = "CommandFor"
 )
 
 // DOMGetElementByRelation (experimental) Returns the NodeId of the matched element according to certain relations.
@@ -1316,6 +1403,24 @@ type DOMGetFileInfoResult struct {
 	Path string `json:"path"`
 }
 
+// DOMGetDetachedDomNodes (experimental) Returns list of detached nodes.
+type DOMGetDetachedDomNodes struct{}
+
+// ProtoReq name.
+func (m DOMGetDetachedDomNodes) ProtoReq() string { return "DOM.getDetachedDomNodes" }
+
+// Call the request.
+func (m DOMGetDetachedDomNodes) Call(c Client) (*DOMGetDetachedDomNodesResult, error) {
+	var res DOMGetDetachedDomNodesResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// DOMGetDetachedDomNodesResult (experimental) ...
+type DOMGetDetachedDomNodesResult struct {
+	// DetachedNodes The list of detached nodes.
+	DetachedNodes []*DOMDetachedElementInfo `json:"detachedNodes"`
+}
+
 // DOMSetInspectedNode (experimental) Enables console to refer to the node with given id via $x (see Command Line API for more details
 // $x functions).
 type DOMSetInspectedNode struct {
@@ -1425,9 +1530,10 @@ type DOMGetFrameOwnerResult struct {
 }
 
 // DOMGetContainerForNode (experimental) Returns the query container of the given node based on container query
-// conditions: containerName, physical, and logical axes. If no axes are
-// provided, the style container is returned, which is the direct parent or the
-// closest element with a matching container-name.
+// conditions: containerName, physical and logical axes, and whether it queries
+// scroll-state or anchored elements. If no axes are provided and
+// queriesScrollState is false, the style container is returned, which is the
+// direct parent or the closest element with a matching container-name.
 type DOMGetContainerForNode struct {
 	// NodeID ...
 	NodeID DOMNodeID `json:"nodeId"`
@@ -1440,6 +1546,12 @@ type DOMGetContainerForNode struct {
 
 	// LogicalAxes (optional) ...
 	LogicalAxes DOMLogicalAxes `json:"logicalAxes,omitempty"`
+
+	// QueriesScrollState (optional) ...
+	QueriesScrollState bool `json:"queriesScrollState,omitempty"`
+
+	// QueriesAnchored (optional) ...
+	QueriesAnchored bool `json:"queriesAnchored,omitempty"`
 }
 
 // ProtoReq name.
@@ -1509,6 +1621,38 @@ type DOMGetAnchorElementResult struct {
 	NodeID DOMNodeID `json:"nodeId"`
 }
 
+// DOMForceShowPopover (experimental) When enabling, this API force-opens the popover identified by nodeId
+// and keeps it open until disabled.
+type DOMForceShowPopover struct {
+	// NodeID Id of the popover HTMLElement.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// Enable If true, opens the popover and keeps it open. If false, closes the
+	// popover if it was previously force-opened.
+	Enable bool `json:"enable"`
+
+	// InvokerNodeID (optional) Optional ID of the element invoking this popover, used to establish the implicit anchor.
+	// If not provided, it will fall back to the first invoker in the document, preferring
+	// elements with a popovertarget attribute over those with a commandfor attribute. Note that
+	// if there are multiple invokers, this is just an estimate.
+	InvokerNodeID DOMBackendNodeID `json:"invokerNodeId,omitempty"`
+}
+
+// ProtoReq name.
+func (m DOMForceShowPopover) ProtoReq() string { return "DOM.forceShowPopover" }
+
+// Call the request.
+func (m DOMForceShowPopover) Call(c Client) (*DOMForceShowPopoverResult, error) {
+	var res DOMForceShowPopoverResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// DOMForceShowPopoverResult (experimental) ...
+type DOMForceShowPopoverResult struct {
+	// NodeIDs List of popovers that were closed in order to respect popover stacking order.
+	NodeIDs []DOMNodeID `json:"nodeIds"`
+}
+
 // DOMAttributeModified Fired when `Element`'s attribute is modified.
 type DOMAttributeModified struct {
 	// NodeID Id of the node that has changed.
@@ -1524,6 +1668,20 @@ type DOMAttributeModified struct {
 // ProtoEvent name.
 func (evt DOMAttributeModified) ProtoEvent() string {
 	return "DOM.attributeModified"
+}
+
+// DOMAdoptedStyleSheetsModified (experimental) Fired when `Element`'s adoptedStyleSheets are modified.
+type DOMAdoptedStyleSheetsModified struct {
+	// NodeID Id of the node that has changed.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// AdoptedStyleSheets (experimental) New adoptedStyleSheets array.
+	AdoptedStyleSheets []DOMStyleSheetID `json:"adoptedStyleSheets"`
+}
+
+// ProtoEvent name.
+func (evt DOMAdoptedStyleSheetsModified) ProtoEvent() string {
+	return "DOM.adoptedStyleSheetsModified"
 }
 
 // DOMAttributeRemoved Fired when `Element`'s attribute is removed.
@@ -1652,6 +1810,48 @@ type DOMTopLayerElementsUpdated struct{}
 // ProtoEvent name.
 func (evt DOMTopLayerElementsUpdated) ProtoEvent() string {
 	return "DOM.topLayerElementsUpdated"
+}
+
+// DOMScrollableFlagUpdated (experimental) Fired when a node's scrollability state changes.
+type DOMScrollableFlagUpdated struct {
+	// NodeID The id of the node.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// IsScrollable If the node is scrollable.
+	IsScrollable bool `json:"isScrollable"`
+}
+
+// ProtoEvent name.
+func (evt DOMScrollableFlagUpdated) ProtoEvent() string {
+	return "DOM.scrollableFlagUpdated"
+}
+
+// DOMAdRelatedStateUpdated (experimental) Fired when a node's ad related state changes.
+type DOMAdRelatedStateUpdated struct {
+	// NodeID The id of the node.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// AdProvenance (optional) The provenance of the ad related node, if it is ad related.
+	AdProvenance *NetworkAdProvenance `json:"adProvenance,omitempty"`
+}
+
+// ProtoEvent name.
+func (evt DOMAdRelatedStateUpdated) ProtoEvent() string {
+	return "DOM.adRelatedStateUpdated"
+}
+
+// DOMAffectedByStartingStylesFlagUpdated (experimental) Fired when a node's starting styles changes.
+type DOMAffectedByStartingStylesFlagUpdated struct {
+	// NodeID The id of the node.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// AffectedByStartingStyles If the node has starting styles.
+	AffectedByStartingStyles bool `json:"affectedByStartingStyles"`
+}
+
+// ProtoEvent name.
+func (evt DOMAffectedByStartingStylesFlagUpdated) ProtoEvent() string {
+	return "DOM.affectedByStartingStylesFlagUpdated"
 }
 
 // DOMPseudoElementRemoved (experimental) Called when a pseudo element is removed from an element.

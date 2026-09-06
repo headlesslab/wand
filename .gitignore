@@ -8,3 +8,7 @@ tmp/
 *.test
 *.json
 *.exe
+
+# The pinned Node tools of the generators and the lint tool.
+!internal/tools/package.json
+!internal/tools/package-lock.json

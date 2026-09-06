@@ -135,6 +135,8 @@ func (m DOMDebuggerRemoveEventListenerBreakpoint) Call(c Client) error {
 }
 
 // DOMDebuggerRemoveInstrumentationBreakpoint (deprecated) (experimental) Removes breakpoint on particular native event.
+//
+// Deprecated: DOMDebugger.removeInstrumentationBreakpoint is deprecated in the Chrome DevTools Protocol.
 type DOMDebuggerRemoveInstrumentationBreakpoint struct {
 	// EventName Instrumentation name to stop on.
 	EventName string `json:"eventName"`
@@ -218,6 +220,8 @@ func (m DOMDebuggerSetEventListenerBreakpoint) Call(c Client) error {
 }
 
 // DOMDebuggerSetInstrumentationBreakpoint (deprecated) (experimental) Sets breakpoint on particular native event.
+//
+// Deprecated: DOMDebugger.setInstrumentationBreakpoint is deprecated in the Chrome DevTools Protocol.
 type DOMDebuggerSetInstrumentationBreakpoint struct {
 	// EventName Instrumentation name to stop on.
 	EventName string `json:"eventName"`

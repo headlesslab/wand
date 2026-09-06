@@ -2,6 +2,10 @@
 
 package proto
 
+import (
+	"github.com/headlesslab/lazyjson"
+)
+
 /*
 
 CSS
@@ -14,9 +18,6 @@ can also keep track of stylesheets via the `styleSheetAdded`/`styleSheetRemoved`
 subsequently load the required stylesheet contents using the `getStyleSheet[Text]()` methods.
 
 */
-
-// CSSStyleSheetID ...
-type CSSStyleSheetID string
 
 // CSSStyleSheetOrigin Stylesheet type: "injected" for stylesheets injected via extension, "user-agent" for user-agent
 // stylesheets, "inspector" for stylesheets created by the inspector (i.e. those holding the "via
@@ -49,6 +50,15 @@ type CSSPseudoElementMatches struct {
 	Matches []*CSSRuleMatch `json:"matches"`
 }
 
+// CSSCSSAnimationStyle CSS style coming from animations with the name of the animation.
+type CSSCSSAnimationStyle struct {
+	// Name (optional) The name of the animation.
+	Name string `json:"name,omitempty"`
+
+	// Style The style coming from the animation.
+	Style *CSSCSSStyle `json:"style"`
+}
+
 // CSSInheritedStyleEntry Inherited CSS rule collection from ancestor node.
 type CSSInheritedStyleEntry struct {
 	// InlineStyle (optional) The ancestor node's inline style, if any, in the style inheritance chain.
@@ -56,6 +66,15 @@ type CSSInheritedStyleEntry struct {
 
 	// MatchedCSSRules Matches of CSS rules matching the ancestor node in the style inheritance chain.
 	MatchedCSSRules []*CSSRuleMatch `json:"matchedCSSRules"`
+}
+
+// CSSInheritedAnimatedStyleEntry Inherited CSS style collection for animated styles from ancestor node.
+type CSSInheritedAnimatedStyleEntry struct {
+	// AnimationStyles (optional) Styles coming from the animations of the ancestor, if any, in the style inheritance chain.
+	AnimationStyles []*CSSCSSAnimationStyle `json:"animationStyles,omitempty"`
+
+	// TransitionsStyle (optional) The style coming from the transitions of the ancestor, if any, in the style inheritance chain.
+	TransitionsStyle *CSSCSSStyle `json:"transitionsStyle,omitempty"`
 }
 
 // CSSInheritedPseudoElementMatches Inherited pseudo element matches from pseudos of an ancestor node.
@@ -85,8 +104,23 @@ type CSSValue struct {
 	Specificity *CSSSpecificity `json:"specificity,omitempty"`
 }
 
+// CSSSpecificityComponent (experimental) Contribution of an individual simple selector to specificity.
+type CSSSpecificityComponent struct {
+	// Text The simple selector text that contributes to specificity.
+	Text string `json:"text"`
+
+	// A The a component contribution.
+	A int `json:"a"`
+
+	// B The b component contribution.
+	B int `json:"b"`
+
+	// C The c component contribution.
+	C int `json:"c"`
+}
+
 // CSSSpecificity (experimental) Specificity:
-// https://drafts.csswg.org/selectors/#specificity-rules
+// https://drafts.csswg.org/selectors/#specificity-rules.
 type CSSSpecificity struct {
 	// A The a component, which represents the number of ID selectors.
 	A int `json:"a"`
@@ -97,6 +131,9 @@ type CSSSpecificity struct {
 
 	// C The c component, which represents the number of type selectors and pseudo-elements.
 	C int `json:"c"`
+
+	// Components (experimental) (optional) Per-simple-selector contributions used to explain this specificity.
+	Components []*CSSSpecificityComponent `json:"components,omitempty"`
 }
 
 // CSSSelectorList Selector list data.
@@ -111,7 +148,7 @@ type CSSSelectorList struct {
 // CSSCSSStyleSheetHeader CSS stylesheet metainformation.
 type CSSCSSStyleSheetHeader struct {
 	// StyleSheetID The stylesheet identifier.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// FrameID Owner frame identifier.
 	FrameID PageFrameID `json:"frameId"`
@@ -168,7 +205,7 @@ type CSSCSSStyleSheetHeader struct {
 	// EndColumn Column offset of the end of the stylesheet within the resource (zero based).
 	EndColumn float64 `json:"endColumn"`
 
-	// LoadingFailed (experimental) (optional) If the style sheet was loaded from a network resource, this indicates when the resource failed to load
+	// LoadingFailed (experimental) (optional) If the style sheet was loaded from a network resource, this indicates when the resource failed to load.
 	LoadingFailed bool `json:"loadingFailed,omitempty"`
 }
 
@@ -176,7 +213,7 @@ type CSSCSSStyleSheetHeader struct {
 type CSSCSSRule struct {
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// SelectorList Rule selector data.
 	SelectorList *CSSSelectorList `json:"selectorList"`
@@ -189,6 +226,9 @@ type CSSCSSRule struct {
 
 	// Style Associated style declaration.
 	Style *CSSCSSStyle `json:"style"`
+
+	// OriginTreeScopeNodeID (experimental) (optional) The BackendNodeId of the DOM node that constitutes the origin tree scope of this rule.
+	OriginTreeScopeNodeID DOMBackendNodeID `json:"originTreeScopeNodeId,omitempty"`
 
 	// Media (optional) Media list array (for rules involving media queries). The array enumerates media queries
 	// starting with the innermost one, going outwards.
@@ -212,6 +252,14 @@ type CSSCSSRule struct {
 
 	// RuleTypes (experimental) (optional) The array keeps the types of ancestor CSSRules from the innermost going outwards.
 	RuleTypes []CSSCSSRuleType `json:"ruleTypes,omitempty"`
+
+	// StartingStyles (experimental) (optional) @starting-style CSS at-rule array.
+	// The array enumerates @starting-style at-rules starting with the innermost one, going outwards.
+	StartingStyles []*CSSCSSStartingStyle `json:"startingStyles,omitempty"`
+
+	// Navigations (experimental) (optional) @navigation CSS at-rule array.
+	// The array enumerates @navigation at-rules starting with the innermost one, going outwards.
+	Navigations []*CSSCSSNavigation `json:"navigations,omitempty"`
 }
 
 // CSSCSSRuleType (experimental) Enum indicating the type of a CSS rule, used to represent the order of a style rule's ancestors.
@@ -236,13 +284,19 @@ const (
 
 	// CSSCSSRuleTypeStyleRule enum const.
 	CSSCSSRuleTypeStyleRule CSSCSSRuleType = "StyleRule"
+
+	// CSSCSSRuleTypeStartingStyleRule enum const.
+	CSSCSSRuleTypeStartingStyleRule CSSCSSRuleType = "StartingStyleRule"
+
+	// CSSCSSRuleTypeNavigationRule enum const.
+	CSSCSSRuleTypeNavigationRule CSSCSSRuleType = "NavigationRule"
 )
 
 // CSSRuleUsage CSS coverage information.
 type CSSRuleUsage struct {
 	// StyleSheetID The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// StartOffset Offset of the start of the rule (including selector) from the beginning of the stylesheet.
 	StartOffset float64 `json:"startOffset"`
@@ -262,7 +316,7 @@ type CSSSourceRange struct {
 	// StartColumn Start column of range (inclusive).
 	StartColumn int `json:"startColumn"`
 
-	// EndLine End line of range
+	// EndLine End line of range.
 	EndLine int `json:"endLine"`
 
 	// EndColumn End column of range (exclusive).
@@ -290,11 +344,19 @@ type CSSCSSComputedStyleProperty struct {
 	Value string `json:"value"`
 }
 
+// CSSComputedStyleExtraFields (experimental) ...
+type CSSComputedStyleExtraFields struct {
+	// IsAppearanceBase Returns whether or not this node is being rendered with base appearance,
+	// which happens when it has its appearance property set to base/base-select
+	// or it is in the subtree of an element being rendered with base appearance.
+	IsAppearanceBase bool `json:"isAppearanceBase"`
+}
+
 // CSSCSSStyle CSS style representation.
 type CSSCSSStyle struct {
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// CSSProperties CSS properties in the style.
 	CSSProperties []*CSSCSSProperty `json:"cssProperties"`
@@ -376,7 +438,7 @@ type CSSCSSMedia struct {
 	Range *CSSSourceRange `json:"range,omitempty"`
 
 	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// MediaList (optional) Array of media queries.
 	MediaList []*CSSMediaQuery `json:"mediaList,omitempty"`
@@ -411,7 +473,12 @@ type CSSMediaQueryExpression struct {
 
 // CSSCSSContainerQuery (experimental) CSS container query rule descriptor.
 type CSSCSSContainerQuery struct {
-	// Text Container query text.
+	// Text (deprecated) Container query text.
+	// Contains the query part without the container name for a single query.
+	// Deprecated in favor of conditionText which contains the full prelude
+	// after @container.
+	//
+	// Deprecated: CSS.CSSContainerQuery.text is deprecated in the Chrome DevTools Protocol.
 	Text string `json:"text"`
 
 	// Range (optional) The associated rule header range in the enclosing stylesheet (if
@@ -419,7 +486,7 @@ type CSSCSSContainerQuery struct {
 	Range *CSSSourceRange `json:"range,omitempty"`
 
 	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// Name (optional) Optional name for the container.
 	Name string `json:"name,omitempty"`
@@ -429,6 +496,15 @@ type CSSCSSContainerQuery struct {
 
 	// LogicalAxes (optional) Optional logical axes queried for the container.
 	LogicalAxes DOMLogicalAxes `json:"logicalAxes,omitempty"`
+
+	// QueriesScrollState (optional) true if the query contains scroll-state() queries.
+	QueriesScrollState bool `json:"queriesScrollState,omitempty"`
+
+	// QueriesAnchored (optional) true if the query contains anchored() queries.
+	QueriesAnchored bool `json:"queriesAnchored,omitempty"`
+
+	// ConditionText CSSContainerRule.conditionText.
+	ConditionText string `json:"conditionText"`
 }
 
 // CSSCSSSupports (experimental) CSS Supports at-rule descriptor.
@@ -444,7 +520,23 @@ type CSSCSSSupports struct {
 	Range *CSSSourceRange `json:"range,omitempty"`
 
 	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
+}
+
+// CSSCSSNavigation (experimental) CSS Navigation at-rule descriptor.
+type CSSCSSNavigation struct {
+	// Text Navigation rule text.
+	Text string `json:"text"`
+
+	// Active (optional) Whether the navigation condition is satisfied.
+	Active bool `json:"active,omitempty"`
+
+	// Range (optional) The associated rule header range in the enclosing stylesheet (if
+	// available).
+	Range *CSSSourceRange `json:"range,omitempty"`
+
+	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 }
 
 // CSSCSSScope (experimental) CSS Scope at-rule descriptor.
@@ -457,7 +549,7 @@ type CSSCSSScope struct {
 	Range *CSSSourceRange `json:"range,omitempty"`
 
 	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 }
 
 // CSSCSSLayer (experimental) CSS Layer at-rule descriptor.
@@ -470,7 +562,17 @@ type CSSCSSLayer struct {
 	Range *CSSSourceRange `json:"range,omitempty"`
 
 	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
+}
+
+// CSSCSSStartingStyle (experimental) CSS Starting Style at-rule descriptor.
+type CSSCSSStartingStyle struct {
+	// Range (optional) The associated rule header range in the enclosing stylesheet (if
+	// available).
+	Range *CSSSourceRange `json:"range,omitempty"`
+
+	// StyleSheetID (optional) Identifier of the stylesheet containing this object (if exists).
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 }
 
 // CSSCSSLayerData (experimental) CSS Layer data.
@@ -478,7 +580,7 @@ type CSSCSSLayerData struct {
 	// Name Layer name.
 	Name string `json:"name"`
 
-	// SubLayers (optional) Direct sub-layers
+	// SubLayers (optional) Direct sub-layers.
 	SubLayers []*CSSCSSLayerData `json:"subLayers,omitempty"`
 
 	// Order Layer order. The order determines the order of the layer in the cascade order.
@@ -546,7 +648,7 @@ type CSSFontFace struct {
 	// Src The src.
 	Src string `json:"src"`
 
-	// PlatformFontFamily The resolved platform font family
+	// PlatformFontFamily The resolved platform font family.
 	PlatformFontFamily string `json:"platformFontFamily"`
 
 	// FontVariationAxes (optional) Available variation settings (a.k.a. "axes").
@@ -557,38 +659,32 @@ type CSSFontFace struct {
 type CSSCSSTryRule struct {
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// Origin Parent stylesheet's origin.
 	Origin CSSStyleSheetOrigin `json:"origin"`
 
 	// Style Associated style declaration.
 	Style *CSSCSSStyle `json:"style"`
-}
-
-// CSSCSSPositionFallbackRule (deprecated) CSS position-fallback rule representation.
-type CSSCSSPositionFallbackRule struct {
-	// Name ...
-	Name *CSSValue `json:"name"`
-
-	// TryRules List of keyframes.
-	TryRules []*CSSCSSTryRule `json:"tryRules"`
 }
 
 // CSSCSSPositionTryRule CSS @position-try rule representation.
 type CSSCSSPositionTryRule struct {
-	// Name The prelude dashed-ident name
+	// Name The prelude dashed-ident name.
 	Name *CSSValue `json:"name"`
 
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// Origin Parent stylesheet's origin.
 	Origin CSSStyleSheetOrigin `json:"origin"`
 
 	// Style Associated style declaration.
 	Style *CSSCSSStyle `json:"style"`
+
+	// Active ...
+	Active bool `json:"active"`
 }
 
 // CSSCSSKeyframesRule CSS keyframes rule representation.
@@ -615,17 +711,64 @@ type CSSCSSPropertyRegistration struct {
 	Syntax string `json:"syntax"`
 }
 
-// CSSCSSFontPaletteValuesRule CSS font-palette-values rule representation.
-type CSSCSSFontPaletteValuesRule struct {
+// CSSCSSAtRuleType enum.
+type CSSCSSAtRuleType string
+
+const (
+	// CSSCSSAtRuleTypeFontFace enum const.
+	CSSCSSAtRuleTypeFontFace CSSCSSAtRuleType = "font-face"
+
+	// CSSCSSAtRuleTypeFontFeatureValues enum const.
+	CSSCSSAtRuleTypeFontFeatureValues CSSCSSAtRuleType = "font-feature-values"
+
+	// CSSCSSAtRuleTypeFontPaletteValues enum const.
+	CSSCSSAtRuleTypeFontPaletteValues CSSCSSAtRuleType = "font-palette-values"
+
+	// CSSCSSAtRuleTypeCounterStyle enum const.
+	CSSCSSAtRuleTypeCounterStyle CSSCSSAtRuleType = "counter-style"
+)
+
+// CSSCSSAtRuleSubsection enum.
+type CSSCSSAtRuleSubsection string
+
+const (
+	// CSSCSSAtRuleSubsectionSwash enum const.
+	CSSCSSAtRuleSubsectionSwash CSSCSSAtRuleSubsection = "swash"
+
+	// CSSCSSAtRuleSubsectionAnnotation enum const.
+	CSSCSSAtRuleSubsectionAnnotation CSSCSSAtRuleSubsection = "annotation"
+
+	// CSSCSSAtRuleSubsectionOrnaments enum const.
+	CSSCSSAtRuleSubsectionOrnaments CSSCSSAtRuleSubsection = "ornaments"
+
+	// CSSCSSAtRuleSubsectionStylistic enum const.
+	CSSCSSAtRuleSubsectionStylistic CSSCSSAtRuleSubsection = "stylistic"
+
+	// CSSCSSAtRuleSubsectionStyleset enum const.
+	CSSCSSAtRuleSubsectionStyleset CSSCSSAtRuleSubsection = "styleset"
+
+	// CSSCSSAtRuleSubsectionCharacterVariant enum const.
+	CSSCSSAtRuleSubsectionCharacterVariant CSSCSSAtRuleSubsection = "character-variant"
+)
+
+// CSSCSSAtRule CSS generic @rule representation.
+type CSSCSSAtRule struct {
+	// Type of at-rule.
+	Type CSSCSSAtRuleType `json:"type"`
+
+	// Subsection (optional) Subsection of font-feature-values, if this is a subsection.
+	Subsection CSSCSSAtRuleSubsection `json:"subsection,omitempty"`
+
+	// Name (optional) LINT.ThenChange(//third_party/blink/renderer/core/inspector/inspector_style_sheet.cc:FontVariantAlternatesFeatureType,//third_party/blink/renderer/core/inspector/inspector_css_agent.cc:FontVariantAlternatesFeatureType)
+	// Associated name, if applicable.
+	Name *CSSValue `json:"name,omitempty"`
+
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// Origin Parent stylesheet's origin.
 	Origin CSSStyleSheetOrigin `json:"origin"`
-
-	// FontPaletteName Associated font palette name.
-	FontPaletteName *CSSValue `json:"fontPaletteName"`
 
 	// Style Associated style declaration.
 	Style *CSSCSSStyle `json:"style"`
@@ -635,7 +778,7 @@ type CSSCSSFontPaletteValuesRule struct {
 type CSSCSSPropertyRule struct {
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// Origin Parent stylesheet's origin.
 	Origin CSSStyleSheetOrigin `json:"origin"`
@@ -647,11 +790,72 @@ type CSSCSSPropertyRule struct {
 	Style *CSSCSSStyle `json:"style"`
 }
 
+// CSSCSSFunctionParameter CSS function argument representation.
+type CSSCSSFunctionParameter struct {
+	// Name The parameter name.
+	Name string `json:"name"`
+
+	// Type The parameter type.
+	Type string `json:"type"`
+}
+
+// CSSCSSFunctionConditionNode CSS function conditional block representation.
+type CSSCSSFunctionConditionNode struct {
+	// Media (optional) Media query for this conditional block. Only one type of condition should be set.
+	Media *CSSCSSMedia `json:"media,omitempty"`
+
+	// ContainerQueries (optional) Container query for this conditional block. Only one type of condition should be set.
+	ContainerQueries *CSSCSSContainerQuery `json:"containerQueries,omitempty"`
+
+	// Supports (optional) @supports CSS at-rule condition. Only one type of condition should be set.
+	Supports *CSSCSSSupports `json:"supports,omitempty"`
+
+	// Navigation (optional) @navigation condition. Only one type of condition should be set.
+	Navigation *CSSCSSNavigation `json:"navigation,omitempty"`
+
+	// Children Block body.
+	Children []*CSSCSSFunctionNode `json:"children"`
+
+	// ConditionText The condition text.
+	ConditionText string `json:"conditionText"`
+}
+
+// CSSCSSFunctionNode Section of the body of a CSS function rule.
+type CSSCSSFunctionNode struct {
+	// Condition (optional) A conditional block. If set, style should not be set.
+	Condition *CSSCSSFunctionConditionNode `json:"condition,omitempty"`
+
+	// Style (optional) Values set by this node. If set, condition should not be set.
+	Style *CSSCSSStyle `json:"style,omitempty"`
+}
+
+// CSSCSSFunctionRule CSS function at-rule representation.
+type CSSCSSFunctionRule struct {
+	// Name of the function.
+	Name *CSSValue `json:"name"`
+
+	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
+	// stylesheet rules) this rule came from.
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
+
+	// Origin Parent stylesheet's origin.
+	Origin CSSStyleSheetOrigin `json:"origin"`
+
+	// Parameters List of parameters.
+	Parameters []*CSSCSSFunctionParameter `json:"parameters"`
+
+	// Children Function body.
+	Children []*CSSCSSFunctionNode `json:"children"`
+
+	// OriginTreeScopeNodeID (experimental) (optional) The BackendNodeId of the DOM node that constitutes the origin tree scope of this rule.
+	OriginTreeScopeNodeID DOMBackendNodeID `json:"originTreeScopeNodeId,omitempty"`
+}
+
 // CSSCSSKeyframeRule CSS keyframe rule representation.
 type CSSCSSKeyframeRule struct {
 	// StyleSheetID (optional) The css style sheet identifier (absent for user agent stylesheet and user-specified
 	// stylesheet rules) this rule came from.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId,omitempty"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId,omitempty"`
 
 	// Origin Parent stylesheet's origin.
 	Origin CSSStyleSheetOrigin `json:"origin"`
@@ -666,7 +870,7 @@ type CSSCSSKeyframeRule struct {
 // CSSStyleDeclarationEdit A descriptor of operation to mutate style declaration text.
 type CSSStyleDeclarationEdit struct {
 	// StyleSheetID The css style sheet identifier.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range The range of the style text in the enclosing stylesheet.
 	Range *CSSSourceRange `json:"range"`
@@ -679,7 +883,7 @@ type CSSStyleDeclarationEdit struct {
 // position specified by `location`.
 type CSSAddRule struct {
 	// StyleSheetID The css style sheet identifier where a new rule should be inserted.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// RuleText The text of a new rule.
 	RuleText string `json:"ruleText"`
@@ -711,7 +915,7 @@ type CSSAddRuleResult struct {
 // CSSCollectClassNames Returns all class names from specified stylesheet.
 type CSSCollectClassNames struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 }
 
 // ProtoReq name.
@@ -733,6 +937,12 @@ type CSSCollectClassNamesResult struct {
 type CSSCreateStyleSheet struct {
 	// FrameID Identifier of the frame where "via-inspector" stylesheet should be created.
 	FrameID PageFrameID `json:"frameId"`
+
+	// Force (optional) If true, creates a new stylesheet for every call. If false,
+	// returns a stylesheet previously created by a call with force=false
+	// for the frame's document if it exists or creates a new stylesheet
+	// (default: false).
+	Force bool `json:"force,omitempty"`
 }
 
 // ProtoReq name.
@@ -747,7 +957,7 @@ func (m CSSCreateStyleSheet) Call(c Client) (*CSSCreateStyleSheetResult, error) 
 // CSSCreateStyleSheetResult ...
 type CSSCreateStyleSheetResult struct {
 	// StyleSheetID Identifier of the created "via-inspector" stylesheet.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 }
 
 // CSSDisable Disables the CSS agent for the given page.
@@ -788,6 +998,23 @@ func (m CSSForcePseudoState) ProtoReq() string { return "CSS.forcePseudoState" }
 
 // Call sends the request.
 func (m CSSForcePseudoState) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// CSSForceStartingStyle Ensures that the given node is in its starting-style state.
+type CSSForceStartingStyle struct {
+	// NodeID The element id for which to force the starting-style state.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// Forced Boolean indicating if this is on or off.
+	Forced bool `json:"forced"`
+}
+
+// ProtoReq name.
+func (m CSSForceStartingStyle) ProtoReq() string { return "CSS.forceStartingStyle" }
+
+// Call sends the request.
+func (m CSSForceStartingStyle) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
@@ -842,6 +1069,78 @@ func (m CSSGetComputedStyleForNode) Call(c Client) (*CSSGetComputedStyleForNodeR
 type CSSGetComputedStyleForNodeResult struct {
 	// ComputedStyle Computed style for the specified DOM node.
 	ComputedStyle []*CSSCSSComputedStyleProperty `json:"computedStyle"`
+
+	// ExtraFields (experimental) A list of non-standard "extra fields" which blink stores alongside each
+	// computed style.
+	ExtraFields *CSSComputedStyleExtraFields `json:"extraFields"`
+}
+
+// CSSResolveValues (experimental) Resolve the specified values in the context of the provided element.
+// For example, a value of '1em' is evaluated according to the computed
+// 'font-size' of the element and a value 'calc(1px + 2px)' will be
+// resolved to '3px'.
+// If the `propertyName` was specified the `values` are resolved as if
+// they were property's declaration. If a value cannot be parsed according
+// to the provided property syntax, the value is parsed using combined
+// syntax as if null `propertyName` was provided. If the value cannot be
+// resolved even then, return the provided value without any changes.
+// Note: this function currently does not resolve CSS random() function,
+// it returns unmodified random() function parts.`.
+type CSSResolveValues struct {
+	// Values Cascade-dependent keywords (revert/revert-layer) do not work.
+	Values []string `json:"values"`
+
+	// NodeID Id of the node in whose context the expression is evaluated.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// PropertyName (optional) Only longhands and custom property names are accepted.
+	PropertyName string `json:"propertyName,omitempty"`
+
+	// PseudoType (optional) Pseudo element type, only works for pseudo elements that generate
+	// elements in the tree, such as ::before and ::after.
+	PseudoType DOMPseudoType `json:"pseudoType,omitempty"`
+
+	// PseudoIdentifier (optional) Pseudo element custom ident.
+	PseudoIdentifier string `json:"pseudoIdentifier,omitempty"`
+}
+
+// ProtoReq name.
+func (m CSSResolveValues) ProtoReq() string { return "CSS.resolveValues" }
+
+// Call the request.
+func (m CSSResolveValues) Call(c Client) (*CSSResolveValuesResult, error) {
+	var res CSSResolveValuesResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// CSSResolveValuesResult (experimental) ...
+type CSSResolveValuesResult struct {
+	// Results ...
+	Results []string `json:"results"`
+}
+
+// CSSGetLonghandProperties (experimental) ...
+type CSSGetLonghandProperties struct {
+	// ShorthandName ...
+	ShorthandName string `json:"shorthandName"`
+
+	// Value ...
+	Value string `json:"value"`
+}
+
+// ProtoReq name.
+func (m CSSGetLonghandProperties) ProtoReq() string { return "CSS.getLonghandProperties" }
+
+// Call the request.
+func (m CSSGetLonghandProperties) Call(c Client) (*CSSGetLonghandPropertiesResult, error) {
+	var res CSSGetLonghandPropertiesResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// CSSGetLonghandPropertiesResult (experimental) ...
+type CSSGetLonghandPropertiesResult struct {
+	// LonghandProperties ...
+	LonghandProperties []*CSSCSSProperty `json:"longhandProperties"`
 }
 
 // CSSGetInlineStylesForNode Returns the styles defined inline (explicitly in the "style" attribute and implicitly, using DOM
@@ -867,6 +1166,35 @@ type CSSGetInlineStylesForNodeResult struct {
 
 	// AttributesStyle (optional) Attribute-defined element style (e.g. resulting from "width=20 height=100%").
 	AttributesStyle *CSSCSSStyle `json:"attributesStyle,omitempty"`
+}
+
+// CSSGetAnimatedStylesForNode (experimental) Returns the styles coming from animations & transitions
+// including the animation & transition styles coming from inheritance chain.
+type CSSGetAnimatedStylesForNode struct {
+	// NodeID ...
+	NodeID DOMNodeID `json:"nodeId"`
+}
+
+// ProtoReq name.
+func (m CSSGetAnimatedStylesForNode) ProtoReq() string { return "CSS.getAnimatedStylesForNode" }
+
+// Call the request.
+func (m CSSGetAnimatedStylesForNode) Call(c Client) (*CSSGetAnimatedStylesForNodeResult, error) {
+	var res CSSGetAnimatedStylesForNodeResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// CSSGetAnimatedStylesForNodeResult (experimental) ...
+type CSSGetAnimatedStylesForNodeResult struct {
+	// AnimationStyles (optional) Styles coming from animations.
+	AnimationStyles []*CSSCSSAnimationStyle `json:"animationStyles,omitempty"`
+
+	// TransitionsStyle (optional) Style coming from transitions.
+	TransitionsStyle *CSSCSSStyle `json:"transitionsStyle,omitempty"`
+
+	// Inherited (optional) Inherited style entries for animationsStyle and transitionsStyle from
+	// the inheritance chain of the element.
+	Inherited []*CSSInheritedAnimatedStyleEntry `json:"inherited,omitempty"`
 }
 
 // CSSGetMatchedStylesForNode Returns requested styles for a DOM node identified by `nodeId`.
@@ -907,11 +1235,12 @@ type CSSGetMatchedStylesForNodeResult struct {
 	// CSSKeyframesRules (optional) A list of CSS keyframed animations matching this node.
 	CSSKeyframesRules []*CSSCSSKeyframesRule `json:"cssKeyframesRules,omitempty"`
 
-	// CSSPositionFallbackRules (deprecated) (optional) A list of CSS position fallbacks matching this node.
-	CSSPositionFallbackRules []*CSSCSSPositionFallbackRule `json:"cssPositionFallbackRules,omitempty"`
-
-	// CSSPositionTryRules (optional) A list of CSS @position-try rules matching this node, based on the position-try-options property.
+	// CSSPositionTryRules (optional) A list of CSS @position-try rules matching this node, based on the position-try-fallbacks property.
 	CSSPositionTryRules []*CSSCSSPositionTryRule `json:"cssPositionTryRules,omitempty"`
+
+	// ActivePositionFallbackIndex (optional) Index of the active fallback in the applied position-try-fallback property,
+	// will not be set if there is no active position-try fallback.
+	ActivePositionFallbackIndex *int `json:"activePositionFallbackIndex,omitempty"`
 
 	// CSSPropertyRules (optional) A list of CSS at-property rules matching this node.
 	CSSPropertyRules []*CSSCSSPropertyRule `json:"cssPropertyRules,omitempty"`
@@ -919,11 +1248,32 @@ type CSSGetMatchedStylesForNodeResult struct {
 	// CSSPropertyRegistrations (optional) A list of CSS property registrations matching this node.
 	CSSPropertyRegistrations []*CSSCSSPropertyRegistration `json:"cssPropertyRegistrations,omitempty"`
 
-	// CSSFontPaletteValuesRule (optional) A font-palette-values rule matching this node.
-	CSSFontPaletteValuesRule *CSSCSSFontPaletteValuesRule `json:"cssFontPaletteValuesRule,omitempty"`
+	// CSSAtRules (optional) A list of simple @rules matching this node or its pseudo-elements.
+	CSSAtRules []*CSSCSSAtRule `json:"cssAtRules,omitempty"`
 
 	// ParentLayoutNodeID (experimental) (optional) Id of the first parent element that does not have display: contents.
 	ParentLayoutNodeID DOMNodeID `json:"parentLayoutNodeId,omitempty"`
+
+	// CSSFunctionRules (experimental) (optional) A list of CSS at-function rules referenced by styles of this node.
+	CSSFunctionRules []*CSSCSSFunctionRule `json:"cssFunctionRules,omitempty"`
+}
+
+// CSSGetEnvironmentVariables (experimental) Returns the values of the default UA-defined environment variables used in env().
+type CSSGetEnvironmentVariables struct{}
+
+// ProtoReq name.
+func (m CSSGetEnvironmentVariables) ProtoReq() string { return "CSS.getEnvironmentVariables" }
+
+// Call the request.
+func (m CSSGetEnvironmentVariables) Call(c Client) (*CSSGetEnvironmentVariablesResult, error) {
+	var res CSSGetEnvironmentVariablesResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// CSSGetEnvironmentVariablesResult (experimental) ...
+type CSSGetEnvironmentVariablesResult struct {
+	// EnvironmentVariables ...
+	EnvironmentVariables map[string]lazyjson.JSON `json:"environmentVariables"`
 }
 
 // CSSGetMediaQueries Returns all media queries parsed by the rendering engine.
@@ -969,7 +1319,7 @@ type CSSGetPlatformFontsForNodeResult struct {
 // CSSGetStyleSheetText Returns the current textual content for a stylesheet.
 type CSSGetStyleSheetText struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 }
 
 // ProtoReq name.
@@ -1015,7 +1365,7 @@ type CSSGetLayersForNodeResult struct {
 // returns an array of locations of the CSS selector in the style sheet.
 type CSSGetLocationForSelector struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// SelectorText ...
 	SelectorText string `json:"selectorText"`
@@ -1034,6 +1384,27 @@ func (m CSSGetLocationForSelector) Call(c Client) (*CSSGetLocationForSelectorRes
 type CSSGetLocationForSelectorResult struct {
 	// Ranges ...
 	Ranges []*CSSSourceRange `json:"ranges"`
+}
+
+// CSSTrackComputedStyleUpdatesForNode (experimental) Starts tracking the given node for the computed style updates
+// and whenever the computed style is updated for node, it queues
+// a `computedStyleUpdated` event with throttling.
+// There can only be 1 node tracked for computed style updates
+// so passing a new node id removes tracking from the previous node.
+// Pass `undefined` to disable tracking.
+type CSSTrackComputedStyleUpdatesForNode struct {
+	// NodeID (optional) ...
+	NodeID DOMNodeID `json:"nodeId,omitempty"`
+}
+
+// ProtoReq name.
+func (m CSSTrackComputedStyleUpdatesForNode) ProtoReq() string {
+	return "CSS.trackComputedStyleUpdatesForNode"
+}
+
+// Call sends the request.
+func (m CSSTrackComputedStyleUpdatesForNode) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
 }
 
 // CSSTrackComputedStyleUpdates (experimental) Starts tracking the given computed styles for updates. The specified array of properties
@@ -1099,7 +1470,7 @@ func (m CSSSetEffectivePropertyValueForNode) Call(c Client) error {
 // CSSSetPropertyRulePropertyName Modifies the property rule property name.
 type CSSSetPropertyRulePropertyName struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1126,7 +1497,7 @@ type CSSSetPropertyRulePropertyNameResult struct {
 // CSSSetKeyframeKey Modifies the keyframe rule key text.
 type CSSSetKeyframeKey struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1153,7 +1524,7 @@ type CSSSetKeyframeKeyResult struct {
 // CSSSetMediaText Modifies the rule selector.
 type CSSSetMediaText struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1177,10 +1548,13 @@ type CSSSetMediaTextResult struct {
 	Media *CSSCSSMedia `json:"media"`
 }
 
-// CSSSetContainerQueryText (experimental) Modifies the expression of a container query.
+// CSSSetContainerQueryText (deprecated) (experimental) Modifies the expression of a container query.
+// Deprecated. Use setContainerQueryConditionText instead.
+//
+// Deprecated: CSS.setContainerQueryText is deprecated in the Chrome DevTools Protocol.
 type CSSSetContainerQueryText struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1198,8 +1572,39 @@ func (m CSSSetContainerQueryText) Call(c Client) (*CSSSetContainerQueryTextResul
 	return &res, call(m.ProtoReq(), m, &res, c)
 }
 
-// CSSSetContainerQueryTextResult (experimental) ...
+// CSSSetContainerQueryTextResult (deprecated) (experimental) ...
+//
+// Deprecated: CSS.setContainerQueryText is deprecated in the Chrome DevTools Protocol.
 type CSSSetContainerQueryTextResult struct {
+	// ContainerQuery The resulting CSS container query rule after modification.
+	ContainerQuery *CSSCSSContainerQuery `json:"containerQuery"`
+}
+
+// CSSSetContainerQueryConditionText (experimental) ...
+type CSSSetContainerQueryConditionText struct {
+	// StyleSheetID ...
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
+
+	// Range ...
+	Range *CSSSourceRange `json:"range"`
+
+	// Text ...
+	Text string `json:"text"`
+}
+
+// ProtoReq name.
+func (m CSSSetContainerQueryConditionText) ProtoReq() string {
+	return "CSS.setContainerQueryConditionText"
+}
+
+// Call the request.
+func (m CSSSetContainerQueryConditionText) Call(c Client) (*CSSSetContainerQueryConditionTextResult, error) {
+	var res CSSSetContainerQueryConditionTextResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// CSSSetContainerQueryConditionTextResult (experimental) ...
+type CSSSetContainerQueryConditionTextResult struct {
 	// ContainerQuery The resulting CSS container query rule after modification.
 	ContainerQuery *CSSCSSContainerQuery `json:"containerQuery"`
 }
@@ -1207,7 +1612,7 @@ type CSSSetContainerQueryTextResult struct {
 // CSSSetSupportsText (experimental) Modifies the expression of a supports at-rule.
 type CSSSetSupportsText struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1231,10 +1636,37 @@ type CSSSetSupportsTextResult struct {
 	Supports *CSSCSSSupports `json:"supports"`
 }
 
+// CSSSetNavigationText (experimental) Modifies the expression of a navigation at-rule.
+type CSSSetNavigationText struct {
+	// StyleSheetID ...
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
+
+	// Range ...
+	Range *CSSSourceRange `json:"range"`
+
+	// Text ...
+	Text string `json:"text"`
+}
+
+// ProtoReq name.
+func (m CSSSetNavigationText) ProtoReq() string { return "CSS.setNavigationText" }
+
+// Call the request.
+func (m CSSSetNavigationText) Call(c Client) (*CSSSetNavigationTextResult, error) {
+	var res CSSSetNavigationTextResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// CSSSetNavigationTextResult (experimental) ...
+type CSSSetNavigationTextResult struct {
+	// Navigation The resulting CSS Navigation rule after modification.
+	Navigation *CSSCSSNavigation `json:"navigation"`
+}
+
 // CSSSetScopeText (experimental) Modifies the expression of a scope at-rule.
 type CSSSetScopeText struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1261,7 +1693,7 @@ type CSSSetScopeTextResult struct {
 // CSSSetRuleSelector Modifies the rule selector.
 type CSSSetRuleSelector struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Range ...
 	Range *CSSSourceRange `json:"range"`
@@ -1288,7 +1720,7 @@ type CSSSetRuleSelectorResult struct {
 // CSSSetStyleSheetText Sets the new stylesheet text.
 type CSSSetStyleSheetText struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 
 	// Text ...
 	Text string `json:"text"`
@@ -1436,7 +1868,7 @@ func (evt CSSStyleSheetAdded) ProtoEvent() string {
 // CSSStyleSheetChanged Fired whenever a stylesheet is changed as a result of the client operation.
 type CSSStyleSheetChanged struct {
 	// StyleSheetID ...
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 }
 
 // ProtoEvent name.
@@ -1447,10 +1879,21 @@ func (evt CSSStyleSheetChanged) ProtoEvent() string {
 // CSSStyleSheetRemoved Fired whenever an active document stylesheet is removed.
 type CSSStyleSheetRemoved struct {
 	// StyleSheetID Identifier of the removed stylesheet.
-	StyleSheetID CSSStyleSheetID `json:"styleSheetId"`
+	StyleSheetID DOMStyleSheetID `json:"styleSheetId"`
 }
 
 // ProtoEvent name.
 func (evt CSSStyleSheetRemoved) ProtoEvent() string {
 	return "CSS.styleSheetRemoved"
+}
+
+// CSSComputedStyleUpdated (experimental) ...
+type CSSComputedStyleUpdated struct {
+	// NodeID The node id that has updated computed styles.
+	NodeID DOMNodeID `json:"nodeId"`
+}
+
+// ProtoEvent name.
+func (evt CSSComputedStyleUpdated) ProtoEvent() string {
+	return "CSS.computedStyleUpdated"
 }

@@ -170,7 +170,7 @@ type ProfilerStartPreciseCoverage struct {
 	// Detailed (optional) Collect block-based coverage.
 	Detailed bool `json:"detailed,omitempty"`
 
-	// AllowTriggeredUpdates (optional) Allow the backend to send updates on its own initiative
+	// AllowTriggeredUpdates (optional) Allow the backend to send updates on its own initiative.
 	AllowTriggeredUpdates bool `json:"allowTriggeredUpdates,omitempty"`
 }
 

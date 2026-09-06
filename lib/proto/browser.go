@@ -55,17 +55,23 @@ type BrowserBounds struct {
 type BrowserPermissionType string
 
 const (
-	// BrowserPermissionTypeAccessibilityEvents enum const.
-	BrowserPermissionTypeAccessibilityEvents BrowserPermissionType = "accessibilityEvents"
+	// BrowserPermissionTypeAr enum const.
+	BrowserPermissionTypeAr BrowserPermissionType = "ar"
 
 	// BrowserPermissionTypeAudioCapture enum const.
 	BrowserPermissionTypeAudioCapture BrowserPermissionType = "audioCapture"
 
-	// BrowserPermissionTypeBackgroundSync enum const.
-	BrowserPermissionTypeBackgroundSync BrowserPermissionType = "backgroundSync"
+	// BrowserPermissionTypeAutomaticFullscreen enum const.
+	BrowserPermissionTypeAutomaticFullscreen BrowserPermissionType = "automaticFullscreen"
 
 	// BrowserPermissionTypeBackgroundFetch enum const.
 	BrowserPermissionTypeBackgroundFetch BrowserPermissionType = "backgroundFetch"
+
+	// BrowserPermissionTypeBackgroundSync enum const.
+	BrowserPermissionTypeBackgroundSync BrowserPermissionType = "backgroundSync"
+
+	// BrowserPermissionTypeCameraPanTiltZoom enum const.
+	BrowserPermissionTypeCameraPanTiltZoom BrowserPermissionType = "cameraPanTiltZoom"
 
 	// BrowserPermissionTypeCapturedSurfaceControl enum const.
 	BrowserPermissionTypeCapturedSurfaceControl BrowserPermissionType = "capturedSurfaceControl"
@@ -82,17 +88,29 @@ const (
 	// BrowserPermissionTypeDurableStorage enum const.
 	BrowserPermissionTypeDurableStorage BrowserPermissionType = "durableStorage"
 
-	// BrowserPermissionTypeFlash enum const.
-	BrowserPermissionTypeFlash BrowserPermissionType = "flash"
-
 	// BrowserPermissionTypeGeolocation enum const.
 	BrowserPermissionTypeGeolocation BrowserPermissionType = "geolocation"
+
+	// BrowserPermissionTypeHandTracking enum const.
+	BrowserPermissionTypeHandTracking BrowserPermissionType = "handTracking"
 
 	// BrowserPermissionTypeIdleDetection enum const.
 	BrowserPermissionTypeIdleDetection BrowserPermissionType = "idleDetection"
 
+	// BrowserPermissionTypeKeyboardLock enum const.
+	BrowserPermissionTypeKeyboardLock BrowserPermissionType = "keyboardLock"
+
 	// BrowserPermissionTypeLocalFonts enum const.
 	BrowserPermissionTypeLocalFonts BrowserPermissionType = "localFonts"
+
+	// BrowserPermissionTypeLocalNetwork enum const.
+	BrowserPermissionTypeLocalNetwork BrowserPermissionType = "localNetwork"
+
+	// BrowserPermissionTypeLocalNetworkAccess enum const.
+	BrowserPermissionTypeLocalNetworkAccess BrowserPermissionType = "localNetworkAccess"
+
+	// BrowserPermissionTypeLoopbackNetwork enum const.
+	BrowserPermissionTypeLoopbackNetwork BrowserPermissionType = "loopbackNetwork"
 
 	// BrowserPermissionTypeMidi enum const.
 	BrowserPermissionTypeMidi BrowserPermissionType = "midi"
@@ -112,17 +130,23 @@ const (
 	// BrowserPermissionTypePeriodicBackgroundSync enum const.
 	BrowserPermissionTypePeriodicBackgroundSync BrowserPermissionType = "periodicBackgroundSync"
 
+	// BrowserPermissionTypePointerLock enum const.
+	BrowserPermissionTypePointerLock BrowserPermissionType = "pointerLock"
+
 	// BrowserPermissionTypeProtectedMediaIdentifier enum const.
 	BrowserPermissionTypeProtectedMediaIdentifier BrowserPermissionType = "protectedMediaIdentifier"
 
 	// BrowserPermissionTypeSensors enum const.
 	BrowserPermissionTypeSensors BrowserPermissionType = "sensors"
 
-	// BrowserPermissionTypeStorageAccess enum const.
-	BrowserPermissionTypeStorageAccess BrowserPermissionType = "storageAccess"
+	// BrowserPermissionTypeSmartCard enum const.
+	BrowserPermissionTypeSmartCard BrowserPermissionType = "smartCard"
 
 	// BrowserPermissionTypeSpeakerSelection enum const.
 	BrowserPermissionTypeSpeakerSelection BrowserPermissionType = "speakerSelection"
+
+	// BrowserPermissionTypeStorageAccess enum const.
+	BrowserPermissionTypeStorageAccess BrowserPermissionType = "storageAccess"
 
 	// BrowserPermissionTypeTopLevelStorageAccess enum const.
 	BrowserPermissionTypeTopLevelStorageAccess BrowserPermissionType = "topLevelStorageAccess"
@@ -130,14 +154,20 @@ const (
 	// BrowserPermissionTypeVideoCapture enum const.
 	BrowserPermissionTypeVideoCapture BrowserPermissionType = "videoCapture"
 
-	// BrowserPermissionTypeVideoCapturePanTiltZoom enum const.
-	BrowserPermissionTypeVideoCapturePanTiltZoom BrowserPermissionType = "videoCapturePanTiltZoom"
+	// BrowserPermissionTypeVr enum const.
+	BrowserPermissionTypeVr BrowserPermissionType = "vr"
 
 	// BrowserPermissionTypeWakeLockScreen enum const.
 	BrowserPermissionTypeWakeLockScreen BrowserPermissionType = "wakeLockScreen"
 
 	// BrowserPermissionTypeWakeLockSystem enum const.
 	BrowserPermissionTypeWakeLockSystem BrowserPermissionType = "wakeLockSystem"
+
+	// BrowserPermissionTypeWebAppInstallation enum const.
+	BrowserPermissionTypeWebAppInstallation BrowserPermissionType = "webAppInstallation"
+
+	// BrowserPermissionTypeWebPrinting enum const.
+	BrowserPermissionTypeWebPrinting BrowserPermissionType = "webPrinting"
 
 	// BrowserPermissionTypeWindowManagement enum const.
 	BrowserPermissionTypeWindowManagement BrowserPermissionType = "windowManagement"
@@ -190,6 +220,9 @@ const (
 
 	// BrowserBrowserCommandIDCloseTabSearch enum const.
 	BrowserBrowserCommandIDCloseTabSearch BrowserBrowserCommandID = "closeTabSearch"
+
+	// BrowserBrowserCommandIDOpenGlic enum const.
+	BrowserBrowserCommandIDOpenGlic BrowserBrowserCommandID = "openGlic"
 )
 
 // BrowserBucket (experimental) Chrome histogram bucket.
@@ -219,7 +252,7 @@ type BrowserHistogram struct {
 	Buckets []*BrowserBucket `json:"buckets"`
 }
 
-// BrowserSetPermission (experimental) Set permission settings for given origin.
+// BrowserSetPermission (experimental) Set permission settings for given embedding and embedded origins.
 type BrowserSetPermission struct {
 	// Permission Descriptor of permission to override.
 	Permission *BrowserPermissionDescriptor `json:"permission"`
@@ -227,8 +260,13 @@ type BrowserSetPermission struct {
 	// Setting of the permission.
 	Setting BrowserPermissionSetting `json:"setting"`
 
-	// Origin (optional) Origin the permission applies to, all origins if not specified.
+	// Origin (optional) Embedding origin the permission applies to, all origins if not specified.
 	Origin string `json:"origin,omitempty"`
+
+	// EmbeddedOrigin (optional) Embedded origin the permission applies to. It is ignored unless the embedding origin is
+	// present and valid. If the embedding origin is provided but the embedded origin isn't, the
+	// embedding origin is used as the embedded origin.
+	EmbeddedOrigin string `json:"embeddedOrigin,omitempty"`
 
 	// BrowserContextID (optional) Context to override. When omitted, default browser context is used.
 	BrowserContextID BrowserBrowserContextID `json:"browserContextId,omitempty"`
@@ -242,7 +280,10 @@ func (m BrowserSetPermission) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// BrowserGrantPermissions (experimental) Grant specific permissions to the given origin and reject all others.
+// BrowserGrantPermissions (deprecated) (experimental) Grant specific permissions to the given origin and reject all others. Deprecated. Use
+// setPermission instead.
+//
+// Deprecated: Browser.grantPermissions is deprecated in the Chrome DevTools Protocol.
 type BrowserGrantPermissions struct {
 	// Permissions ...
 	Permissions []BrowserPermissionType `json:"permissions"`
@@ -414,7 +455,7 @@ func (m BrowserGetBrowserCommandLine) Call(c Client) (*BrowserGetBrowserCommandL
 
 // BrowserGetBrowserCommandLineResult (experimental) ...
 type BrowserGetBrowserCommandLineResult struct {
-	// Arguments Commandline parameters
+	// Arguments Commandline parameters.
 	Arguments []string `json:"arguments"`
 }
 
@@ -533,12 +574,34 @@ func (m BrowserSetWindowBounds) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// BrowserSetContentsSize (experimental) Set size of the browser contents resizing browser window as necessary.
+type BrowserSetContentsSize struct {
+	// WindowID Browser window id.
+	WindowID BrowserWindowID `json:"windowId"`
+
+	// Width (optional) The window contents width in DIP. Assumes current width if omitted.
+	// Must be specified if 'height' is omitted.
+	Width *int `json:"width,omitempty"`
+
+	// Height (optional) The window contents height in DIP. Assumes current height if omitted.
+	// Must be specified if 'width' is omitted.
+	Height *int `json:"height,omitempty"`
+}
+
+// ProtoReq name.
+func (m BrowserSetContentsSize) ProtoReq() string { return "Browser.setContentsSize" }
+
+// Call sends the request.
+func (m BrowserSetContentsSize) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // BrowserSetDockTile (experimental) Set dock tile details, platform-specific.
 type BrowserSetDockTile struct {
 	// BadgeLabel (optional) ...
 	BadgeLabel string `json:"badgeLabel,omitempty"`
 
-	// Image (optional) Png encoded image.
+	// Image (optional) Png encoded image. (Encoded as a base64 string when passed over JSON).
 	Image []byte `json:"image,omitempty"`
 }
 
@@ -628,6 +691,11 @@ type BrowserDownloadProgress struct {
 
 	// State Download status.
 	State BrowserDownloadProgressState `json:"state"`
+
+	// FilePath (experimental) (optional) If download is "completed", provides the path of the downloaded file.
+	// Depending on the platform, it is not guaranteed to be set, nor the file
+	// is guaranteed to exist.
+	FilePath string `json:"filePath,omitempty"`
 }
 
 // ProtoEvent name.

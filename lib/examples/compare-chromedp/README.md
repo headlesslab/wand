@@ -10,7 +10,7 @@ To run an example:
 2. cd to the folder of an example, such as `cd lib/examples/compare-chromedp/click`
 3. run `go run .`
 
-| wand                                | chromedp                                                                          | Description                                                                |
+| wand                               | chromedp                                                                          | Description                                                                |
 | ---------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | [click](./click)                   | [click](https://github.com/chromedp/examples/blob/master/click)                   | use a selector to click on an element                                      |
 | [cookie](./cookie)                 | [cookie](https://github.com/chromedp/examples/blob/master/cookie)                 | set a HTTP cookie on requests                                              |

@@ -10,65 +10,103 @@ This domain is deprecated - use Runtime or Log instead.
 
 */
 
-// ConsoleConsoleMessageSource enum.
+// ConsoleConsoleMessageSource (deprecated) enum.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleConsoleMessageSource string
 
 const (
 	// ConsoleConsoleMessageSourceXML enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceXML ConsoleConsoleMessageSource = "xml"
 
 	// ConsoleConsoleMessageSourceJavascript enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceJavascript ConsoleConsoleMessageSource = "javascript"
 
 	// ConsoleConsoleMessageSourceNetwork enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceNetwork ConsoleConsoleMessageSource = "network"
 
 	// ConsoleConsoleMessageSourceConsoleAPI enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceConsoleAPI ConsoleConsoleMessageSource = "console-api"
 
 	// ConsoleConsoleMessageSourceStorage enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceStorage ConsoleConsoleMessageSource = "storage"
 
 	// ConsoleConsoleMessageSourceAppcache enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceAppcache ConsoleConsoleMessageSource = "appcache"
 
 	// ConsoleConsoleMessageSourceRendering enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceRendering ConsoleConsoleMessageSource = "rendering"
 
 	// ConsoleConsoleMessageSourceSecurity enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceSecurity ConsoleConsoleMessageSource = "security"
 
 	// ConsoleConsoleMessageSourceOther enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceOther ConsoleConsoleMessageSource = "other"
 
 	// ConsoleConsoleMessageSourceDeprecation enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceDeprecation ConsoleConsoleMessageSource = "deprecation"
 
 	// ConsoleConsoleMessageSourceWorker enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageSourceWorker ConsoleConsoleMessageSource = "worker"
 )
 
-// ConsoleConsoleMessageLevel enum.
+// ConsoleConsoleMessageLevel (deprecated) enum.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleConsoleMessageLevel string
 
 const (
 	// ConsoleConsoleMessageLevelLog enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageLevelLog ConsoleConsoleMessageLevel = "log"
 
 	// ConsoleConsoleMessageLevelWarning enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageLevelWarning ConsoleConsoleMessageLevel = "warning"
 
 	// ConsoleConsoleMessageLevelError enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageLevelError ConsoleConsoleMessageLevel = "error"
 
 	// ConsoleConsoleMessageLevelDebug enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageLevelDebug ConsoleConsoleMessageLevel = "debug"
 
 	// ConsoleConsoleMessageLevelInfo enum const.
+	//
+	// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 	ConsoleConsoleMessageLevelInfo ConsoleConsoleMessageLevel = "info"
 )
 
-// ConsoleConsoleMessage Console message.
+// ConsoleConsoleMessage (deprecated) Console message.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleConsoleMessage struct {
 	// Source Message source.
 	Source ConsoleConsoleMessageSource `json:"source"`
@@ -89,7 +127,9 @@ type ConsoleConsoleMessage struct {
 	Column *int `json:"column,omitempty"`
 }
 
-// ConsoleClearMessages Does nothing.
+// ConsoleClearMessages (deprecated) Does nothing.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleClearMessages struct{}
 
 // ProtoReq name.
@@ -100,7 +140,9 @@ func (m ConsoleClearMessages) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// ConsoleDisable Disables console domain, prevents further console messages from being reported to the client.
+// ConsoleDisable (deprecated) Disables console domain, prevents further console messages from being reported to the client.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleDisable struct{}
 
 // ProtoReq name.
@@ -111,8 +153,10 @@ func (m ConsoleDisable) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// ConsoleEnable Enables console domain, sends the messages collected so far to the client by means of the
+// ConsoleEnable (deprecated) Enables console domain, sends the messages collected so far to the client by means of the
 // `messageAdded` notification.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleEnable struct{}
 
 // ProtoReq name.
@@ -123,7 +167,9 @@ func (m ConsoleEnable) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// ConsoleMessageAdded Issued when new console message is added.
+// ConsoleMessageAdded (deprecated) Issued when new console message is added.
+//
+// Deprecated: the Console domain is deprecated in the Chrome DevTools Protocol.
 type ConsoleMessageAdded struct {
 	// Message Console message that has been added.
 	Message *ConsoleConsoleMessage `json:"message"`

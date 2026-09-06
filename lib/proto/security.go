@@ -6,15 +6,13 @@ package proto
 
 Security
 
-Security
-
 */
 
 // SecurityCertificateID An internal certificate ID value.
 type SecurityCertificateID int
 
 // SecurityMixedContentType A description of mixed content (HTTP resources on HTTPS pages), as defined by
-// https://www.w3.org/TR/mixed-content/#categories
+// https://www.w3.org/TR/mixed-content/#categories.
 type SecurityMixedContentType string
 
 const (
@@ -80,7 +78,7 @@ type SecurityCertificateSecurityState struct {
 	// ValidFrom Certificate valid from date.
 	ValidFrom TimeSinceEpoch `json:"validFrom"`
 
-	// ValidTo Certificate valid to (expiration) date
+	// ValidTo Certificate valid to (expiration) date.
 	ValidTo TimeSinceEpoch `json:"validTo"`
 
 	// CertificateNetworkError (optional) The highest priority network error code, if the certificate has an error.
@@ -92,7 +90,7 @@ type SecurityCertificateSecurityState struct {
 	// CertificateHasSha1Signature True if the certificate has a SHA1 signature in the chain.
 	CertificateHasSha1Signature bool `json:"certificateHasSha1Signature"`
 
-	// ModernSSL True if modern SSL
+	// ModernSSL True if modern SSL.
 	ModernSSL bool `json:"modernSSL"`
 
 	// ObsoleteSslProtocol True if the connection is using an obsolete SSL protocol.
@@ -168,6 +166,8 @@ type SecuritySecurityStateExplanation struct {
 }
 
 // SecurityInsecureContentStatus (deprecated) Information about insecure content on the page.
+//
+// Deprecated: Security.InsecureContentStatus is deprecated in the Chrome DevTools Protocol.
 type SecurityInsecureContentStatus struct {
 	// RanMixedContent Always false.
 	RanMixedContent bool `json:"ranMixedContent"`
@@ -242,6 +242,8 @@ func (m SecuritySetIgnoreCertificateErrors) Call(c Client) error {
 }
 
 // SecurityHandleCertificateError (deprecated) Handles a certificate error that fired a certificateError event.
+//
+// Deprecated: Security.handleCertificateError is deprecated in the Chrome DevTools Protocol.
 type SecurityHandleCertificateError struct {
 	// EventID The ID of the event.
 	EventID int `json:"eventId"`
@@ -260,6 +262,8 @@ func (m SecurityHandleCertificateError) Call(c Client) error {
 
 // SecuritySetOverrideCertificateErrors (deprecated) Enable/disable overriding certificate errors. If enabled, all certificate error events need to
 // be handled by the DevTools client and should be answered with `handleCertificateError` commands.
+//
+// Deprecated: Security.setOverrideCertificateErrors is deprecated in the Chrome DevTools Protocol.
 type SecuritySetOverrideCertificateErrors struct {
 	// Override If true, certificate errors will be overridden.
 	Override bool `json:"override"`
@@ -279,6 +283,8 @@ func (m SecuritySetOverrideCertificateErrors) Call(c Client) error {
 // handled with the `handleCertificateError` command. Note: this event does not fire if the
 // certificate error has been allowed internally. Only one client per target should override
 // certificate errors at the same time.
+//
+// Deprecated: Security.certificateError is deprecated in the Chrome DevTools Protocol.
 type SecurityCertificateError struct {
 	// EventID The ID of the event.
 	EventID int `json:"eventId"`
@@ -307,21 +313,31 @@ func (evt SecurityVisibleSecurityStateChanged) ProtoEvent() string {
 }
 
 // SecuritySecurityStateChanged (deprecated) The security state of the page changed. No longer being sent.
+//
+// Deprecated: Security.securityStateChanged is deprecated in the Chrome DevTools Protocol.
 type SecuritySecurityStateChanged struct {
 	// SecurityState Security state.
 	SecurityState SecuritySecurityState `json:"securityState"`
 
 	// SchemeIsCryptographic (deprecated) True if the page was loaded over cryptographic transport such as HTTPS.
+	//
+	// Deprecated: Security.securityStateChanged.schemeIsCryptographic is deprecated in the Chrome DevTools Protocol.
 	SchemeIsCryptographic bool `json:"schemeIsCryptographic"`
 
 	// Explanations (deprecated) Previously a list of explanations for the security state. Now always
 	// empty.
+	//
+	// Deprecated: Security.securityStateChanged.explanations is deprecated in the Chrome DevTools Protocol.
 	Explanations []*SecuritySecurityStateExplanation `json:"explanations"`
 
 	// InsecureContentStatus (deprecated) Information about insecure content on the page.
+	//
+	// Deprecated: Security.securityStateChanged.insecureContentStatus is deprecated in the Chrome DevTools Protocol.
 	InsecureContentStatus *SecurityInsecureContentStatus `json:"insecureContentStatus"`
 
 	// Summary (deprecated) (optional) Overrides user-visible description of the state. Always omitted.
+	//
+	// Deprecated: Security.securityStateChanged.summary is deprecated in the Chrome DevTools Protocol.
 	Summary string `json:"summary,omitempty"`
 }
 

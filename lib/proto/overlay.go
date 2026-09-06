@@ -47,6 +47,8 @@ type OverlayGridHighlightConfig struct {
 	GridBorderColor *DOMRGBA `json:"gridBorderColor,omitempty"`
 
 	// CellBorderColor (deprecated) (optional) The cell border color (default: transparent). Deprecated, please use rowLineColor and columnLineColor instead.
+	//
+	// Deprecated: Overlay.GridHighlightConfig.cellBorderColor is deprecated in the Chrome DevTools Protocol.
 	CellBorderColor *DOMRGBA `json:"cellBorderColor,omitempty"`
 
 	// RowLineColor (optional) The row line color (default: transparent).
@@ -59,6 +61,8 @@ type OverlayGridHighlightConfig struct {
 	GridBorderDash bool `json:"gridBorderDash,omitempty"`
 
 	// CellBorderDash (deprecated) (optional) Whether the cell border is dashed (default: false). Deprecated, please us rowLineDash and columnLineDash instead.
+	//
+	// Deprecated: Overlay.GridHighlightConfig.cellBorderDash is deprecated in the Chrome DevTools Protocol.
 	CellBorderDash bool `json:"cellBorderDash,omitempty"`
 
 	// RowLineDash (optional) Whether row lines are dashed (default: false).
@@ -88,13 +92,13 @@ type OverlayGridHighlightConfig struct {
 
 // OverlayFlexContainerHighlightConfig Configuration data for the highlighting of Flex container elements.
 type OverlayFlexContainerHighlightConfig struct {
-	// ContainerBorder (optional) The style of the container border
+	// ContainerBorder (optional) The style of the container border.
 	ContainerBorder *OverlayLineStyle `json:"containerBorder,omitempty"`
 
-	// LineSeparator (optional) The style of the separator between lines
+	// LineSeparator (optional) The style of the separator between lines.
 	LineSeparator *OverlayLineStyle `json:"lineSeparator,omitempty"`
 
-	// ItemSeparator (optional) The style of the separator between items
+	// ItemSeparator (optional) The style of the separator between items.
 	ItemSeparator *OverlayLineStyle `json:"itemSeparator,omitempty"`
 
 	// MainDistributedSpace (optional) Style of content-distribution space on the main axis (justify-content).
@@ -115,13 +119,13 @@ type OverlayFlexContainerHighlightConfig struct {
 
 // OverlayFlexItemHighlightConfig Configuration data for the highlighting of Flex item elements.
 type OverlayFlexItemHighlightConfig struct {
-	// BaseSizeBox (optional) Style of the box representing the item's base size
+	// BaseSizeBox (optional) Style of the box representing the item's base size.
 	BaseSizeBox *OverlayBoxStyle `json:"baseSizeBox,omitempty"`
 
-	// BaseSizeBorder (optional) Style of the border around the box representing the item's base size
+	// BaseSizeBorder (optional) Style of the border around the box representing the item's base size.
 	BaseSizeBorder *OverlayLineStyle `json:"baseSizeBorder,omitempty"`
 
-	// FlexibilityArrow (optional) Style of the arrow representing if the item grew or shrank
+	// FlexibilityArrow (optional) Style of the arrow representing if the item grew or shrank.
 	FlexibilityArrow *OverlayLineStyle `json:"flexibilityArrow,omitempty"`
 }
 
@@ -138,19 +142,19 @@ const (
 
 // OverlayLineStyle Style information for drawing a line.
 type OverlayLineStyle struct {
-	// Color (optional) The color of the line (default: transparent)
+	// Color (optional) The color of the line (default: transparent).
 	Color *DOMRGBA `json:"color,omitempty"`
 
-	// Pattern (optional) The line pattern (default: solid)
+	// Pattern (optional) The line pattern (default: solid).
 	Pattern OverlayLineStylePattern `json:"pattern,omitempty"`
 }
 
 // OverlayBoxStyle Style information for drawing a box.
 type OverlayBoxStyle struct {
-	// FillColor (optional) The background color for the box (default: transparent)
+	// FillColor (optional) The background color for the box (default: transparent).
 	FillColor *DOMRGBA `json:"fillColor,omitempty"`
 
-	// HatchColor (optional) The hatching color for the box (default: transparent)
+	// HatchColor (optional) The hatching color for the box (default: transparent).
 	HatchColor *DOMRGBA `json:"hatchColor,omitempty"`
 }
 
@@ -265,10 +269,10 @@ type OverlayFlexNodeHighlightConfig struct {
 
 // OverlayScrollSnapContainerHighlightConfig ...
 type OverlayScrollSnapContainerHighlightConfig struct {
-	// SnapportBorder (optional) The style of the snapport border (default: transparent)
+	// SnapportBorder (optional) The style of the snapport border (default: transparent).
 	SnapportBorder *OverlayLineStyle `json:"snapportBorder,omitempty"`
 
-	// SnapAreaBorder (optional) The style of the snap area border (default: transparent)
+	// SnapAreaBorder (optional) The style of the snap area border (default: transparent).
 	SnapAreaBorder *OverlayLineStyle `json:"snapAreaBorder,omitempty"`
 
 	// ScrollMarginColor (optional) The margin highlight fill color (default: transparent).
@@ -289,7 +293,7 @@ type OverlayScrollSnapHighlightConfig struct {
 
 // OverlayHingeConfig Configuration for dual screen hinge.
 type OverlayHingeConfig struct {
-	// Rect A rectangle represent hinge
+	// Rect A rectangle represent hinge.
 	Rect *DOMRect `json:"rect"`
 
 	// ContentColor (optional) The content box highlight fill color (default: a dark color).
@@ -297,6 +301,53 @@ type OverlayHingeConfig struct {
 
 	// OutlineColor (optional) The content box highlight outline color (default: transparent).
 	OutlineColor *DOMRGBA `json:"outlineColor,omitempty"`
+}
+
+// OverlayDisplayCutoutShape Supported display cutout shapes.
+type OverlayDisplayCutoutShape string
+
+const (
+	// OverlayDisplayCutoutShapePill enum const.
+	OverlayDisplayCutoutShapePill OverlayDisplayCutoutShape = "pill"
+
+	// OverlayDisplayCutoutShapeNotch enum const.
+	OverlayDisplayCutoutShapeNotch OverlayDisplayCutoutShape = "notch"
+
+	// OverlayDisplayCutoutShapeCircle enum const.
+	OverlayDisplayCutoutShapeCircle OverlayDisplayCutoutShape = "circle"
+
+	// OverlayDisplayCutoutShapeRectangle enum const.
+	OverlayDisplayCutoutShapeRectangle OverlayDisplayCutoutShape = "rectangle"
+)
+
+// OverlayDisplayCutoutConfig Configuration for a display cutout.
+type OverlayDisplayCutoutConfig struct {
+	// Rect A rectangle representing the cutout bounds.
+	Rect *DOMRect `json:"rect"`
+
+	// Shape used to draw the cutout.
+	Shape OverlayDisplayCutoutShape `json:"shape"`
+
+	// BorderRadius (optional) Border radius for rounded cutout shapes.
+	BorderRadius *int `json:"borderRadius,omitempty"`
+
+	// UpperRadius (optional) Upper shoulder radius for notch cutout shapes.
+	UpperRadius *int `json:"upperRadius,omitempty"`
+
+	// LowerRadius (optional) Lower transition radius for notch cutout shapes.
+	LowerRadius *int `json:"lowerRadius,omitempty"`
+
+	// Cx (optional) Center x coordinate for circle cutout shapes.
+	Cx *int `json:"cx,omitempty"`
+
+	// Cy (optional) Center y coordinate for circle cutout shapes.
+	Cy *int `json:"cy,omitempty"`
+
+	// Radius (optional) Radius for circle cutout shapes.
+	Radius *int `json:"radius,omitempty"`
+
+	// ContentColor (optional) The cutout fill color (default: black).
+	ContentColor *DOMRGBA `json:"contentColor,omitempty"`
 }
 
 // OverlayWindowControlsOverlayConfig Configuration for Window Controls Overlay.
@@ -363,12 +414,18 @@ const (
 	// OverlayInspectModeCaptureAreaScreenshot enum const.
 	OverlayInspectModeCaptureAreaScreenshot OverlayInspectMode = "captureAreaScreenshot"
 
-	// OverlayInspectModeShowDistances enum const.
-	OverlayInspectModeShowDistances OverlayInspectMode = "showDistances"
-
 	// OverlayInspectModeNone enum const.
 	OverlayInspectModeNone OverlayInspectMode = "none"
 )
+
+// OverlayInspectedElementAnchorConfig ...
+type OverlayInspectedElementAnchorConfig struct {
+	// NodeID (optional) Identifier of the node to highlight.
+	NodeID DOMNodeID `json:"nodeId,omitempty"`
+
+	// BackendNodeID (optional) Identifier of the backend node to highlight.
+	BackendNodeID DOMBackendNodeID `json:"backendNodeId,omitempty"`
+}
 
 // OverlayDisable Disables domain notifications.
 type OverlayDisable struct{}
@@ -488,6 +545,8 @@ func (m OverlayHideHighlight) Call(c Client) error {
 // Deprecated: Doesn't work reliably and cannot be fixed due to process
 // separation (the owner node might be in a different process). Determine
 // the owner node in the client and use highlightNode.
+//
+// Deprecated: Overlay.highlightFrame is deprecated in the Chrome DevTools Protocol.
 type OverlayHighlightFrame struct {
 	// FrameID Identifier of the frame to highlight.
 	FrameID PageFrameID `json:"frameId"`
@@ -536,7 +595,7 @@ func (m OverlayHighlightNode) Call(c Client) error {
 
 // OverlayHighlightQuad Highlights given quad. Coordinates are absolute with respect to the main frame viewport.
 type OverlayHighlightQuad struct {
-	// Quad to highlight
+	// Quad to highlight.
 	Quad DOMQuad `json:"quad"`
 
 	// Color (optional) The highlight fill color (default: transparent).
@@ -555,17 +614,20 @@ func (m OverlayHighlightQuad) Call(c Client) error {
 }
 
 // OverlayHighlightRect Highlights given rectangle. Coordinates are absolute with respect to the main frame viewport.
+// Issue: the method does not handle device pixel ratio (DPR) correctly.
+// The coordinates currently have to be adjusted by the client
+// if DPR is not 1 (see crbug.com/437807128).
 type OverlayHighlightRect struct {
-	// X coordinate
+	// X coordinate.
 	X int `json:"x"`
 
-	// Y coordinate
+	// Y coordinate.
 	Y int `json:"y"`
 
-	// Width Rectangle width
+	// Width Rectangle width.
 	Width int `json:"width"`
 
-	// Height Rectangle height
+	// Height Rectangle height.
 	Height int `json:"height"`
 
 	// Color (optional) The highlight fill color (default: transparent).
@@ -628,7 +690,7 @@ func (m OverlaySetInspectMode) Call(c Client) error {
 
 // OverlaySetShowAdHighlights Highlights owner element of all frames detected to be ads.
 type OverlaySetShowAdHighlights struct {
-	// Show True for showing ad highlights
+	// Show True for showing ad highlights.
 	Show bool `json:"show"`
 }
 
@@ -658,7 +720,7 @@ func (m OverlaySetPausedInDebuggerMessage) Call(c Client) error {
 
 // OverlaySetShowDebugBorders Requests that backend shows debug borders on layers.
 type OverlaySetShowDebugBorders struct {
-	// Show True for showing debug borders
+	// Show True for showing debug borders.
 	Show bool `json:"show"`
 }
 
@@ -672,7 +734,7 @@ func (m OverlaySetShowDebugBorders) Call(c Client) error {
 
 // OverlaySetShowFPSCounter Requests that backend shows the FPS counter.
 type OverlaySetShowFPSCounter struct {
-	// Show True for showing the FPS counter
+	// Show True for showing the FPS counter.
 	Show bool `json:"show"`
 }
 
@@ -744,9 +806,25 @@ func (m OverlaySetShowContainerQueryOverlays) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// OverlaySetShowInspectedElementAnchor ...
+type OverlaySetShowInspectedElementAnchor struct {
+	// InspectedElementAnchorConfig Node identifier for which to show an anchor for.
+	InspectedElementAnchorConfig *OverlayInspectedElementAnchorConfig `json:"inspectedElementAnchorConfig"`
+}
+
+// ProtoReq name.
+func (m OverlaySetShowInspectedElementAnchor) ProtoReq() string {
+	return "Overlay.setShowInspectedElementAnchor"
+}
+
+// Call sends the request.
+func (m OverlaySetShowInspectedElementAnchor) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // OverlaySetShowPaintRects Requests that backend shows paint rectangles.
 type OverlaySetShowPaintRects struct {
-	// Result True for showing paint rectangles
+	// Result True for showing paint rectangles.
 	Result bool `json:"result"`
 }
 
@@ -760,7 +838,7 @@ func (m OverlaySetShowPaintRects) Call(c Client) error {
 
 // OverlaySetShowLayoutShiftRegions Requests that backend shows layout shift regions.
 type OverlaySetShowLayoutShiftRegions struct {
-	// Result True for showing layout shift regions
+	// Result True for showing layout shift regions.
 	Result bool `json:"result"`
 }
 
@@ -776,7 +854,7 @@ func (m OverlaySetShowLayoutShiftRegions) Call(c Client) error {
 
 // OverlaySetShowScrollBottleneckRects Requests that backend shows scroll bottleneck rects.
 type OverlaySetShowScrollBottleneckRects struct {
-	// Show True for showing scroll bottleneck rects
+	// Show True for showing scroll bottleneck rects.
 	Show bool `json:"show"`
 }
 
@@ -791,8 +869,10 @@ func (m OverlaySetShowScrollBottleneckRects) Call(c Client) error {
 }
 
 // OverlaySetShowHitTestBorders (deprecated) Deprecated, no longer has any effect.
+//
+// Deprecated: Overlay.setShowHitTestBorders is deprecated in the Chrome DevTools Protocol.
 type OverlaySetShowHitTestBorders struct {
-	// Show True for showing hit-test borders
+	// Show True for showing hit-test borders.
 	Show bool `json:"show"`
 }
 
@@ -804,7 +884,9 @@ func (m OverlaySetShowHitTestBorders) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// OverlaySetShowWebVitals Request that backend shows an overlay with web vital metrics.
+// OverlaySetShowWebVitals (deprecated) Deprecated, no longer has any effect.
+//
+// Deprecated: Overlay.setShowWebVitals is deprecated in the Chrome DevTools Protocol.
 type OverlaySetShowWebVitals struct {
 	// Show ...
 	Show bool `json:"show"`
@@ -836,7 +918,7 @@ func (m OverlaySetShowViewportSizeOnResize) Call(c Client) error {
 
 // OverlaySetShowHinge Add a dual screen device hinge.
 type OverlaySetShowHinge struct {
-	// HingeConfig (optional) hinge data, null means hideHinge
+	// HingeConfig (optional) hinge data, null means hideHinge.
 	HingeConfig *OverlayHingeConfig `json:"hingeConfig,omitempty"`
 }
 
@@ -845,6 +927,20 @@ func (m OverlaySetShowHinge) ProtoReq() string { return "Overlay.setShowHinge" }
 
 // Call sends the request.
 func (m OverlaySetShowHinge) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// OverlaySetShowDisplayCutout Add a display cutout overlay.
+type OverlaySetShowDisplayCutout struct {
+	// DisplayCutoutConfig (optional) display cutout data, null means hide display cutout.
+	DisplayCutoutConfig *OverlayDisplayCutoutConfig `json:"displayCutoutConfig,omitempty"`
+}
+
+// ProtoReq name.
+func (m OverlaySetShowDisplayCutout) ProtoReq() string { return "Overlay.setShowDisplayCutout" }
+
+// Call sends the request.
+func (m OverlaySetShowDisplayCutout) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
@@ -864,7 +960,7 @@ func (m OverlaySetShowIsolatedElements) Call(c Client) error {
 
 // OverlaySetShowWindowControlsOverlay Show Window Controls Overlay for PWA.
 type OverlaySetShowWindowControlsOverlay struct {
-	// WindowControlsOverlayConfig (optional) Window Controls Overlay data, null means hide Window Controls Overlay
+	// WindowControlsOverlayConfig (optional) Window Controls Overlay data, null means hide Window Controls Overlay.
 	WindowControlsOverlayConfig *OverlayWindowControlsOverlayConfig `json:"windowControlsOverlayConfig,omitempty"`
 }
 
@@ -910,6 +1006,28 @@ type OverlayScreenshotRequested struct {
 // ProtoEvent name.
 func (evt OverlayScreenshotRequested) ProtoEvent() string {
 	return "Overlay.screenshotRequested"
+}
+
+// OverlayInspectPanelShowRequested Fired when user asks to show the Inspect panel.
+type OverlayInspectPanelShowRequested struct {
+	// BackendNodeID Id of the node to show in the panel.
+	BackendNodeID DOMBackendNodeID `json:"backendNodeId"`
+}
+
+// ProtoEvent name.
+func (evt OverlayInspectPanelShowRequested) ProtoEvent() string {
+	return "Overlay.inspectPanelShowRequested"
+}
+
+// OverlayInspectedElementWindowRestored Fired when user asks to restore the Inspected Element floating window.
+type OverlayInspectedElementWindowRestored struct {
+	// BackendNodeID Id of the node to restore the floating window for.
+	BackendNodeID DOMBackendNodeID `json:"backendNodeId"`
+}
+
+// ProtoEvent name.
+func (evt OverlayInspectedElementWindowRestored) ProtoEvent() string {
+	return "Overlay.inspectedElementWindowRestored"
 }
 
 // OverlayInspectModeCanceled Fired when user cancels the inspect mode.

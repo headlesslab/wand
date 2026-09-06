@@ -2,15 +2,69 @@
 
 package proto
 
+import (
+	"github.com/headlesslab/lazyjson"
+)
+
 /*
 
 Extensions
 
-Defines commands and events for browser extensions. Available if the client
-is connected using the --remote-debugging-pipe flag and
-the --enable-unsafe-extension-debugging flag is set.
+Defines commands and events for browser extensions.
 
 */
+
+// ExtensionsStorageArea Storage areas.
+type ExtensionsStorageArea string
+
+const (
+	// ExtensionsStorageAreaSession enum const.
+	ExtensionsStorageAreaSession ExtensionsStorageArea = "session"
+
+	// ExtensionsStorageAreaLocal enum const.
+	ExtensionsStorageAreaLocal ExtensionsStorageArea = "local"
+
+	// ExtensionsStorageAreaSync enum const.
+	ExtensionsStorageAreaSync ExtensionsStorageArea = "sync"
+
+	// ExtensionsStorageAreaManaged enum const.
+	ExtensionsStorageAreaManaged ExtensionsStorageArea = "managed"
+)
+
+// ExtensionsExtensionInfo Detailed information about an extension.
+type ExtensionsExtensionInfo struct {
+	// ID Extension id.
+	ID string `json:"id"`
+
+	// Name Extension name.
+	Name string `json:"name"`
+
+	// Version Extension version.
+	Version string `json:"version"`
+
+	// Path The path from which the extension was loaded.
+	Path string `json:"path"`
+
+	// Enabled Extension enabled status.
+	Enabled bool `json:"enabled"`
+}
+
+// ExtensionsTriggerAction Runs an extension default action.
+type ExtensionsTriggerAction struct {
+	// ID Extension id.
+	ID string `json:"id"`
+
+	// TargetID A tab target ID to trigger the default extension action on.
+	TargetID string `json:"targetId"`
+}
+
+// ProtoReq name.
+func (m ExtensionsTriggerAction) ProtoReq() string { return "Extensions.triggerAction" }
+
+// Call sends the request.
+func (m ExtensionsTriggerAction) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
 
 // ExtensionsLoadUnpacked Installs an unpacked extension from the filesystem similar to
 // --load-extension CLI flags. Returns extension ID once the extension
@@ -18,6 +72,9 @@ the --enable-unsafe-extension-debugging flag is set.
 type ExtensionsLoadUnpacked struct {
 	// Path Absolute file path.
 	Path string `json:"path"`
+
+	// EnableInIncognito (optional) Enable the extension in incognito.
+	EnableInIncognito bool `json:"enableInIncognito,omitempty"`
 }
 
 // ProtoReq name.
@@ -33,4 +90,122 @@ func (m ExtensionsLoadUnpacked) Call(c Client) (*ExtensionsLoadUnpackedResult, e
 type ExtensionsLoadUnpackedResult struct {
 	// ID Extension id.
 	ID string `json:"id"`
+}
+
+// ExtensionsGetExtensions Gets a list of all unpacked extensions.
+type ExtensionsGetExtensions struct{}
+
+// ProtoReq name.
+func (m ExtensionsGetExtensions) ProtoReq() string { return "Extensions.getExtensions" }
+
+// Call the request.
+func (m ExtensionsGetExtensions) Call(c Client) (*ExtensionsGetExtensionsResult, error) {
+	var res ExtensionsGetExtensionsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// ExtensionsGetExtensionsResult ...
+type ExtensionsGetExtensionsResult struct {
+	// Extensions ...
+	Extensions []*ExtensionsExtensionInfo `json:"extensions"`
+}
+
+// ExtensionsUninstall Uninstalls an unpacked extension (others not supported) from the profile.
+type ExtensionsUninstall struct {
+	// ID Extension id.
+	ID string `json:"id"`
+}
+
+// ProtoReq name.
+func (m ExtensionsUninstall) ProtoReq() string { return "Extensions.uninstall" }
+
+// Call sends the request.
+func (m ExtensionsUninstall) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// ExtensionsGetStorageItems Gets data from extension storage in the given `storageArea`. If `keys` is
+// specified, these are used to filter the result.
+type ExtensionsGetStorageItems struct {
+	// ID of extension.
+	ID string `json:"id"`
+
+	// StorageArea to retrieve data from.
+	StorageArea ExtensionsStorageArea `json:"storageArea"`
+
+	// Keys (optional) Keys to retrieve.
+	Keys []string `json:"keys,omitempty"`
+}
+
+// ProtoReq name.
+func (m ExtensionsGetStorageItems) ProtoReq() string { return "Extensions.getStorageItems" }
+
+// Call the request.
+func (m ExtensionsGetStorageItems) Call(c Client) (*ExtensionsGetStorageItemsResult, error) {
+	var res ExtensionsGetStorageItemsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// ExtensionsGetStorageItemsResult ...
+type ExtensionsGetStorageItemsResult struct {
+	// Data ...
+	Data map[string]lazyjson.JSON `json:"data"`
+}
+
+// ExtensionsRemoveStorageItems Removes `keys` from extension storage in the given `storageArea`.
+type ExtensionsRemoveStorageItems struct {
+	// ID of extension.
+	ID string `json:"id"`
+
+	// StorageArea to remove data from.
+	StorageArea ExtensionsStorageArea `json:"storageArea"`
+
+	// Keys to remove.
+	Keys []string `json:"keys"`
+}
+
+// ProtoReq name.
+func (m ExtensionsRemoveStorageItems) ProtoReq() string { return "Extensions.removeStorageItems" }
+
+// Call sends the request.
+func (m ExtensionsRemoveStorageItems) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// ExtensionsClearStorageItems Clears extension storage in the given `storageArea`.
+type ExtensionsClearStorageItems struct {
+	// ID of extension.
+	ID string `json:"id"`
+
+	// StorageArea to remove data from.
+	StorageArea ExtensionsStorageArea `json:"storageArea"`
+}
+
+// ProtoReq name.
+func (m ExtensionsClearStorageItems) ProtoReq() string { return "Extensions.clearStorageItems" }
+
+// Call sends the request.
+func (m ExtensionsClearStorageItems) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// ExtensionsSetStorageItems Sets `values` in extension storage in the given `storageArea`. The provided `values`
+// will be merged with existing values in the storage area.
+type ExtensionsSetStorageItems struct {
+	// ID of extension.
+	ID string `json:"id"`
+
+	// StorageArea to set data in.
+	StorageArea ExtensionsStorageArea `json:"storageArea"`
+
+	// Values to set.
+	Values map[string]lazyjson.JSON `json:"values"`
+}
+
+// ProtoReq name.
+func (m ExtensionsSetStorageItems) ProtoReq() string { return "Extensions.setStorageItems" }
+
+// Call sends the request.
+func (m ExtensionsSetStorageItems) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
 }

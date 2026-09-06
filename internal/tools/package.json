@@ -1,0 +1,12 @@
+{
+  "name": "wand-tools",
+  "private": true,
+  "description": "The Node linters and the JS minifier that wand's generators and lint tool run. npm ci installs exactly what package-lock.json records; the setup tool runs it (spec #33, section 13).",
+  "devDependencies": {
+    "cspell": "6.31.1",
+    "eslint": "8.41.0",
+    "eslint-plugin-html": "8.2.0",
+    "prettier": "2.8.8",
+    "uglify-js": "3.17.4"
+  }
+}

@@ -27,10 +27,10 @@ type DOMSnapshotDOMNode struct {
 	// InputValue (optional) Only set for input elements, contains the input's associated text value.
 	InputValue string `json:"inputValue,omitempty"`
 
-	// InputChecked (optional) Only set for radio and checkbox input elements, indicates if the element has been checked
+	// InputChecked (optional) Only set for radio and checkbox input elements, indicates if the element has been checked.
 	InputChecked bool `json:"inputChecked,omitempty"`
 
-	// OptionSelected (optional) Only set for option elements, indicates if the element has been selected
+	// OptionSelected (optional) Only set for option elements, indicates if the element has been selected.
 	OptionSelected bool `json:"optionSelected,omitempty"`
 
 	// BackendNodeID `Node`'s id, corresponds to DOM.Node.backendNodeId.
@@ -269,10 +269,10 @@ type DOMSnapshotNodeTreeSnapshot struct {
 	// InputValue (optional) Only set for input elements, contains the input's associated text value.
 	InputValue *DOMSnapshotRareStringData `json:"inputValue,omitempty"`
 
-	// InputChecked (optional) Only set for radio and checkbox input elements, indicates if the element has been checked
+	// InputChecked (optional) Only set for radio and checkbox input elements, indicates if the element has been checked.
 	InputChecked *DOMSnapshotRareBooleanData `json:"inputChecked,omitempty"`
 
-	// OptionSelected (optional) Only set for option elements, indicates if the element has been selected
+	// OptionSelected (optional) Only set for option elements, indicates if the element has been selected.
 	OptionSelected *DOMSnapshotRareBooleanData `json:"optionSelected,omitempty"`
 
 	// ContentDocumentIndex (optional) The index of the document in the list of the snapshot documents.
@@ -319,13 +319,13 @@ type DOMSnapshotLayoutTreeSnapshot struct {
 	// captureSnapshot was true.
 	PaintOrders []int `json:"paintOrders,omitempty"`
 
-	// OffsetRects (optional) The offset rect of nodes. Only available when includeDOMRects is set to true
+	// OffsetRects (optional) The offset rect of nodes. Only available when includeDOMRects is set to true.
 	OffsetRects []DOMSnapshotRectangle `json:"offsetRects,omitempty"`
 
-	// ScrollRects (optional) The scroll rect of nodes. Only available when includeDOMRects is set to true
+	// ScrollRects (optional) The scroll rect of nodes. Only available when includeDOMRects is set to true.
 	ScrollRects []DOMSnapshotRectangle `json:"scrollRects,omitempty"`
 
-	// ClientRects (optional) The client rect of nodes. Only available when includeDOMRects is set to true
+	// ClientRects (optional) The client rect of nodes. Only available when includeDOMRects is set to true.
 	ClientRects []DOMSnapshotRectangle `json:"clientRects,omitempty"`
 
 	// BlendedBackgroundColors (experimental) (optional) The list of background colors that are blended with colors of overlapping elements.
@@ -379,6 +379,8 @@ func (m DOMSnapshotEnable) Call(c Client) error {
 // template contents, and imported documents) in a flattened array, as well as layout and
 // white-listed computed style information for the nodes. Shadow DOM in the returned DOM tree is
 // flattened.
+//
+// Deprecated: DOMSnapshot.getSnapshot is deprecated in the Chrome DevTools Protocol.
 type DOMSnapshotGetSnapshot struct {
 	// ComputedStyleWhitelist Whitelist of computed styles to return.
 	ComputedStyleWhitelist []string `json:"computedStyleWhitelist"`
@@ -403,6 +405,8 @@ func (m DOMSnapshotGetSnapshot) Call(c Client) (*DOMSnapshotGetSnapshotResult, e
 }
 
 // DOMSnapshotGetSnapshotResult (deprecated) ...
+//
+// Deprecated: DOMSnapshot.getSnapshot is deprecated in the Chrome DevTools Protocol.
 type DOMSnapshotGetSnapshotResult struct {
 	// DomNodes The nodes in the DOM tree. The DOMNode at index 0 corresponds to the root document.
 	DomNodes []*DOMSnapshotDOMNode `json:"domNodes"`
@@ -425,7 +429,7 @@ type DOMSnapshotCaptureSnapshot struct {
 	// IncludePaintOrder (optional) Whether to include layout object paint orders into the snapshot.
 	IncludePaintOrder bool `json:"includePaintOrder,omitempty"`
 
-	// IncludeDOMRects (optional) Whether to include DOM rectangles (offsetRects, clientRects, scrollRects) into the snapshot
+	// IncludeDOMRects (optional) Whether to include DOM rectangles (offsetRects, clientRects, scrollRects) into the snapshot.
 	IncludeDOMRects bool `json:"includeDOMRects,omitempty"`
 
 	// IncludeBlendedBackgroundColors (experimental) (optional) Whether to include blended background colors in the snapshot (default: false).

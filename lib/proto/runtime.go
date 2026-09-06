@@ -239,6 +239,9 @@ const (
 
 	// RuntimeRemoteObjectSubtypeWasmvalue enum const.
 	RuntimeRemoteObjectSubtypeWasmvalue RuntimeRemoteObjectSubtype = "wasmvalue"
+
+	// RuntimeRemoteObjectSubtypeTrustedtype enum const.
+	RuntimeRemoteObjectSubtypeTrustedtype RuntimeRemoteObjectSubtype = "trustedtype"
 )
 
 // RuntimeRemoteObject Mirror object referencing original JavaScript object.
@@ -378,6 +381,9 @@ const (
 
 	// RuntimeObjectPreviewSubtypeWasmvalue enum const.
 	RuntimeObjectPreviewSubtypeWasmvalue RuntimeObjectPreviewSubtype = "wasmvalue"
+
+	// RuntimeObjectPreviewSubtypeTrustedtype enum const.
+	RuntimeObjectPreviewSubtypeTrustedtype RuntimeObjectPreviewSubtype = "trustedtype"
 )
 
 // RuntimeObjectPreview (experimental) Object containing abbreviated remote object value.
@@ -493,6 +499,9 @@ const (
 
 	// RuntimePropertyPreviewSubtypeWasmvalue enum const.
 	RuntimePropertyPreviewSubtypeWasmvalue RuntimePropertyPreviewSubtype = "wasmvalue"
+
+	// RuntimePropertyPreviewSubtypeTrustedtype enum const.
+	RuntimePropertyPreviewSubtypeTrustedtype RuntimePropertyPreviewSubtype = "trustedtype"
 )
 
 // RuntimePropertyPreview (experimental) ...
@@ -618,7 +627,7 @@ type RuntimeExecutionContextDescription struct {
 	// performs a cross-process navigation.
 	UniqueID string `json:"uniqueId"`
 
-	// AuxData (optional) Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
+	// AuxData (optional) Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}.
 	AuxData map[string]lazyjson.JSON `json:"auxData,omitempty"`
 }
 
@@ -760,7 +769,7 @@ type RuntimeCallFunctionOn struct {
 	Silent bool `json:"silent,omitempty"`
 
 	// ReturnByValue (optional) Whether the result is expected to be a JSON object which should be sent by value.
-	// Can be overridden by `serializationOptions`.
+	// Can be overriden by `serializationOptions`.
 	ReturnByValue bool `json:"returnByValue,omitempty"`
 
 	// GeneratePreview (experimental) (optional) Whether preview should be generated for the result.
@@ -1004,11 +1013,17 @@ func (m RuntimeGetHeapUsage) Call(c Client) (*RuntimeGetHeapUsageResult, error) 
 
 // RuntimeGetHeapUsageResult (experimental) ...
 type RuntimeGetHeapUsageResult struct {
-	// UsedSize Used heap size in bytes.
+	// UsedSize Used JavaScript heap size in bytes.
 	UsedSize float64 `json:"usedSize"`
 
-	// TotalSize Allocated heap size in bytes.
+	// TotalSize Allocated JavaScript heap size in bytes.
 	TotalSize float64 `json:"totalSize"`
+
+	// EmbedderHeapUsedSize Used size in bytes in the embedder's garbage-collected heap.
+	EmbedderHeapUsedSize float64 `json:"embedderHeapUsedSize"`
+
+	// BackingStorageSize Size in bytes of backing storage for array buffers and external strings.
+	BackingStorageSize float64 `json:"backingStorageSize"`
 }
 
 // RuntimeGetProperties Returns properties of a given object. Object group of the result is inherited from the target
@@ -1264,6 +1279,8 @@ type RuntimeAddBinding struct {
 	// Deprecated in favor of `executionContextName` due to an unclear use case
 	// and bugs in implementation (crbug.com/1169639). `executionContextId` will be
 	// removed in the future.
+	//
+	// Deprecated: Runtime.addBinding.executionContextId is deprecated in the Chrome DevTools Protocol.
 	ExecutionContextID RuntimeExecutionContextID `json:"executionContextId,omitempty"`
 
 	// ExecutionContextName (optional) If specified, the binding is exposed to the executionContext with
@@ -1469,10 +1486,12 @@ func (evt RuntimeExecutionContextCreated) ProtoEvent() string {
 
 // RuntimeExecutionContextDestroyed Issued when execution context is destroyed.
 type RuntimeExecutionContextDestroyed struct {
-	// ExecutionContextID (deprecated) Id of the destroyed context
+	// ExecutionContextID (deprecated) Id of the destroyed context.
+	//
+	// Deprecated: Runtime.executionContextDestroyed.executionContextId is deprecated in the Chrome DevTools Protocol.
 	ExecutionContextID RuntimeExecutionContextID `json:"executionContextId"`
 
-	// ExecutionContextUniqueID (experimental) Unique Id of the destroyed context
+	// ExecutionContextUniqueID (experimental) Unique Id of the destroyed context.
 	ExecutionContextUniqueID string `json:"executionContextUniqueId"`
 }
 

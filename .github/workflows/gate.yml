@@ -1,9 +1,10 @@
 # The Gate: every push and every pull request runs the whole suite with a real
-# browser on linux/amd64 and must keep statement coverage at 100 %. The main
-# ruleset requires the job below as a status check, so a red run blocks the
-# merge and nothing else (spec #33, section 13; ticket #36). Later tickets grow
-# this file into the full Tier 1 / Tier 2 matrix (#54) and add the security
-# Gates (#56).
+# browser on linux/amd64 and must keep statement coverage at 100 % (the test
+# job), and regenerates everything from the pinned inputs and lints, which
+# must leave the tree unchanged (the generate job). The main ruleset requires
+# both as status checks, so a red run blocks the merge and nothing else (spec
+# #33, section 13; tickets #36 and #42). Later tickets grow this file into the
+# full Tier 1 / Tier 2 matrix (#54) and add the security Gates (#56).
 #
 # Every action is pinned to a full-length commit SHA with its version in a
 # trailing comment; Dependabot keeps the pins moving once #56 turns it on.
@@ -102,3 +103,67 @@ jobs:
           path: |
             tmp/cdp-log
             coverage.out
+
+  # The generate Gate: every go:generate step of browser.go, in its order,
+  # from the pinned inputs (the devtools-protocol tag the pins name, the
+  # committed JS and assets, the pinned devices commit), then the lint step,
+  # which runs the Node linters from internal/tools/package-lock.json and
+  # golangci-lint at the version internal/devutil pins (its formatters are
+  # gofumpt and goimports at the versions it bundles), and ends by requiring
+  # an empty git status. So the committed protocol package is byte for byte
+  # what the pins and the schema give, the pins re-derive, and no @latest or
+  # bare npx takes part (spec #33, sections 4 and 13; ADR-0004; ticket #42).
+  # No browser is involved.
+  generate:
+    name: Generate (zero diff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: internal/tools/package-lock.json
+
+      - run: go version && node --version
+
+      # go mod download, npm ci for the Node tools, .dockerignore.
+      - run: go run ./internal/tools/setup
+
+      # The Protocol roll re-derives from the branch position (one git
+      # ls-remote) and every pins output re-renders to the committed bytes.
+      - run: go run ./lib/launcher/pins/generate -check
+
+      # lib/proto from the devtools-protocol tag the pins name; the []byte
+      # count is checked against the tag's PDL files. The summary it prints
+      # is empty here, since the committed package is what it regenerates.
+      - run: go run ./lib/proto/generate
+
+      - run: go run ./lib/js/generate
+
+      - run: go run ./internal/assets/generate
+
+      - run: go run ./lib/devices/generate
+
+      # cspell, eslint, prettier, golangci-lint fmt and run, the Must-prefix
+      # rule, then an empty git status --porcelain.
+      - run: go run ./internal/tools/lint
+
+      # What drifted, when a generator or a formatter rewrote something.
+      - name: Show the drift
+        if: failure()
+        run: |
+          git status --porcelain
+          git diff | head -300

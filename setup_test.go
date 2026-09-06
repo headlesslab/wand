@@ -215,6 +215,7 @@ var _ wand.CDPClient = &MockClient{}
 
 type MockClient struct {
 	sync.RWMutex
+
 	id        string
 	t         got.Testable
 	log       *log.Logger
@@ -291,7 +292,7 @@ func (mc *MockClient) stubCounter() {
 	l := sync.Mutex{}
 	mCount := map[string]int{}
 
-	fmt.Fprintln(os.Stdout, "[stubCounter] begin")
+	_, _ = fmt.Fprintln(os.Stdout, "[stubCounter] begin")
 
 	mc.setCall(func(ctx context.Context, sessionID, method string, params interface{}) ([]byte, error) {
 		l.Lock()

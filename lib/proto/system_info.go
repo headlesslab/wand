@@ -109,22 +109,6 @@ const (
 	SystemInfoImageTypeUnknown SystemInfoImageType = "unknown"
 )
 
-// SystemInfoImageDecodeAcceleratorCapability Describes a supported image decoding profile with its associated minimum and
-// maximum resolutions and subsampling.
-type SystemInfoImageDecodeAcceleratorCapability struct {
-	// ImageType Image coded, e.g. Jpeg.
-	ImageType SystemInfoImageType `json:"imageType"`
-
-	// MaxDimensions Maximum supported dimensions of the image in pixels.
-	MaxDimensions *SystemInfoSize `json:"maxDimensions"`
-
-	// MinDimensions Minimum supported dimensions of the image in pixels.
-	MinDimensions *SystemInfoSize `json:"minDimensions"`
-
-	// Subsamplings Optional array of supported subsampling formats, e.g. 4:2:0, if known.
-	Subsamplings []SystemInfoSubsamplingFormat `json:"subsamplings"`
-}
-
 // SystemInfoGPUInfo Provides information about the GPU(s) on the system.
 type SystemInfoGPUInfo struct {
 	// Devices The graphics devices on the system. Element 0 is the primary GPU.
@@ -144,9 +128,6 @@ type SystemInfoGPUInfo struct {
 
 	// VideoEncoding Supported accelerated video encoding capabilities.
 	VideoEncoding []*SystemInfoVideoEncodeAcceleratorCapability `json:"videoEncoding"`
-
-	// ImageDecoding Supported accelerated image decoding capabilities.
-	ImageDecoding []*SystemInfoImageDecodeAcceleratorCapability `json:"imageDecoding"`
 }
 
 // SystemInfoProcessInfo Represents process info.

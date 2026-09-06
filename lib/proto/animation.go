@@ -58,13 +58,13 @@ type AnimationAnimation struct {
 	// animation/transition.
 	CSSID string `json:"cssId,omitempty"`
 
-	// ViewOrScrollTimeline (optional) View or scroll timeline
+	// ViewOrScrollTimeline (optional) View or scroll timeline.
 	ViewOrScrollTimeline *AnimationViewOrScrollTimeline `json:"viewOrScrollTimeline,omitempty"`
 }
 
 // AnimationViewOrScrollTimeline Timeline instance.
 type AnimationViewOrScrollTimeline struct {
-	// SourceNodeID (optional) Scroll container node
+	// SourceNodeID (optional) Scroll container node.
 	SourceNodeID DOMBackendNodeID `json:"sourceNodeId,omitempty"`
 
 	// StartOffset (optional) Represents the starting scroll position of the timeline
@@ -77,10 +77,10 @@ type AnimationViewOrScrollTimeline struct {
 
 	// SubjectNodeID (optional) The element whose principal box's visibility in the
 	// scrollport defined the progress of the timeline.
-	// Does not exist for animations with ScrollTimeline
+	// Does not exist for animations with ScrollTimeline.
 	SubjectNodeID DOMBackendNodeID `json:"subjectNodeId,omitempty"`
 
-	// Axis Orientation of the scroll
+	// Axis Orientation of the scroll.
 	Axis DOMScrollOrientation `json:"axis"`
 }
 
@@ -95,8 +95,8 @@ type AnimationAnimationEffect struct {
 	// IterationStart `AnimationEffect`'s iteration start.
 	IterationStart float64 `json:"iterationStart"`
 
-	// Iterations `AnimationEffect`'s iterations.
-	Iterations float64 `json:"iterations"`
+	// Iterations (optional) `AnimationEffect`'s iterations. Omitted if the value is infinite.
+	Iterations *float64 `json:"iterations,omitempty"`
 
 	// Duration `AnimationEffect`'s iteration duration.
 	// Milliseconds for time based animations and
@@ -270,7 +270,7 @@ func (m AnimationSetPaused) Call(c Client) error {
 
 // AnimationSetPlaybackRate Sets the playback rate of the document timeline.
 type AnimationSetPlaybackRate struct {
-	// PlaybackRate Playback rate for animations on page
+	// PlaybackRate Playback rate for animations on page.
 	PlaybackRate float64 `json:"playbackRate"`
 }
 

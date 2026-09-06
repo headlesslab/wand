@@ -90,7 +90,7 @@ type FedCmAccount struct {
 	// LoginState ...
 	LoginState FedCmLoginState `json:"loginState"`
 
-	// TermsOfServiceURL (optional) These two are only set if the loginState is signUp
+	// TermsOfServiceURL (optional) These two are only set if the loginState is signUp.
 	TermsOfServiceURL string `json:"termsOfServiceUrl,omitempty"`
 
 	// PrivacyPolicyURL (optional) ...
@@ -101,7 +101,7 @@ type FedCmAccount struct {
 type FedCmEnable struct {
 	// DisableRejectionDelay (optional) Allows callers to disable the promise rejection delay that would
 	// normally happen, if this is unimportant to what's being tested.
-	// (step 4 of https://fedidcg.github.io/FedCM/#browser-api-rp-sign-in)
+	// (step 4 of https://fedidcg.github.io/FedCM/#browser-api-rp-sign-in).
 	DisableRejectionDelay bool `json:"disableRejectionDelay,omitempty"`
 }
 
