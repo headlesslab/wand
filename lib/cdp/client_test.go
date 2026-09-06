@@ -355,6 +355,40 @@ func TestConcurrentCall(t *testing.T) {
 	}
 }
 
+// TestCallSendErrWhileClosing: the connection drops as a request goes out, so
+// Send fails while the message loop is already failing every pending call.
+// The loop must not block on the call that is about to return on its own:
+// it once did, on a send to a channel nobody read any more, and the client
+// never closed its event channel (a goroutine leak the root suite's
+// TestBrowserVersionMismatch reported in the Gate).
+func TestCallSendErrWhileClosing(t *testing.T) {
+	g := setup(t)
+
+	dropped := make(chan struct{})
+	var client *cdp.Client
+	ws := &MockWebSocket{
+		read: func() ([]byte, error) {
+			<-dropped
+			return nil, errors.New("connection dropped")
+		},
+		send: func([]byte) error {
+			// The read side fails now, and the message loop is given time to
+			// finish with the pending call before Send reports its failure.
+			close(dropped)
+			select {
+			case <-client.Event():
+			case <-time.After(5 * time.Second):
+				g.Fatal("the message loop did not finish while a failed Send was pending")
+			}
+			return errors.New("send failed")
+		},
+	}
+	client = cdp.New().Start(ws)
+
+	_, err := client.Call(g.Context(), "", "method", nil)
+	g.Has(err.Error(), "send failed")
+}
+
 type MockWebSocket struct {
 	send func(data []byte) error
 	read func() ([]byte, error)
