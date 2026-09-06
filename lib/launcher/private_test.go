@@ -1,11 +1,13 @@
 package launcher
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -13,21 +15,10 @@ import (
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
 	"github.com/headlesslab/wand/lib/launcher/flags"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/utils"
 	"github.com/ysmood/got"
 )
-
-func HostTest(host string) Host {
-	return func(revision int) string {
-		return fmt.Sprintf(
-			"%s/chromium-browser-snapshots/%s/%d/%s",
-			host,
-			hostConf.urlPrefix,
-			revision,
-			hostConf.zipName,
-		)
-	}
-}
 
 var setup = got.Setup(nil)
 
@@ -73,6 +64,241 @@ func TestLaunchOptions(t *testing.T) {
 	g.True(l.Has("auto-open-devtools-for-tabs"))
 }
 
+func TestManagedOptions(t *testing.T) {
+	g := setup(t)
+
+	// A revision selects the Chromium source, a version the Chrome for Testing
+	// source, so neither is silently ignored.
+	l := New().Revision(7)
+	g.Eq(l.browser.Source, SourceChromium)
+	g.Eq(l.browser.Revision, 7)
+
+	l.Version("1.2.3.4")
+	g.Eq(l.browser.Source, SourceChrome)
+	g.Eq(l.browser.Version, "1.2.3.4")
+
+	l.Source(SourceChromium).Binary(BinaryHeadlessShell).Hosts("https://a.example/{archive}")
+	g.Eq(l.browser.Source, SourceChromium)
+	g.Eq(l.browser.Binary, BinaryHeadlessShell)
+	g.Eq(l.browser.Hosts, []string{"https://a.example/{archive}"})
+}
+
+func TestResolve(t *testing.T) {
+	g := setup(t)
+
+	// Pins of the test's own, so that the outcome does not move with the Roll.
+	chromeSHA256 = map[string]map[string]string{
+		"chrome":                {"linux64": "aa", "win64": "bb"},
+		"chrome-headless-shell": {"linux64": "cc"},
+	}
+	chromiumSHA256 = map[string]string{"Linux_x64": "dd"}
+	defer func() {
+		chromeSHA256 = pins.ChromeSHA256
+		chromiumSHA256 = pins.ChromiumSHA256
+	}()
+
+	pinned := NewBrowser()
+	pinned.Source = SourceChrome
+	pinned.Binary = BinaryChrome
+
+	{ // the Target Chrome where its archive is pinned
+		a, err := pinned.resolve("linux/amd64", false)
+		g.E(err)
+		g.Eq(a, archive{platform: "linux64", version: pins.ChromeVersion, name: "chrome-linux64.zip", sha256: "aa"})
+		g.Eq(a.url(DefaultHosts(SourceChrome)[0]),
+			"https://storage.googleapis.com/chrome-for-testing-public/"+pins.ChromeVersion+"/linux64/chrome-linux64.zip")
+	}
+
+	{ // a platform Chrome for Testing builds for, but not at the Target Chrome
+		_, err := pinned.resolve("darwin/arm64", false)
+		g.Has(err.Error(), "no chrome "+pins.ChromeVersion+" archive is pinned for darwin/arm64")
+		g.Has(err.Error(), "WAND_BROWSER_BIN")
+	}
+
+	{ // platforms Chrome for Testing never builds for
+		for _, platform := range []string{"windows/arm64", "linux/loong64", "freebsd/amd64"} {
+			_, err := pinned.resolve(platform, false)
+			g.Desc(platform).Has(err.Error(), "no Chrome for Testing build exists for "+platform)
+			g.Desc(platform).Has(err.Error(), "Launcher.Bin()")
+		}
+	}
+
+	{ // the musl C library
+		_, err := pinned.resolve("linux/amd64", true)
+		g.Has(err.Error(), "musl")
+		g.Has(err.Error(), "linux/amd64")
+		g.Has(err.Error(), "WAND_BROWSER_BIN")
+	}
+
+	{ // chrome-headless-shell
+		b := NewBrowser()
+		b.Source = SourceChrome
+		b.Binary = BinaryHeadlessShell
+
+		a, err := b.resolve("linux/amd64", false)
+		g.E(err)
+		g.Eq(a, archive{platform: "linux64", version: pins.ChromeVersion, name: "chrome-headless-shell-linux64.zip", sha256: "cc"})
+
+		_, err = b.resolve("windows/amd64", false)
+		g.Has(err.Error(), "no chrome-headless-shell "+pins.ChromeVersion+" archive is pinned for windows/amd64")
+	}
+
+	{ // a version of the user's own: no hash, on any Chrome for Testing platform
+		b := NewBrowser()
+		b.Source = SourceChrome
+		b.Binary = BinaryChrome
+		b.Version = "1.2.3.4"
+
+		a, err := b.resolve("darwin/arm64", false)
+		g.E(err)
+		g.Eq(a, archive{platform: "mac-arm64", version: "1.2.3.4", name: "chrome-mac-arm64.zip"})
+	}
+
+	{ // the Companion Chromium
+		b := NewBrowser()
+		b.Source = SourceChromium
+		b.Binary = BinaryChrome
+
+		a, err := b.resolve("linux/amd64", false)
+		g.E(err)
+		position := strconv.Itoa(pins.ChromiumPosition)
+		g.Eq(a, archive{platform: "Linux_x64", version: position, name: "chrome-linux.zip", sha256: "dd"})
+		g.Eq(a.url(DefaultHosts(SourceChromium)[1]),
+			"https://registry.npmmirror.com/-/binary/chromium-browser-snapshots/Linux_x64/"+position+"/chrome-linux.zip")
+
+		_, err = b.resolve("windows/amd64", false)
+		g.Has(err.Error(), "no Chromium "+position+" archive is pinned for windows/amd64")
+
+		for _, platform := range []string{"linux/arm64", "windows/arm64", "linux/loong64"} {
+			_, err = b.resolve(platform, false)
+			g.Desc(platform).Has(err.Error(), "no Chromium trunk build exists for "+platform)
+			g.Desc(platform).Has(err.Error(), "Launcher.Bin()")
+		}
+
+		_, err = b.resolve("linux/amd64", true)
+		g.Has(err.Error(), "musl")
+
+		b.Revision = 1
+		a, err = b.resolve("darwin/amd64", false)
+		g.E(err)
+		g.Eq(a, archive{platform: "Mac", version: "1", name: "chrome-mac.zip"})
+	}
+}
+
+// TestPinnedPlatforms ties the platform tables to the pins: every platform
+// the Target Chrome has an archive for resolves to that archive's hash, every
+// other Chrome for Testing platform is refused, and the Companion Chromium is
+// pinned under every prefix the launcher can download from.
+func TestPinnedPlatforms(t *testing.T) {
+	g := setup(t)
+
+	for _, binary := range []Binary{BinaryChrome, BinaryHeadlessShell} {
+		b := NewBrowser()
+		b.Source = SourceChrome
+		b.Binary = binary
+
+		for platform, cft := range chromePlatforms {
+			a, err := b.resolve(platform, false)
+			sum, pinned := pins.ChromeSHA256[string(binary)][cft]
+			if pinned {
+				g.Desc("%s %s", binary, platform).E(err)
+				g.Desc("%s %s", binary, platform).Eq(a.sha256, sum)
+			} else {
+				g.Desc("%s %s", binary, platform).Has(err.Error(), "is pinned for "+platform)
+			}
+		}
+	}
+
+	b := NewBrowser()
+	b.Source = SourceChromium
+	b.Binary = BinaryChrome
+
+	for platform, bucket := range chromiumPlatforms {
+		a, err := b.resolve(platform, false)
+		g.Desc(platform).E(err)
+		g.Desc(platform).Eq(a.sha256, pins.ChromiumSHA256[bucket.prefix])
+	}
+}
+
+func TestHosts(t *testing.T) {
+	g := setup(t)
+
+	b := NewBrowser()
+	b.Hosts = nil
+	g.Eq(b.hosts(), DefaultHosts(b.Source))
+
+	b.Source = SourceChromium
+	g.Eq(b.hosts(), DefaultHosts(SourceChromium))
+
+	b.Hosts = []string{"https://a.example/{archive}"}
+	g.Eq(b.hosts(), b.Hosts)
+}
+
+func TestBinPaths(t *testing.T) {
+	g := setup(t)
+
+	b := NewBrowser()
+	b.RootDir = "cache"
+	b.Version = "1.0"
+	b.Revision = 2
+
+	cases := []struct {
+		source Source
+		binary Binary
+		goos   string
+		path   string
+	}{
+		{SourceChrome, BinaryChrome, "linux", "chrome-1.0/chrome"},
+		{SourceChrome, BinaryChrome, "darwin", "chrome-1.0/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"},
+		{SourceChrome, BinaryChrome, "windows", "chrome-1.0/chrome.exe"},
+		{SourceChrome, BinaryHeadlessShell, "linux", "chrome-headless-shell-1.0/chrome-headless-shell"},
+		{SourceChrome, BinaryHeadlessShell, "darwin", "chrome-headless-shell-1.0/chrome-headless-shell"},
+		{SourceChrome, BinaryHeadlessShell, "windows", "chrome-headless-shell-1.0/chrome-headless-shell.exe"},
+		{SourceChromium, BinaryChrome, "linux", "chromium-2/chrome"},
+		{SourceChromium, BinaryChrome, "darwin", "chromium-2/Chromium.app/Contents/MacOS/Chromium"},
+		{SourceChromium, BinaryChrome, "windows", "chromium-2/chrome.exe"},
+	}
+
+	for _, c := range cases {
+		b.Source, b.Binary = c.source, c.binary
+		g.Desc("%s %s %s", c.source, c.binary, c.goos).Eq(b.binPath(c.goos), filepath.Join("cache", filepath.FromSlash(c.path)))
+	}
+
+	g.Eq(b.BinPath(), b.binPath(runtime.GOOS))
+}
+
+func TestCacheDir(t *testing.T) {
+	g := setup(t)
+
+	t.Setenv(EnvBrowserCache, "")
+	g.True(strings.HasSuffix(cacheDir(), filepath.Join("wand", "browser")))
+	g.Neq(filepath.Dir(filepath.Dir(cacheDir())), os.TempDir())
+
+	t.Setenv(EnvBrowserCache, "cache")
+	g.Eq(cacheDir(), "cache")
+
+	// A user with no cache directory gets the temporary directory.
+	t.Setenv(EnvBrowserCache, "")
+	for _, name := range []string{"XDG_CACHE_HOME", "HOME", "LocalAppData"} {
+		t.Setenv(name, "")
+	}
+	g.Eq(cacheDir(), filepath.Join(os.TempDir(), "wand", "browser"))
+}
+
+func TestMuslLoader(t *testing.T) {
+	g := setup(t)
+
+	dir := t.TempDir()
+	glob := filepath.Join(dir, "ld-musl-*.so.1")
+	g.False(muslLoader(glob))
+
+	g.E(os.WriteFile(filepath.Join(dir, "ld-musl-x86_64.so.1"), nil, 0o644))
+	g.True(muslLoader(glob))
+
+	// Only a Linux distribution ships musl's loader.
+	g.Eq(hasMuslLoader(), runtime.GOOS == "linux" && muslLoader(muslLoaderGlob))
+}
+
 func TestGetURLErr(t *testing.T) {
 	g := setup(t)
 
@@ -95,8 +321,8 @@ func TestManaged(t *testing.T) {
 	g := setup(t)
 
 	// The budget covers a browser launch through the manager (behind the
-	// launcher's port lock, which the other package suites contend for on a
-	// 4-vCPU runner under -race), a crash, the cleanup and a second handshake.
+	// download lock, which the other package suites contend for on a 4-vCPU
+	// runner under -race), a crash, the cleanup and a second handshake.
 	ctx := g.Timeout(15 * time.Second)
 
 	s := got.New(g).Serve()
@@ -135,8 +361,8 @@ func TestLaunchErrs(t *testing.T) {
 	s.Route("/", "", nil)
 	l = New().Bin("")
 	l.browser.Logger = utils.LoggerQuiet
-	l.browser.RootDir = filepath.Join("tmp", "browser-from-mirror", g.RandStr(16))
-	l.browser.Hosts = []Host{HostTest(s.URL())}
+	l.browser.RootDir = filepath.Join(t.TempDir(), "browser")
+	l.browser.Hosts = []string{s.URL("/{version}/{platform}/{archive}")}
 	_, err = l.Launch()
 	g.Err(err)
 }

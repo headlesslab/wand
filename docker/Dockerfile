@@ -15,8 +15,8 @@ RUN go run ./cmd/wand-fetch-browser
 
 FROM ubuntu:noble
 
-COPY --from=go /root/.cache/rod /root/.cache/rod
-RUN ln -s /root/.cache/rod/browser/$(ls /root/.cache/rod/browser)/chrome /usr/bin/chrome
+COPY --from=go /root/.cache/wand /root/.cache/wand
+RUN ln -s "$(ls -d /root/.cache/wand/browser/*/)chrome" /usr/bin/chrome
 
 RUN touch /.dockerenv
 

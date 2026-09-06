@@ -48,7 +48,7 @@ type Launcher struct {
 // Leakless will be enabled by default.
 // UserDataDir will use OS tmp dir by default, this folder will usually be cleaned up by the OS after reboot.
 // It will auto download the browser binary according to the current platform,
-// check [Launcher.Bin] and [Launcher.Revision] for more info.
+// check [Launcher.Bin], [Launcher.Source] and [Launcher.Version] for more info.
 func New() *Launcher {
 	dir := defaults.Dir
 	if dir == "" {
@@ -215,9 +215,46 @@ func (l *Launcher) Bin(path string) *Launcher {
 	return l.Set(flags.Bin, path)
 }
 
-// Revision of the browser to auto download.
+// Source of the Managed browser to auto download when no binary is set:
+// Chrome for Testing at the Target Chrome, the default, or Chromium trunk
+// builds at the Companion Chromium. WAND_BROWSER_SOURCE sets the default.
+func (l *Launcher) Source(source Source) *Launcher {
+	l.browser.Source = source
+	return l
+}
+
+// Binary of the Chrome for Testing archive to auto download: the full
+// browser, the default, or chrome-headless-shell. WAND_BROWSER_BINARY sets
+// the default.
+func (l *Launcher) Binary(binary Binary) *Launcher {
+	l.browser.Binary = binary
+	return l
+}
+
+// Version of Chrome for Testing to auto download, the Target Chrome by
+// default. It selects the Chrome for Testing source. A version other than
+// the Target Chrome has no recorded hash, so its download is not verified.
+func (l *Launcher) Version(version string) *Launcher {
+	l.browser.Source = SourceChrome
+	l.browser.Version = version
+	return l
+}
+
+// Revision of the Chromium trunk build to auto download, the Companion
+// Chromium by default. It selects the Chromium source. A revision other than
+// the Companion Chromium has no recorded hash, so its download is not
+// verified.
 func (l *Launcher) Revision(rev int) *Launcher {
+	l.browser.Source = SourceChromium
 	l.browser.Revision = rev
+	return l
+}
+
+// Hosts to auto download the Managed browser from, as the URL templates
+// [DefaultHosts] describes, for a private mirror. WAND_BROWSER_HOSTS sets the
+// default.
+func (l *Launcher) Hosts(templates ...string) *Launcher {
+	l.browser.Hosts = templates
 	return l
 }
 
