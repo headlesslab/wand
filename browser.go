@@ -332,7 +332,7 @@ func (b *Browser) waitEvent(sessionID proto.TargetSessionID, e proto.Event) (wai
 	valE := reflect.ValueOf(e)
 	valTrue := reflect.ValueOf(true)
 
-	if valE.Kind() != reflect.Ptr {
+	if valE.Kind() != reflect.Pointer {
 		valE = reflect.New(valE.Type())
 	}
 
@@ -501,7 +501,7 @@ func (b *Browser) SetCookies(cookies []*proto.NetworkCookieParam) error {
 // Page.downloadWillBegin and Page.downloadProgress are deprecated in the
 // protocol and still fire; moving to their Browser domain successors is API
 // modernization, so the deprecation is silenced below.
-func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillBegin) { //nolint:staticcheck
+func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillBegin) { //nolint: staticcheck
 	var oldDownloadBehavior proto.BrowserSetDownloadBehavior
 	has := b.LoadState("", &oldDownloadBehavior)
 
@@ -511,15 +511,15 @@ func (b *Browser) WaitDownload(dir string) func() (info *proto.PageDownloadWillB
 		DownloadPath:     dir,
 	}.Call(b)
 
-	var start *proto.PageDownloadWillBegin //nolint:staticcheck
+	var start *proto.PageDownloadWillBegin //nolint: staticcheck
 
-	waitProgress := b.EachEvent(func(e *proto.PageDownloadWillBegin) { //nolint:staticcheck
+	waitProgress := b.EachEvent(func(e *proto.PageDownloadWillBegin) { //nolint: staticcheck
 		start = e
-	}, func(e *proto.PageDownloadProgress) bool { //nolint:staticcheck
+	}, func(e *proto.PageDownloadProgress) bool { //nolint: staticcheck
 		return start != nil && start.GUID == e.GUID && e.State == proto.PageDownloadProgressStateCompleted
 	})
 
-	return func() *proto.PageDownloadWillBegin { //nolint:staticcheck
+	return func() *proto.PageDownloadWillBegin { //nolint: staticcheck
 		defer func() {
 			if has {
 				_ = oldDownloadBehavior.Call(b)

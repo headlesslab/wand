@@ -106,7 +106,6 @@ linters:
           - errorlint
           - forcetypeassert
           - funlen
-          - goconst
           - gosmopolitan
           - lll
           - testableexamples
@@ -132,18 +131,15 @@ linters:
       - linters:
           - forbidigo
           - gocritic
-          - noctx
         path: lib/examples/
       - linters:
           - forbidigo
           - gocritic
-          - noctx
         path: examples?_test.go$
       - linters:
           - forbidigo
           - forcetypeassert
           - lll
-          - noctx
         path: main.go$
       - linters:
           - lll

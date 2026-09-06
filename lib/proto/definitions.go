@@ -9,10 +9,11 @@ import (
 // Version of the Chrome DevTools Protocol.
 const Version = "v1.3"
 
-// Roll is the Protocol roll this package is generated from: tag
-// v0.0.<Roll> of ChromeDevTools/devtools-protocol, the largest roll not
-// above the Target Chrome's branch position (lib/launcher/pins).
-const Roll = 1666840
+// ProtocolRoll is the Protocol roll this package is generated from: tag
+// v0.0.<ProtocolRoll> of ChromeDevTools/devtools-protocol, the largest
+// roll not above the Target Chrome's branch position
+// (lib/launcher/pins).
+const ProtocolRoll = 1666840
 
 var types = map[string]reflect.Type{
 	"Accessibility.AXValueSource":                                reflect.TypeOf(AccessibilityAXValueSource{}),

@@ -26,7 +26,7 @@ func main() {
 
 	wait := page.Browser().WaitDownload(wd)
 
-	go browser.EachEvent(func(e *proto.PageDownloadProgress) bool { //nolint:staticcheck // still fires; Browser.downloadProgress is API modernization
+	go browser.EachEvent(func(e *proto.PageDownloadProgress) bool { //nolint: staticcheck // still fires; Browser.downloadProgress is API modernization
 		completed := "(unknown)"
 		if e.TotalBytes != 0 {
 			completed = fmt.Sprintf("%0.2f%%", e.ReceivedBytes/e.TotalBytes*100.0)

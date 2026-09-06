@@ -1,36 +1,46 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/headlesslab/lazyjson"
 )
 
-// entry finds the element of a schema array whose key holds value.
-func entry(list lazyjson.JSON, key, value string) (lazyjson.JSON, error) {
-	for _, el := range list.Arr() {
-		if el.Get(key).Str() == value {
-			return el, nil
-		}
-	}
-	return lazyjson.JSON{}, fmt.Errorf("no %s %q", key, value)
+// step is one hop of a schema path: the element of the array under list
+// whose key holds value.
+type step struct {
+	list, key, value string
 }
 
-// at walks a schema path of (list, key, value) triples: domains/<domain>,
-// then <section>/<id or name>, then <list>/<name>.
-func at(schema lazyjson.JSON, steps ...string) (lazyjson.JSON, error) {
-	if len(steps)%3 != 0 {
-		return lazyjson.JSON{}, errors.New("a schema path is list, key, value triples")
+// The steps of a schema path: a domain, one of its sections keyed the way
+// the protocol keys it (types by id, commands and events by name), and one
+// of an entity's lists of fields.
+func inDomain(name string) step        { return step{"domains", "domain", name} }
+func inSection(section, id string) step { return step{section, sectionKey(section), id} }
+func inList(list, name string) step     { return step{list, "name", name} }
+
+// sectionKey is what names an entity in a section of the schema.
+func sectionKey(section string) string {
+	if section == "types" {
+		return "id"
 	}
+	return "name"
+}
+
+// at walks a schema path.
+func at(schema lazyjson.JSON, steps ...step) (lazyjson.JSON, error) {
 	j := schema
-	for i := 0; i < len(steps); i += 3 {
-		list, key, value := steps[i], steps[i+1], steps[i+2]
-		el, err := entry(j.Get(list), key, value)
-		if err != nil {
-			return lazyjson.JSON{}, fmt.Errorf("%s: %w", list, err)
+	for _, s := range steps {
+		found := false
+		for _, el := range j.Get(s.list).Arr() {
+			if el.Get(s.key).Str() == s.value {
+				j, found = el, true
+				break
+			}
 		}
-		j = el
+		if !found {
+			return lazyjson.JSON{}, fmt.Errorf("%s: no %s %q", s.list, s.key, s.value)
+		}
 	}
 	return j, nil
 }
@@ -43,7 +53,7 @@ func at(schema lazyjson.JSON, steps ...string) (lazyjson.JSON, error) {
 // than as a silently changed type.
 func patch(schema lazyjson.JSON) error {
 	// TargetTargetInfoType
-	j, err := at(schema, "domains", "domain", "Target", "types", "id", "TargetInfo", "properties", "name", "type")
+	j, err := at(schema, inDomain("Target"), inSection("types", "TargetInfo"), inList("properties", "type"))
 	if err != nil {
 		return err
 	}
@@ -52,7 +62,7 @@ func patch(schema lazyjson.JSON) error {
 	})
 
 	// PageLifecycleEventName
-	j, err = at(schema, "domains", "domain", "Page", "events", "name", "lifecycleEvent", "parameters", "name", "name")
+	j, err = at(schema, inDomain("Page"), inSection("events", "lifecycleEvent"), inList("parameters", "name"))
 	if err != nil {
 		return err
 	}
@@ -63,7 +73,7 @@ func patch(schema lazyjson.JSON) error {
 
 	// replace these with better type definition
 	for _, t := range [][2]string{{"Input", "TimeSinceEpoch"}, {"Network", "TimeSinceEpoch"}, {"Network", "MonotonicTime"}} {
-		j, err = at(schema, "domains", "domain", t[0], "types", "id", t[1])
+		j, err = at(schema, inDomain(t[0]), inSection("types", t[1]))
 		if err != nil {
 			return err
 		}
@@ -71,7 +81,7 @@ func patch(schema lazyjson.JSON) error {
 	}
 
 	// fix Cookie.Expires
-	j, err = at(schema, "domains", "domain", "Network", "types", "id", "Cookie", "properties", "name", "expires")
+	j, err = at(schema, inDomain("Network"), inSection("types", "Cookie"), inList("properties", "expires"))
 	if err != nil {
 		return err
 	}
@@ -81,7 +91,7 @@ func patch(schema lazyjson.JSON) error {
 
 	// deltaX and deltaY are not optional for mouseWheel events
 	for _, name := range []string{"deltaX", "deltaY"} {
-		j, err = at(schema, "domains", "domain", "Input", "commands", "name", "dispatchMouseEvent", "parameters", "name", name)
+		j, err = at(schema, inDomain("Input"), inSection("commands", "dispatchMouseEvent"), inList("parameters", name))
 		if err != nil {
 			return err
 		}
@@ -91,7 +101,7 @@ func patch(schema lazyjson.JSON) error {
 	// removing the optional for the body as we need to distinguish between no body and empty body
 	// with that fix we can send an 'empty body' using `SetBody([]byte{})`
 	// and 'no body' by not calling using 'SetBody()' on the response
-	j, err = at(schema, "domains", "domain", "Fetch", "commands", "name", "fulfillRequest", "parameters", "name", "body")
+	j, err = at(schema, inDomain("Fetch"), inSection("commands", "fulfillRequest"), inList("parameters", "body"))
 	if err != nil {
 		return err
 	}
@@ -111,6 +121,10 @@ type binaryField struct {
 
 func (f binaryField) String() string {
 	return fmt.Sprintf("%s.%s.%s (%s/%s)", f.domain, f.container, f.field, f.section, f.list)
+}
+
+func (f binaryField) path() []step {
+	return []step{inDomain(f.domain), inSection(f.section, f.container), inList(f.list, f.field)}
 }
 
 // binaryFields is the hand-kept list of marker-less binary fields of the
@@ -147,11 +161,7 @@ var binaryFields = []binaryField{
 // /json/protocol would.
 func restoreBinary(schema lazyjson.JSON, fields []binaryField) error {
 	for _, f := range fields {
-		idKey := "name"
-		if f.section == "types" {
-			idKey = "id"
-		}
-		j, err := at(schema, "domains", "domain", f.domain, f.section, idKey, f.container, f.list, "name", f.field)
+		j, err := at(schema, f.path()...)
 		if err != nil {
 			return fmt.Errorf("%s is listed as a marker-less binary field but the schema has no such field (%w); "+
 				"drop it from binaryFields in lib/proto/generate/patch.go if the roll removed it", f, err)

@@ -9,9 +9,10 @@ package devutil
 const golangciLint = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
 
 // GolangciLint runs golangci-lint at the pinned version with args, such as
-// "fmt ./lib/proto" to rewrite or "run ./..." to report.
-func GolangciLint(args ...string) {
-	Exec("go run "+golangciLint, args...)
+// "fmt ./lib/proto" to rewrite or "run ./..." to report, and returns what it
+// printed.
+func GolangciLint(args ...string) string {
+	return Exec("go run "+golangciLint, args...)
 }
 
 // nodeTools is where the Node tools live: package.json there names each at
@@ -25,14 +26,19 @@ func InstallNodeTools() {
 }
 
 // NodeTool runs one of the pinned Node tools by its bin name from the module
-// root; npm exec --no refuses to fetch anything the lockfile did not
-// install. Standard output is echoed and returned.
+// root, echoing its output as well as returning it.
 func NodeTool(name string, args ...string) string {
-	return ExecLine(true, "npm --prefix "+nodeTools+" exec --no -- "+name, args...)
+	return nodeTool(true, name, args...)
 }
 
-// NodeToolOutput is NodeTool with standard output captured rather than
-// echoed, for a caller that parses it.
+// NodeToolOutput is NodeTool with the output captured rather than echoed,
+// for a caller that parses it.
 func NodeToolOutput(name string, args ...string) string {
-	return ExecLine(false, "npm --prefix "+nodeTools+" exec --no -- "+name, args...)
+	return nodeTool(false, name, args...)
+}
+
+// nodeTool runs a pinned Node tool through npm exec; --no refuses to fetch
+// anything the lockfile did not install.
+func nodeTool(std bool, name string, args ...string) string {
+	return ExecLine(std, "npm --prefix "+nodeTools+" exec --no -- "+name, args...)
 }

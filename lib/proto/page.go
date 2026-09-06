@@ -2748,17 +2748,25 @@ func (m PageSetDocumentContent) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// PageSetDownloadBehaviorBehavior enum.
+// PageSetDownloadBehaviorBehavior (deprecated) enum.
+//
+// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.
 type PageSetDownloadBehaviorBehavior string
 
 const (
 	// PageSetDownloadBehaviorBehaviorDeny enum const.
+	//
+	// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.
 	PageSetDownloadBehaviorBehaviorDeny PageSetDownloadBehaviorBehavior = "deny"
 
 	// PageSetDownloadBehaviorBehaviorAllow enum const.
+	//
+	// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.
 	PageSetDownloadBehaviorBehaviorAllow PageSetDownloadBehaviorBehavior = "allow"
 
 	// PageSetDownloadBehaviorBehaviorDefault enum const.
+	//
+	// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.
 	PageSetDownloadBehaviorBehaviorDefault PageSetDownloadBehaviorBehavior = "default"
 )
 
@@ -2819,14 +2827,20 @@ func (m PageSetLifecycleEventsEnabled) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// PageSetTouchEmulationEnabledConfiguration enum.
+// PageSetTouchEmulationEnabledConfiguration (deprecated) enum.
+//
+// Deprecated: Page.setTouchEmulationEnabled is deprecated in the Chrome DevTools Protocol.
 type PageSetTouchEmulationEnabledConfiguration string
 
 const (
 	// PageSetTouchEmulationEnabledConfigurationMobile enum const.
+	//
+	// Deprecated: Page.setTouchEmulationEnabled is deprecated in the Chrome DevTools Protocol.
 	PageSetTouchEmulationEnabledConfigurationMobile PageSetTouchEmulationEnabledConfiguration = "mobile"
 
 	// PageSetTouchEmulationEnabledConfigurationDesktop enum const.
+	//
+	// Deprecated: Page.setTouchEmulationEnabled is deprecated in the Chrome DevTools Protocol.
 	PageSetTouchEmulationEnabledConfigurationDesktop PageSetTouchEmulationEnabledConfiguration = "desktop"
 )
 
@@ -3450,17 +3464,25 @@ func (evt PageDownloadWillBegin) ProtoEvent() string {
 	return "Page.downloadWillBegin"
 }
 
-// PageDownloadProgressState enum.
+// PageDownloadProgressState (deprecated) enum.
+//
+// Deprecated: Page.downloadProgress is deprecated in the Chrome DevTools Protocol.
 type PageDownloadProgressState string
 
 const (
 	// PageDownloadProgressStateInProgress enum const.
+	//
+	// Deprecated: Page.downloadProgress is deprecated in the Chrome DevTools Protocol.
 	PageDownloadProgressStateInProgress PageDownloadProgressState = "inProgress"
 
 	// PageDownloadProgressStateCompleted enum const.
+	//
+	// Deprecated: Page.downloadProgress is deprecated in the Chrome DevTools Protocol.
 	PageDownloadProgressStateCompleted PageDownloadProgressState = "completed"
 
 	// PageDownloadProgressStateCanceled enum const.
+	//
+	// Deprecated: Page.downloadProgress is deprecated in the Chrome DevTools Protocol.
 	PageDownloadProgressStateCanceled PageDownloadProgressState = "canceled"
 )
 

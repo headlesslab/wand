@@ -164,7 +164,7 @@ func (p *Page) SetBlockedURLs(urls []string) error {
 	if len(urls) == 0 {
 		return nil
 	}
-	return proto.NetworkSetBlockedURLs{Urls: urls}.Call(p) //nolint:staticcheck // urlPatterns is API modernization
+	return proto.NetworkSetBlockedURLs{Urls: urls}.Call(p) //nolint: staticcheck // urlPatterns is API modernization
 }
 
 // Navigate to the url. If the url is empty, "about:blank" will be used.

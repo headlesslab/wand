@@ -45,7 +45,7 @@ func (msg *Message) Load(e proto.Event) bool {
 	}
 
 	eVal := reflect.ValueOf(e)
-	if eVal.Kind() != reflect.Ptr {
+	if eVal.Kind() != reflect.Pointer {
 		return true
 	}
 	eVal = reflect.Indirect(eVal)

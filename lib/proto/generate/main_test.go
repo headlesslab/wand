@@ -147,7 +147,7 @@ func TestGenerate(t *testing.T) {
 
 	definitions := readFile(t, filepath.Join(dir, "definitions.go"))
 	g.Has(definitions, `const Version = "v1.3"`)
-	g.Has(definitions, "const Roll = 123")
+	g.Has(definitions, "const ProtocolRoll = 123")
 	g.Has(squash(definitions), `"Page.captureScreenshot": reflect.TypeOf(PageCaptureScreenshot{}),`)
 	g.Has(squash(definitions), `"Debugger.getWasmBytecode": reflect.TypeOf(DebuggerGetWasmBytecode{}),`)
 
@@ -167,6 +167,13 @@ func TestGenerate(t *testing.T) {
 		"//\n// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.\n"+
 		"type PageSetDownloadBehavior struct {")
 	g.Has(page, "// Quality (optional) Compression quality from range [0..100] (jpeg only).\n")
+	// The enum type of a deprecated command's parameter, and its constants.
+	g.Has(page, "// PageSetDownloadBehaviorBehavior (deprecated) enum.\n"+
+		"//\n// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.\n"+
+		"type PageSetDownloadBehaviorBehavior string")
+	g.Has(page, "\t// PageSetDownloadBehaviorBehaviorDeny enum const.\n"+
+		"\t//\n\t// Deprecated: Page.setDownloadBehavior is deprecated in the Chrome DevTools Protocol.\n"+
+		"\tPageSetDownloadBehaviorBehaviorDeny PageSetDownloadBehaviorBehavior = \"deny\"")
 	debugger := readFile(t, filepath.Join(dir, "debugger.go"))
 	g.Has(debugger, "// Deprecated: Debugger.getWasmBytecode is deprecated in the Chrome DevTools Protocol.\n"+
 		"type DebuggerGetWasmBytecode struct {")
@@ -188,11 +195,13 @@ func TestGenerate(t *testing.T) {
 
 	// The summary, printed and written.
 	g.Eq(summary, readFile(t, filepath.Join(root, "tmp", "proto-summary.md")))
-	g.Has(summary, "Protocol roll r123: 3 Go identifiers removed, 1 renamed, 6 newly deprecated,")
+	g.Has(summary, "Protocol roll r123: 3 Go identifiers removed, 1 renamed, 10 newly deprecated,")
 	g.Has(summary, "\nRemoved:\n- `DatabaseDatabaseID`\n- `PageCaptureScreenshot.Clip`\n- `PageFrameID`\n")
 	g.Has(summary, "\nRenamed:\n- `BrowserSessionID` -> `TargetSessionID`\n")
 	g.Has(summary, "\nNewly deprecated:\n- `ConsoleConsoleMessage`\n- `ConsoleEnable`\n- `DebuggerGetWasmBytecode`\n"+
-		"- `DebuggerGetWasmBytecodeResult`\n- `NetworkCookie.SameParty`\n- `PageSetDownloadBehavior`\n")
+		"- `DebuggerGetWasmBytecodeResult`\n- `NetworkCookie.SameParty`\n- `PageSetDownloadBehavior`\n"+
+		"- `PageSetDownloadBehaviorBehavior`\n- `PageSetDownloadBehaviorBehaviorAllow`\n"+
+		"- `PageSetDownloadBehaviorBehaviorDefault`\n- `PageSetDownloadBehaviorBehaviorDeny`\n")
 
 	_, err = os.Stat(filepath.Join(root, "tmp", "proto.json"))
 	g.E(err)

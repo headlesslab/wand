@@ -73,3 +73,23 @@ func TestEscapeGoString(t *testing.T) {
 
 	g.Eq("`` + \"`\" + `test` + \"`\" + ``", devutil.EscapeGoString("`test`"))
 }
+
+// TestTools runs the pinned tools for real, from the module root as go
+// generate does: npm ci installs the Node tools from the lockfile, prettier
+// answers with its pinned version through both NodeTool forms, and go run
+// builds golangci-lint at its pinned version.
+func TestTools(t *testing.T) {
+	g := setup(t)
+
+	wd, err := os.Getwd()
+	g.E(err)
+	g.E(os.Chdir(filepath.Join("..", "..")))
+	defer func() { _ = os.Chdir(wd) }()
+
+	devutil.InstallNodeTools()
+
+	g.Has(devutil.NodeToolOutput("prettier", "--version"), "2.8.8")
+	g.Has(devutil.NodeTool("prettier", "--version"), "2.8.8")
+
+	g.Has(devutil.GolangciLint("version"), "2.13.2")
+}

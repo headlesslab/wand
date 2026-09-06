@@ -63,13 +63,16 @@ type definition struct {
 	originName   string
 	description  string
 	experimental bool
-	deprecated   bool
-	deprecation  string // the Deprecated paragraph, without its "Deprecated: " prefix
+	deprecation  string // the Deprecated paragraph, without its "Deprecated: " prefix; empty when not deprecated
 	optional     bool
 	command      bool
 	returnValue  bool
 	props        []*definition
 	skip         bool
+}
+
+func (d *definition) deprecated() bool {
+	return d.deprecation != ""
 }
 
 // parse applies the patches and the marker-less binary fields to the schema
@@ -113,18 +116,32 @@ func parseDomain(global, schema lazyjson.JSON) *domain {
 	return domain
 }
 
-// deprecation is the Deprecated paragraph of an entity or a field, named as
-// the protocol names it, such as Page.setDownloadBehavior or
-// Network.setBlockedURLs.urls: the whole domain when the domain is
-// deprecated, otherwise what the schema flags, or nothing (ADR-0004). A
-// field of a deprecated entity is not flagged on its own; using the entity
-// is what a Go tool warns about.
-func deprecation(d *domain, cdpName string, schema lazyjson.JSON, entity bool) string {
+// deprecatedInProtocol is the Deprecated paragraph of anything the protocol
+// names, such as Page.setDownloadBehavior or Network.setBlockedURLs.urls.
+func deprecatedInProtocol(cdpName string) string {
+	return cdpName + " is deprecated in the Chrome DevTools Protocol"
+}
+
+// entityDeprecation is the Deprecated paragraph of a type, command or
+// event: the whole domain when the domain is deprecated, otherwise what the
+// schema flags, or nothing (ADR-0004).
+func entityDeprecation(d *domain, cdpName string, schema lazyjson.JSON) string {
 	switch {
-	case entity && d.deprecated:
+	case d.deprecated:
 		return "the " + d.name + " domain is deprecated in the Chrome DevTools Protocol"
 	case schema.Get("deprecated").Bool():
-		return cdpName + " is deprecated in the Chrome DevTools Protocol"
+		return deprecatedInProtocol(cdpName)
+	}
+	return ""
+}
+
+// fieldDeprecation is the Deprecated paragraph of a parameter, property or
+// return value: only what the schema flags on the field itself. A field of a
+// deprecated entity is not flagged on its own; using the entity is what a Go
+// tool warns about.
+func fieldDeprecation(cdpName string, schema lazyjson.JSON) string {
+	if schema.Get("deprecated").Bool() {
+		return deprecatedInProtocol(cdpName)
 	}
 	return ""
 }
@@ -138,14 +155,12 @@ func parseDef(domain *domain, cdpType cdpType, schema lazyjson.JSON) []*definiti
 			list = append(list, parseStruct(domain, cdpType, schema.Get("id").Str(), false, schema, "properties")...)
 		} else {
 			id := schema.Get("id").Str()
-			dep := deprecation(domain, domain.name+"."+id, schema, true)
 			list = append(list, &definition{
 				domain:       domain,
 				typeName:     typeName(domain, schema),
 				name:         domain.name + symbol(id),
 				description:  schema.Get("description").Str(),
-				deprecated:   dep != "",
-				deprecation:  dep,
+				deprecation:  entityDeprecation(domain, domain.name+"."+id, schema),
 				experimental: schema.Get("experimental").Bool(),
 				objType:      objTypePrimitive,
 				enum:         enumList(schema),
@@ -178,11 +193,11 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 	if schema.Has("id") {
 		cdpName = domain.name + "." + schema.Get("id").Str()
 	}
+	deprecation := entityDeprecation(domain, cdpName, schema)
 
 	props := []*definition{}
 	for _, propSchema := range schema.Get(propsPath).Arr() {
 		typeName := typeName(domain, propSchema)
-		dep := deprecation(domain, cdpName+"."+propSchema.Get("name").Str(), propSchema, false)
 
 		prop := &definition{
 			objType:      objTypePrimitive,
@@ -190,8 +205,7 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 			originName:   propSchema.Get("name").Str(),
 			description:  propSchema.Get("description").Str(),
 			optional:     propSchema.Get("optional").Bool(),
-			deprecated:   dep != "",
-			deprecation:  dep,
+			deprecation:  fieldDeprecation(cdpName+"."+propSchema.Get("name").Str(), propSchema),
 			experimental: propSchema.Get("experimental").Bool(),
 			typeName:     typeName,
 		}
@@ -199,11 +213,18 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 		props = append(props, prop)
 
 		if propSchema.Has("enum") {
+			// The enum type exists for this one field, so it is deprecated
+			// with the field, or with the entity the field belongs to.
+			enumDeprecation := prop.deprecation
+			if enumDeprecation == "" {
+				enumDeprecation = deprecation
+			}
 			enum := &definition{
 				domain:      domain,
 				name:        domain.name + symbol(name) + symbol(propSchema.Get("name").Str()),
 				objType:     objTypePrimitive,
 				description: "enum",
+				deprecation: enumDeprecation,
 				enum:        enumList(propSchema),
 				typeName:    typeName,
 			}
@@ -218,8 +239,6 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 		desc = "..."
 	}
 
-	dep := deprecation(domain, cdpName, schema, true)
-
 	list = append(list, &definition{
 		domain:       domain,
 		cdpType:      cdpType,
@@ -229,8 +248,7 @@ func parseStruct(domain *domain, cdpType cdpType, name string, isCommand bool, s
 		originName:   name,
 		description:  desc,
 		optional:     schema.Get("optional").Bool(),
-		deprecated:   dep != "",
-		deprecation:  dep,
+		deprecation:  deprecation,
 		experimental: schema.Get("experimental").Bool(),
 		props:        props,
 		command:      isCommand,
@@ -266,4 +284,24 @@ func byteFields(domains []*domain) []string {
 
 func isBytes(typeName string) bool {
 	return typeName == "[]byte" || typeName == "[][]byte"
+}
+
+// usesLazyjson reports whether any definition of the domain has a lazyjson
+// type, so that the generated file imports the package only when it uses
+// it.
+func usesLazyjson(d *domain) bool {
+	for _, def := range d.definitions {
+		if def.skip {
+			continue
+		}
+		if strings.Contains(def.typeName, "lazyjson.") {
+			return true
+		}
+		for _, prop := range def.props {
+			if strings.Contains(prop.typeName, "lazyjson.") {
+				return true
+			}
+		}
+	}
+	return false
 }
