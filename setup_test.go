@@ -397,19 +397,22 @@ func (g G) newPage(u ...string) *wand.Page {
 	return p
 }
 
-// otherTargets lists the targets of the tester's browser other than its page.
-func (g *G) otherTargets() []proto.TargetTargetID {
+// otherTargets lists the page targets of the tester's browser other than its
+// own page: what a test opens and may leave behind. The browser's own UI
+// targets (browser_ui, chrome://omnibox-popup in the new headless mode),
+// workers and frames belong to the browser or to a page and go with them.
+func (g *G) otherTargets() []*proto.TargetTargetInfo {
 	res, err := proto.TargetGetTargets{}.Call(g.browser)
 	g.E(err)
 
-	var ids []proto.TargetTargetID
+	var others []*proto.TargetTargetInfo
 	for _, info := range res.TargetInfos {
-		if info.TargetID != g.page.TargetID {
-			ids = append(ids, info.TargetID)
+		if info.Type == "page" && info.TargetID != g.page.TargetID {
+			others = append(others, info)
 		}
 	}
 
-	return ids
+	return others
 }
 
 // launch starts a browser of the test's own through l, on the browser
@@ -478,8 +481,8 @@ func (g *G) checkLeaking() {
 		// without waiting. Closing such a target fails with "No target with
 		// given id found", which is what closing it here was for; the outcome
 		// is what is checked, once the browser has had a moment to finish.
-		for _, id := range g.otherTargets() {
-			_, err := proto.TargetCloseTarget{TargetID: id}.Call(g.browser)
+		for _, info := range g.otherTargets() {
+			_, err := proto.TargetCloseTarget{TargetID: info.TargetID}.Call(g.browser)
 			if err != nil && !strings.Contains(err.Error(), "No target with given id found") {
 				g.E(err)
 			}
@@ -491,8 +494,8 @@ func (g *G) checkLeaking() {
 			time.Sleep(50 * time.Millisecond)
 			left = g.otherTargets()
 		}
-		if len(left) > 0 {
-			g.Logf("targets left after the test: %v", left)
+		for _, info := range left {
+			g.Logf("target left after the test: %s %s %s", info.Type, info.TargetID, info.URL)
 			g.Fail()
 		}
 
