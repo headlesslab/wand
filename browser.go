@@ -1,8 +1,8 @@
-//go:generate go run ./lib/utils/setup
+//go:generate go run ./internal/tools/setup
 //go:generate go run ./lib/proto/generate
 //go:generate go run ./lib/js/generate
-//go:generate go run ./lib/assets/generate
-//go:generate go run ./lib/utils/lint
+//go:generate go run ./internal/assets/generate
+//go:generate go run ./internal/tools/lint
 
 // Package wand is a high-level driver directly based on DevTools Protocol.
 package wand

@@ -7,7 +7,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -46,21 +46,6 @@ func TestTestE(t *testing.T) {
 	})
 }
 
-func TestSTemplate(t *testing.T) {
-	g := setup(t)
-
-	out := utils.S(
-		"{{.a}} {{.b}} {{.c.A}} {{d}}",
-		"a", "<value>",
-		"b", 10,
-		"c", struct{ A string }{"ok"},
-		"d", func() string {
-			return "ok"
-		},
-	)
-	g.Eq("<value> 10 ok ok", out)
-}
-
 func TestGenerateRandomString(t *testing.T) {
 	g := setup(t)
 
@@ -90,12 +75,12 @@ func TestOutputString(t *testing.T) {
 
 	_ = utils.OutputFile(p, p)
 
-	s, err := utils.ReadString(p)
+	s, err := os.ReadFile(p)
 	if err != nil {
 		panic(err)
 	}
 
-	g.Eq(s, p)
+	g.Eq(string(s), p)
 }
 
 func TestOutputBytes(t *testing.T) {
@@ -105,12 +90,12 @@ func TestOutputBytes(t *testing.T) {
 
 	_ = utils.OutputFile(p, []byte("test"))
 
-	s, err := utils.ReadString(p)
+	s, err := os.ReadFile(p)
 	if err != nil {
 		panic(err)
 	}
 
-	g.Eq(s, "test")
+	g.Eq(string(s), "test")
 }
 
 func TestOutputStream(t *testing.T) {
@@ -121,12 +106,12 @@ func TestOutputStream(t *testing.T) {
 
 	_ = utils.OutputFile(p, b)
 
-	s, err := utils.ReadString(p)
+	s, err := os.ReadFile(p)
 	if err != nil {
 		panic(err)
 	}
 
-	g.Eq("test", s)
+	g.Eq("test", string(s))
 }
 
 func TestOutputJSONErr(t *testing.T) {
@@ -169,36 +154,10 @@ func TestFileExists(t *testing.T) {
 	g.Eq(false, utils.FileExists(g.RandStr(16)))
 }
 
-func TestExec(t *testing.T) {
-	g := setup(t)
-
-	g.Has(utils.Exec("go version"), "go version")
-}
-
-func TestExecErr(t *testing.T) {
-	g := setup(t)
-
-	g.Panic(func() {
-		utils.Exec("")
-	})
-	g.Panic(func() {
-		utils.Exec(g.RandStr(16))
-	})
-	g.Panic(func() {
-		utils.ExecLine(false, "", "")
-	})
-}
-
 func TestFormatCLIArgs(t *testing.T) {
 	g := setup(t)
 
 	g.Eq(utils.FormatCLIArgs([]string{"ab c", "abc"}), `"ab c" abc`)
-}
-
-func TestEscapeGoString(t *testing.T) {
-	g := setup(t)
-
-	g.Eq("`` + \"`\" + `test` + \"`\" + ``", utils.EscapeGoString("`test`"))
 }
 
 func TestIdleCounter(t *testing.T) {
@@ -256,15 +215,4 @@ func TestCropImage(t *testing.T) {
 	bin = bytes.NewBuffer(nil)
 	g.E(jpeg.Encode(bin, img, &jpeg.Options{Quality: 80}))
 	g.E(utils.CropImage(bin.Bytes(), 0, 10, 10, 30, 30))
-}
-
-func TestUseNode(t *testing.T) {
-	g := setup(t)
-
-	utils.UseNode(false)
-
-	p, err := exec.LookPath("npx")
-	g.E(err)
-
-	g.Has(p, "v20")
 }

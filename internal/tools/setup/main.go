@@ -4,6 +4,7 @@ package main
 import (
 	"log"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
@@ -18,18 +19,18 @@ func main() {
 }
 
 func golangDeps() {
-	utils.Exec("go mod download")
-	utils.Exec("go install mvdan.cc/gofumpt@latest")
+	devutil.Exec("go mod download")
+	devutil.Exec("go install mvdan.cc/gofumpt@latest")
 }
 
 func nodejsDeps() {
-	utils.UseNode(true)
+	devutil.UseNode(true)
 
-	utils.Exec("npm i -s eslint-plugin-html")
+	devutil.Exec("npm i -s eslint-plugin-html")
 }
 
 func genDockerIgnore() {
-	s, err := utils.ReadString(".gitignore")
+	s, err := devutil.ReadString(".gitignore")
 	utils.E(err)
 	utils.E(utils.OutputFile(".dockerignore", s))
 }

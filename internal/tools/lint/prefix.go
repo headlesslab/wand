@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
@@ -24,7 +25,7 @@ func lintMustPrefix() {
 			continue
 		}
 
-		src, err := utils.ReadString(p)
+		src, err := devutil.ReadString(p)
 		utils.E(err)
 
 		list := token.NewFileSet()

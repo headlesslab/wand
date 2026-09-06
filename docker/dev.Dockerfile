@@ -1,6 +1,6 @@
 # A docker image for wand development.
 # To build the image:
-#     docker build -t ghcr.io/headlesslab/wand:dev -f lib/docker/dev.Dockerfile .
+#     docker build -t ghcr.io/headlesslab/wand:dev -f docker/dev.Dockerfile .
 
 FROM ghcr.io/headlesslab/wand
 

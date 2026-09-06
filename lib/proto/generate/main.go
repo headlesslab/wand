@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
@@ -18,7 +19,7 @@ func main() {
 
 	cleanup()
 
-	init := comment + utils.S(`
+	init := comment + devutil.S(`
 
 		package proto
 
@@ -68,7 +69,7 @@ func main() {
 			testsCode += definition.formatTests()
 
 			if definition.originName != "" {
-				init += utils.S(`
+				init += devutil.S(`
 					"{{.name}}": reflect.TypeOf({{.type}}{}),`,
 					"name", definition.domain.name+"."+definition.originName,
 					"type", definition.name,
@@ -90,9 +91,9 @@ func main() {
 	utils.E(utils.OutputFile(filepath.FromSlash("lib/proto/definitions_test.go"), testsCode))
 
 	path := "./lib/proto"
-	utils.Exec("gofumpt -w", path)
-	utils.Exec("go run golang.org/x/tools/cmd/goimports@latest -w", path)
-	utils.Exec(
+	devutil.Exec("gofumpt -w", path)
+	devutil.Exec("go run golang.org/x/tools/cmd/goimports@latest -w", path)
+	devutil.Exec(
 		"go run github.com/ysmood/golangci-lint@latest -- run --fix",
 		path,
 	)
@@ -127,7 +128,7 @@ func (d *definition) comment() string {
 func (d *definition) format() (code string) {
 	switch d.objType {
 	case objTypePrimitive:
-		code = utils.S(`
+		code = devutil.S(`
 		{{.comment}}
 		type {{.name}} {{.type}}
 		`, "name", d.name, "type", d.typeName, "comment", d.comment())
@@ -136,7 +137,7 @@ func (d *definition) format() (code string) {
 			code += "const ("
 			for _, value := range d.enum {
 				name := d.name + symbol(value)
-				code += utils.S(`
+				code += devutil.S(`
 				// {{.name}} enum const
 				{{.name}} {{.type}} = "{{.value}}"
 				`, "name", name, "type", d.name, "value", value)
@@ -145,7 +146,7 @@ func (d *definition) format() (code string) {
 		}
 
 	case objTypeStruct:
-		code = utils.S(`
+		code = devutil.S(`
 		{{.comment}}
 		type {{.name}} struct {
 		`, "name", d.name, "comment", d.comment())
@@ -163,7 +164,7 @@ func (d *definition) format() (code string) {
 				}
 			}
 
-			code += utils.S(`
+			code += devutil.S(`
 			{{.comment}}
 			{{.name}} {{.type}} {{.tag}}
 			`, "comment", prop.comment(), "name", prop.name, "type", t, "tag", tag)
@@ -174,7 +175,7 @@ func (d *definition) format() (code string) {
 		if d.command {
 			method := d.domain.name + "." + d.originName
 			if d.returnValue {
-				code += utils.S(`
+				code += devutil.S(`
 				// ProtoReq name
 				func (m {{.name}}) ProtoReq() string { return "{{.method}}" }
 
@@ -185,7 +186,7 @@ func (d *definition) format() (code string) {
 				}
 				`, "name", d.name, "method", method)
 			} else {
-				code += utils.S(`
+				code += devutil.S(`
 				// ProtoReq name
 				func (m {{.name}}) ProtoReq() string { return "{{.method}}" }
 
@@ -198,7 +199,7 @@ func (d *definition) format() (code string) {
 		}
 
 		if d.cdpType == cdpTypeEvents {
-			code += utils.S(`
+			code += devutil.S(`
 				// ProtoEvent name
 				func (evt {{.name}}) ProtoEvent() string {
 					return "{{.event}}"
@@ -218,7 +219,7 @@ func (d *definition) formatTests() (code string) {
 		}
 
 		if d.returnValue {
-			return utils.S(`
+			return devutil.S(`
 				func (t T) {{.name}}() {
 					c := &Client{}
 					_, err := proto.{{.name}}{}.Call(c)
@@ -227,7 +228,7 @@ func (d *definition) formatTests() (code string) {
 				`, "name", d.name)
 		}
 
-		return utils.S(`
+		return devutil.S(`
 			func (t T) {{.name}}() {
 				c := &Client{}
 				err := proto.{{.name}}{}.Call(c)
@@ -236,7 +237,7 @@ func (d *definition) formatTests() (code string) {
 			`, "name", d.name)
 
 	case cdpTypeEvents:
-		return utils.S(`
+		return devutil.S(`
 		func (t T) {{.name}}() {
 			e := proto.{{.name}}{}
 			t.Regex("", e.ProtoEvent())

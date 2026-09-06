@@ -4,13 +4,14 @@ package main
 import (
 	"os"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {
-	for k, v := range utils.TestEnvs {
+	for k, v := range devutil.TestEnvs {
 		err := os.Setenv(k, v)
 		utils.E(err)
 	}
-	utils.Exec("go test", os.Args[1:]...)
+	devutil.Exec("go test", os.Args[1:]...)
 }

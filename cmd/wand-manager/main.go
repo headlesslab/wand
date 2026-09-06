@@ -1,4 +1,5 @@
-// A server to help launch browser remotely
+// Command wand-manager is a server to help launch browsers remotely.
+// It is the entrypoint of the wand container image; see launcher.Manager.
 package main
 
 import (
@@ -38,7 +39,7 @@ func main() {
 	}
 
 	if !*quiet {
-		fmt.Println("[rod-manager] listening on:", l.Addr().String())
+		fmt.Println("[wand-manager] listening on:", l.Addr().String())
 	}
 
 	srv := &http.Server{Handler: m}

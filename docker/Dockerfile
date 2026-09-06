@@ -1,17 +1,17 @@
 # To build the image:
-#     docker build -t ghcr.io/headlesslab/wand -f lib/docker/Dockerfile .
+#     docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile .
 #
 
-# build rod-manager
+# build wand-manager
 FROM golang as go
 
 ARG goproxy="https://proxy.golang.org,direct"
 
-COPY . /rod
-WORKDIR /rod
+COPY . /wand
+WORKDIR /wand
 RUN go env -w GOPROXY=$goproxy
-RUN go build ./lib/launcher/rod-manager
-RUN go run ./lib/utils/get-browser
+RUN go build ./cmd/wand-manager
+RUN go run ./cmd/wand-fetch-browser
 
 FROM ubuntu:noble
 
@@ -20,7 +20,7 @@ RUN ln -s /root/.cache/rod/browser/$(ls /root/.cache/rod/browser)/chrome /usr/bi
 
 RUN touch /.dockerenv
 
-COPY --from=go /rod/rod-manager /usr/bin/
+COPY --from=go /wand/wand-manager /usr/bin/
 
 ARG apt_sources="http://archive.ubuntu.com"
 
@@ -50,4 +50,4 @@ RUN sed -i "s|http://archive.ubuntu.com|$apt_sources|g" /etc/apt/sources.list &&
 # process reaper
 ENTRYPOINT ["dumb-init", "--"]
 
-CMD rod-manager
+CMD wand-manager

@@ -36,6 +36,7 @@
     "coverprofile",
     "Dataview",
     "datetime",
+    "devutil",
     "dockerenv",
     "dropzone",
     "duckduckgo",

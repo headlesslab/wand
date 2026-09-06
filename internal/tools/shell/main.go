@@ -6,12 +6,13 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {
 	list := []string{}
-	for k, v := range utils.TestEnvs {
+	for k, v := range devutil.TestEnvs {
 		list = append(list, k+"="+v)
 	}
 

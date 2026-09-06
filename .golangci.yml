@@ -105,6 +105,6 @@ issues:
         - forcetypeassert
         - lll
 
-    - path: lib/assets/
+    - path: internal/assets/
       linters:
         - lll
