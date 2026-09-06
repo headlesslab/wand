@@ -3,6 +3,7 @@ package cdp_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -125,6 +126,17 @@ func TestError(t *testing.T) {
 	cdpErr := cdp.Error{10, "err", "data"}
 	g.Eq(cdpErr.Error(), "{10 err data}")
 	g.True(cdpErr.Is(&cdpErr))
+	g.False(cdpErr.Is(io.EOF))
+	g.False(cdpErr.Is(&cdp.Error{Code: 10, Message: "err"}))
+
+	// An evaluation interrupted by a navigation is one condition under two
+	// messages: Chromium 128 reports it from V8, Chrome 152 from the DevTools
+	// session. A stale context id is a different error, one callers retry.
+	navigated := &cdp.Error{Code: -32000, Message: "Inspected target navigated or closed"}
+	g.True(errors.Is(navigated, cdp.ErrCtxDestroyed))
+	g.True(cdp.ErrCtxDestroyed.Is(navigated))
+	g.False(errors.Is(cdp.ErrCtxNotFound, cdp.ErrCtxDestroyed))
+	g.False(errors.Is(&cdp.Error{Code: -32000, Message: navigated.Message, Data: "x"}, cdp.ErrCtxDestroyed))
 
 	g.Panic(func() {
 		cdp.MustStartWithURL(context.Background(), "", nil)

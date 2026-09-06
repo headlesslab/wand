@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/url"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +16,35 @@ import (
 )
 
 var setup = got.Setup(nil)
+
+func TestClientConnReset(t *testing.T) {
+	g := setup(t)
+
+	// A browser that dies with its socket open ends the stream with a
+	// connection reset on Windows and with EOF elsewhere; an in-flight call
+	// gets the same sentinel on every OS.
+	ws := &resetWS{sent: make(chan struct{})}
+	client := New().Start(ws)
+
+	_, err := client.Call(g.Context(), "", "Browser.getVersion", nil)
+	g.Eq(err, io.EOF)
+}
+
+// resetWS fails its first Read, once a request has been sent, the way the
+// net package reports a reset by the peer.
+type resetWS struct {
+	sent chan struct{}
+}
+
+func (ws *resetWS) Send(_ []byte) error {
+	close(ws.sent)
+	return nil
+}
+
+func (ws *resetWS) Read() ([]byte, error) {
+	<-ws.sent
+	return nil, &net.OpError{Op: "read", Net: "tcp", Err: os.NewSyscallError("read", errConnReset)}
+}
 
 func TestWebSocketErr(t *testing.T) {
 	g := setup(t)

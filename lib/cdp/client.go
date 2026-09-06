@@ -4,6 +4,8 @@ package cdp
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -111,7 +113,7 @@ func (cdp *Client) Call(ctx context.Context, sessionID, method string, params in
 
 	err = cdp.ws.Send(data)
 	if err != nil {
-		return nil, err
+		return nil, normalizeConnErr(err)
 	}
 
 	select {
@@ -134,6 +136,7 @@ func (cdp *Client) consumeMessages() {
 	for {
 		data, err := cdp.ws.Read()
 		if err != nil {
+			err = normalizeConnErr(err)
 			cdp.pending.Range(func(_, val interface{}) bool {
 				val.(func(result))(result{err: err}) //nolint: forcetypeassert
 				return true
@@ -172,4 +175,17 @@ func (cdp *Client) consumeMessages() {
 			val.(func(result))(result{nil, res.Error}) //nolint: forcetypeassert
 		}
 	}
+}
+
+// normalizeConnErr maps the error the transport reports when the browser
+// drops the connection. A browser that dies with its socket open ends the
+// stream with a connection reset on Windows, on a read or on a send that
+// races the read loop, and with EOF elsewhere; callers get io.EOF on every
+// OS, so one sentinel means the browser is gone. The reset itself is dropped:
+// like EOF, it carries nothing a caller can act on.
+func normalizeConnErr(err error) error {
+	if errors.Is(err, errConnReset) {
+		return io.EOF
+	}
+	return err
 }
