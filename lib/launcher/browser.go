@@ -49,7 +49,8 @@ const (
 // The environment variables NewBrowser reads. A launcher option set in code
 // overrides them.
 const (
-	// EnvBrowserCache overrides the browser cache, DefaultBrowserDir.
+	// EnvBrowserCache sets the browser cache, DefaultBrowserDir, when the
+	// process starts.
 	EnvBrowserCache = "WAND_BROWSER_CACHE"
 
 	// EnvBrowserHosts overrides the Download hosts: URL templates separated
@@ -165,17 +166,17 @@ var binaries = map[Source]map[Binary]map[string]string{
 const muslLoaderGlob = "/lib/ld-musl-*.so.1"
 
 func hasMuslLoader() bool {
-	return runtime.GOOS == "linux" && muslLoader(muslLoaderGlob)
+	return runtime.GOOS == "linux" && muslLoaderPresent(muslLoaderGlob)
 }
 
-func muslLoader(glob string) bool {
+func muslLoaderPresent(glob string) bool {
 	matches, _ := filepath.Glob(glob)
 
 	return len(matches) > 0
 }
 
 // wayOut is how a platform with nothing to download still gets a browser.
-const wayOut = "set WAND_BROWSER_BIN or Launcher.Bin() to a browser installed on this machine"
+const wayOut = "point WAND_BROWSER_BIN or Launcher.Bin() at a browser already on this machine"
 
 // Browser is a helper to download a Managed browser: the Target Chrome from
 // Chrome for Testing by default, or the Companion Chromium from Chromium
@@ -195,20 +196,14 @@ type Browser struct {
 	// Version of Chrome for Testing to use, the Target Chrome by default.
 	Version string
 
-	// Revision is the Chromium trunk build to use, the Companion Chromium by
-	// default.
+	// Revision is the trunk position of the Chromium trunk build to use, the
+	// Companion Chromium by default.
 	Revision int
 
 	// Hosts to download the archive from, as the URL templates DefaultHosts
 	// describes; empty means DefaultHosts of the Source. EnvBrowserHosts
 	// sets the default.
 	Hosts []string
-
-	// SHA256 the archive must match, in hex. Empty means the hash the pins
-	// record for the Target Chrome or the Companion Chromium; any other
-	// version or revision has none and is downloaded unverified, which the
-	// Logger reports.
-	SHA256 string
 
 	// RootDir is the browser cache, DefaultBrowserDir by default.
 	RootDir string
@@ -228,7 +223,7 @@ func NewBrowser() *Browser {
 		Binary:   BinaryChrome,
 		Version:  pins.ChromeVersion,
 		Revision: pins.ChromiumPosition,
-		RootDir:  cacheDir(),
+		RootDir:  DefaultBrowserDir,
 		Logger:   log.New(os.Stdout, "[launcher.Browser] ", log.LstdFlags),
 	}
 
@@ -274,8 +269,9 @@ func (lc *Browser) binPath(goos string) string {
 }
 
 // archive is what a Managed browser resolves to on one platform: what the
-// host templates take and the digest to verify the download against, empty
-// when the pins record none.
+// host templates take and the digest to verify the download against, which
+// the pins record for the Target Chrome and the Companion Chromium and
+// nothing else.
 type archive struct {
 	platform string
 	version  string
@@ -366,7 +362,7 @@ func (lc *Browser) hosts() []string {
 }
 
 // Download the browser from the first of the Hosts to answer, verified
-// against SHA256 before extraction, into [Browser.Dir]. When that directory
+// against the pins before extraction, into [Browser.Dir]. When that directory
 // exists already nothing is downloaded.
 func (lc *Browser) Download() error {
 	a, err := lc.resolve(runtime.GOOS+"/"+runtime.GOARCH, hasMuslLoader())
@@ -374,12 +370,12 @@ func (lc *Browser) Download() error {
 		return err
 	}
 
-	digest := lc.SHA256
-	if digest == "" {
-		digest = a.sha256
+	dir := lc.Dir()
+	if _, err := os.Stat(dir); err == nil {
+		return nil
 	}
 
-	if digest == "" {
+	if a.sha256 == "" {
 		lc.Logger.Println("the download of", lc.name(), "is not verified: no SHA-256 is recorded for it")
 	}
 
@@ -389,8 +385,8 @@ func (lc *Browser) Download() error {
 		urls = append(urls, a.url(host))
 	}
 
-	err = fetch.Zip(lc.Context, lc.Dir(), urls,
-		fetch.WithSHA256(digest),
+	err = fetch.Zip(lc.Context, dir, urls,
+		fetch.WithSHA256(a.sha256),
 		fetch.WithStripFirstDir(),
 		fetch.WithClient(lc.HTTPClient),
 		fetch.WithLogger(lc.Logger),
@@ -408,12 +404,20 @@ func (lc *Browser) Download() error {
 // serialize behind a file lock next to [Browser.Dir], and the ones that
 // waited find it in place.
 func (lc *Browser) Get() (string, error) {
+	// Whether the browser was in place before validation: a directory that
+	// was there and fails to validate is broken and goes before the download
+	// replaces it. One that lands during the validation, downloaded by
+	// another process, is complete and must stay, so the check comes first.
+	_, err := os.Stat(lc.Dir())
+	present := err == nil
+
 	if lc.Validate() == nil {
 		return lc.BinPath(), nil
 	}
 
-	// Try to cleanup before downloading
-	_ = os.RemoveAll(lc.Dir())
+	if present {
+		_ = os.RemoveAll(lc.Dir())
+	}
 
 	return lc.BinPath(), lc.Download()
 }

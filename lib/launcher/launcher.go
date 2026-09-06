@@ -251,8 +251,8 @@ func (l *Launcher) Revision(rev int) *Launcher {
 }
 
 // Hosts to auto download the Managed browser from, as the URL templates
-// [DefaultHosts] describes, for a private mirror. WAND_BROWSER_HOSTS sets the
-// default.
+// [DefaultHosts] describes, for Download hosts of your own. WAND_BROWSER_HOSTS
+// sets the default.
 func (l *Launcher) Hosts(templates ...string) *Launcher {
 	l.browser.Hosts = templates
 	return l

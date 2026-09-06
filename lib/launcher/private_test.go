@@ -290,13 +290,13 @@ func TestMuslLoader(t *testing.T) {
 
 	dir := t.TempDir()
 	glob := filepath.Join(dir, "ld-musl-*.so.1")
-	g.False(muslLoader(glob))
+	g.False(muslLoaderPresent(glob))
 
 	g.E(os.WriteFile(filepath.Join(dir, "ld-musl-x86_64.so.1"), nil, 0o644))
-	g.True(muslLoader(glob))
+	g.True(muslLoaderPresent(glob))
 
 	// Only a Linux distribution ships musl's loader.
-	g.Eq(hasMuslLoader(), runtime.GOOS == "linux" && muslLoader(muslLoaderGlob))
+	g.Eq(hasMuslLoader(), runtime.GOOS == "linux" && muslLoaderPresent(muslLoaderGlob))
 }
 
 func TestGetURLErr(t *testing.T) {
