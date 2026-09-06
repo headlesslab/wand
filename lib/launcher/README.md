@@ -49,6 +49,12 @@ To download ahead of time, for a container image or an offline bundle, the comma
 go run github.com/headlesslab/wand/cmd/wand-fetch-browser [-source chromium] [-binary chrome-headless-shell]
 ```
 
+## User mode
+
+`launcher.NewUserMode()` drives a visible browser on a persistent profile wand owns, so that logins, extensions and settings survive between runs. The profile is `wand/user-mode` under the user's configuration directory (`$XDG_CONFIG_HOME` or `~/.config` on Linux, `~/Library/Application Support` on macOS, `%AppData%` on Windows), `launcher.DefaultUserModeDir`, made at the first launch; `Launcher.UserDataDir()` names another. The browser comes from Browser resolution like any other, so it is the Chrome you have installed unless you say otherwise.
+
+User mode does not open Chrome's own profile, the one with your daily sign-ins: since Chrome 136 branded Google Chrome refuses remote debugging on its default profile and exits with "DevTools remote debugging requires a non-default data directory", which is what go-rod's user mode ran into (rod #1189); a launcher pointed at that directory with `UserDataDir()` gets the same refusal. Sign in once in the wand profile instead, and the session is there on the next run. The Orphan guard is off in User mode, so the browser outlives your program, and a launch finds a browser already listening on the port before starting another; `Launcher.Cleanup()` removes the profile like any user data directory, `Launcher.Kill()` leaves it.
+
 ## Orphan guard
 
 A browser `Launcher.Launch()` starts does not outlive the wand process, however that process dies: no helper process, no dropped binary, nothing written at launch. The switch is `Launcher.Leakless(bool)`, on in `launcher.New()` and off in `launcher.NewUserMode()`, so that a browser you keep working in survives your program.

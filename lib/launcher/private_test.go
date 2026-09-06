@@ -599,6 +599,22 @@ func TestUserModeBin(t *testing.T) {
 	g.Eq(NewUserMode().Get(flags.Bin), "")
 }
 
+// TestUserModeDirFallback: the User mode profile follows the platform's
+// configuration directory, and a user without one gets the temporary
+// directory, as the browser cache does.
+func TestUserModeDirFallback(t *testing.T) {
+	g := setup(t)
+
+	g.Eq(userModeDir(), DefaultUserModeDir)
+	g.True(strings.HasSuffix(userModeDir(), filepath.Join("wand", "user-mode")))
+	g.Neq(filepath.Dir(filepath.Dir(userModeDir())), os.TempDir())
+
+	for _, name := range []string{"XDG_CONFIG_HOME", "HOME", "AppData"} {
+		t.Setenv(name, "")
+	}
+	g.Eq(userModeDir(), filepath.Join(os.TempDir(), "wand", "user-mode"))
+}
+
 func TestSystemBrowsers(t *testing.T) {
 	g := setup(t)
 
