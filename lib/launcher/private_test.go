@@ -321,8 +321,19 @@ func TestGetURLErr(t *testing.T) {
 func TestCleanup(t *testing.T) {
 	g := setup(t)
 
-	// A launcher that never launched has nothing to wait for or remove.
-	New().Cleanup()
+	// A launcher that never launched has nothing to wait for. It removes the
+	// temporary directory New made up, which a failed launch may have written
+	// the preferences into, and leaves a directory the caller named alone.
+	l := New().Preferences("{}")
+	l.setupUserPreferences()
+	g.PathExists(l.Get(flags.UserDataDir))
+	l.Cleanup()
+	_, err := os.Stat(l.Get(flags.UserDataDir))
+	g.True(os.IsNotExist(err))
+
+	named := t.TempDir()
+	New().UserDataDir(named).Cleanup()
+	g.PathExists(named)
 
 	// A directory that cannot be removed yet, as one a helper process of the
 	// browser still holds, is retried until it can be. Here a file of it is
@@ -342,16 +353,51 @@ func TestCleanup(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "user-data")
 	release := hold(dir)
 	time.AfterFunc(300*time.Millisecond, release)
-	removeDir(dir, 5*time.Second)
-	_, err := os.Stat(dir)
+	removeDir(dir)
+	_, err = os.Stat(dir)
 	g.True(os.IsNotExist(err))
 
 	// One that never goes within the bound is given up on, and left.
+	defer func(bound time.Duration) { cleanupBound = bound }(cleanupBound)
+	cleanupBound = 300 * time.Millisecond
 	dir = filepath.Join(t.TempDir(), "user-data")
 	release = hold(dir)
-	removeDir(dir, 300*time.Millisecond)
+	removeDir(dir)
 	release()
 	g.E(os.RemoveAll(dir))
+}
+
+// TestCleanupKills: a browser still running when Cleanup has waited its
+// bound is killed, so that Cleanup returns and the directory goes.
+func TestCleanupKills(t *testing.T) {
+	g := setup(t)
+
+	defer func(bound time.Duration) { cleanupBound = bound }(cleanupBound)
+	cleanupBound = 500 * time.Millisecond
+
+	l := New()
+	l.MustLaunch()
+	dir := l.Get(flags.UserDataDir)
+	g.PathExists(dir)
+
+	l.Cleanup()
+
+	g.False(processAlive(l.PID()))
+	_, err := os.Stat(dir)
+	g.True(os.IsNotExist(err))
+}
+
+// TestKillExited: Kill leaves a browser that has exited alone, since its pid
+// may already belong to another process.
+func TestKillExited(t *testing.T) {
+	g := setup(t)
+
+	l := New()
+	c := cdp.MustStartWithURL(g.Context(), l.MustLaunch(), nil)
+	_, _ = c.Call(g.Context(), "", "Browser.close", nil)
+	l.Cleanup()
+
+	l.Kill()
 }
 
 func TestManaged(t *testing.T) {
@@ -384,7 +430,11 @@ func TestManaged(t *testing.T) {
 
 	u, h := MustNewManaged(s.URL()).Bin("go").ClientHeader()
 	_, err := cdp.StartWithURL(ctx, u, h)
-	g.Eq(err.(*cdp.BadHandshakeError).Body, "[wand-manager] not allowed wand-bin path: go (use --allow-all to disable the protection)")
+	var handshake *cdp.BadHandshakeError
+	if !errors.As(err, &handshake) {
+		g.Fatalf("expected the manager to refuse the handshake, got %v", err)
+	}
+	g.Eq(handshake.Body, "[wand-manager] not allowed wand-bin path: go (use --allow-all to disable the protection)")
 }
 
 func TestLaunchErrs(t *testing.T) {

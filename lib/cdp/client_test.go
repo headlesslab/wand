@@ -22,33 +22,13 @@ import (
 var setup = got.Setup(nil)
 
 // launch starts a browser through l and makes sure it is gone with its user
-// data directory when the test ends, whether the test closed it or not.
+// data directory when the test ends, whether the test closed it or not (the
+// launcher kills a browser that does not exit within its bound).
 func launch(g got.G, l *launcher.Launcher) string {
 	g.Helper()
 	u := l.MustLaunch()
-	g.Cleanup(func() { stopLauncher(l) })
+	g.Cleanup(l.Cleanup)
 	return u
-}
-
-// stopLauncher waits for the browser l launched to exit and its user data
-// directory to be removed; one still running after a moment is killed.
-func stopLauncher(l *launcher.Launcher) {
-	if l.PID() == 0 {
-		return
-	}
-
-	done := make(chan struct{})
-	go func() {
-		l.Cleanup()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		l.Kill()
-		<-done
-	}
 }
 
 func TestBasic(t *testing.T) {

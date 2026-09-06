@@ -532,6 +532,10 @@ func (l *Launcher) Launch() (string, error) {
 		err = cmd.Start()
 	}
 	if err != nil {
+		// Nothing started; the temporary directory the preferences may have
+		// been written into goes with the failure.
+		l.Cleanup()
+
 		return "", err
 	}
 
@@ -547,7 +551,7 @@ func (l *Launcher) Launch() (string, error) {
 	if err != nil {
 		l.Kill()
 
-		// A browser that started and gave no URL may have written into the
+		// A browser that started and gave no URL has written into the
 		// temporary directory made up for it; a failed launch leaves none.
 		if l.tmpUserDataDir {
 			l.Cleanup()
@@ -676,6 +680,14 @@ func (l *Launcher) Kill() {
 		return
 	}
 
+	// A browser that has exited is left alone: by now its pid may belong to
+	// another process, a browser launched a moment ago among them.
+	select {
+	case <-l.exit:
+		return
+	default:
+	}
+
 	killGroup(l.PID())
 	p, err := os.FindProcess(l.PID())
 	if err == nil {
@@ -683,30 +695,42 @@ func (l *Launcher) Kill() {
 	}
 }
 
-// Cleanup wait until the Browser exits and remove [flags.UserDataDir].
-// A launcher that never launched has nothing to wait for or remove. The
-// helper processes of a browser can outlive it by a moment and, on Windows,
-// hold files of the directory open until they are gone, a crash handler for
-// seconds, so the removal is retried for up to cleanupBound.
+// Cleanup waits for the browser to exit and removes [flags.UserDataDir].
+// Neither wait is unbounded: a browser still running cleanupBound after the
+// call is killed, and the removal, which the helper processes of a browser
+// can hold up for a moment (a crash handler on Windows for seconds), is
+// retried for as long. A launcher that never launched has nothing to wait
+// for; it removes the temporary directory New made up, in case a failed
+// launch wrote the preferences into it, and leaves a directory the caller
+// named alone.
 func (l *Launcher) Cleanup() {
 	if l.PID() == 0 {
+		if l.tmpUserDataDir {
+			removeDir(l.Get(flags.UserDataDir))
+		}
+
 		return
 	}
 
-	<-l.exit
+	select {
+	case <-l.exit:
+	case <-time.After(cleanupBound):
+		l.Kill()
+		<-l.exit
+	}
 
-	dir := l.Get(flags.UserDataDir)
-	removeDir(dir, cleanupBound)
+	removeDir(l.Get(flags.UserDataDir))
 }
 
-// cleanupBound is how long Cleanup keeps trying to remove the user data
-// directory of a browser that has exited.
-const cleanupBound = 10 * time.Second
+// cleanupBound is how long Cleanup waits for the browser to exit before
+// killing it, and how long it keeps trying to remove the user data directory.
+// A variable for the tests.
+var cleanupBound = 10 * time.Second
 
 // removeDir removes dir, retrying a failure every 100 ms until it succeeds or
-// the bound passes; the error is dropped, as it was before the retries.
-func removeDir(dir string, bound time.Duration) {
-	deadline := time.Now().Add(bound)
+// cleanupBound passes; the error is dropped, as it was before the retries.
+func removeDir(dir string) {
+	deadline := time.Now().Add(cleanupBound)
 
 	for {
 		err := os.RemoveAll(dir)

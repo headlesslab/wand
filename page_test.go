@@ -920,10 +920,9 @@ func TestPageNavigateNetworkErr(t *testing.T) {
 	g := setup(t)
 	p := g.newPage()
 
-	// Nothing listens on port 1. The net error depends on the machine (a
-	// refused connection, or what a system proxy answers, since the testers
-	// send loopback through the proxy); upstream asserted the exact message
-	// with Is, which for two strings only compares their kinds.
+	// Nothing listens on port 1; the net error is the refused connection, or
+	// what a firewall makes of the attempt. Upstream asserted the exact
+	// message with Is, which for two strings only compares their kinds.
 	err := p.Navigate("http://127.0.0.1:1")
 	g.Is(err, &wand.NavigationError{})
 	g.Has(err.Error(), "navigation failed: net::ERR_")

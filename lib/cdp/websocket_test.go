@@ -82,7 +82,7 @@ func TestWebSocketHeader(t *testing.T) {
 func newPage(ctx context.Context, g got.G) (*cdp.Client, string) {
 	l := launcher.New()
 	client := cdp.New().Start(cdp.MustConnectWS(launch(g, l)))
-	g.Cleanup(l.Kill)
+	g.Cleanup(l.Kill) // nobody closes this browser; killed at once, not after the cleanup bound
 
 	go func() {
 		for range client.Event() {
@@ -116,7 +116,7 @@ func TestDuplicatedConnectErr(t *testing.T) {
 
 	l := launcher.New()
 	u := launch(g, l)
-	g.Cleanup(l.Kill)
+	g.Cleanup(l.Kill) // nobody closes this browser; killed at once, not after the cleanup bound
 
 	ws := &cdp.WebSocket{}
 	g.E(ws.Connect(g.Context(), u, nil))

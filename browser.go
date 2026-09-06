@@ -243,7 +243,8 @@ func (b *Browser) launch() (string, error) {
 // Close the browser. A browser [Browser.Connect] launched itself is wand's
 // own: Close also waits for its process to exit and removes its temporary
 // user data directory, so nothing is left behind; one that does not take the
-// close is killed first.
+// close is killed at once, one that takes it and does not exit within the
+// launcher's bound is killed then ([launcher.Launcher.Cleanup]).
 func (b *Browser) Close() error {
 	if b.BrowserContextID != "" {
 		return proto.TargetDisposeBrowserContext{BrowserContextID: b.BrowserContextID}.Call(b)
