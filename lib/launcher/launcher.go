@@ -488,7 +488,11 @@ func (l *Launcher) Launch() (string, error) {
 	cmd := exec.Command(bin, l.FormatArgs()...)
 	l.setupCmd(cmd)
 
-	err = l.start(cmd, guarded)
+	if guarded {
+		err = l.startGuarded(cmd)
+	} else {
+		err = cmd.Start()
+	}
 	if err != nil {
 		return "", err
 	}

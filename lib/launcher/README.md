@@ -35,3 +35,5 @@ A browser `Launcher.Launch()` starts does not outlive the wand process, however 
 - **Every POSIX platform, macOS included**: the browser is started with `--remote-debugging-pipe` on descriptors 3 and 4 that wand opens and never speaks on, the Pipe tether; a Chromium of 89 or later exits by itself when they close. CDP stays on the WebSocket that `Launch()` returns. The flag is passed only with its descriptors, so `Launcher.FormatArgs()` never lists it: a command you build from those arguments yourself has no guard.
 
 With the guard off, or on a browser that rejects the pipe, `Launcher.Kill()` and `Launcher.Cleanup()` still kill the browser's process group on the way out; a wand process that dies hard leaves such a browser running.
+
+Under `Launcher.XVFB()` the tether reaches the browser through xvfb-run all the same; xvfb-run and its Xvfb server are outside it, so a wand process that dies hard leaves the Xvfb server behind.

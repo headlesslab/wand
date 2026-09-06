@@ -51,10 +51,6 @@ const (
 	// Leakless flag switches the Orphan guard: whether the browser dies with the wand process.
 	Leakless Flag = "wand-leakless"
 
-	// RemoteDebuggingPipe is the browser flag the Orphan guard passes on POSIX platforms beside
-	// the descriptors 3 and 4 it opens, the Pipe tether. Launch adds it; FormatArgs never lists it.
-	RemoteDebuggingPipe Flag = "remote-debugging-pipe"
-
 	// Bin is the browser executable file path. If it's empty, launcher will automatically search or download the bin.
 	Bin Flag = "wand-bin"
 

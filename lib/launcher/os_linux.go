@@ -13,14 +13,15 @@ import (
 // driver, to prove the Pipe tether on its own.
 var parentDeathSignal = syscall.SIGKILL
 
-// startCmd starts the browser with the parent-death signal. The kernel sends
+// osStart starts the browser with the parent-death signal. The kernel sends
 // it when the thread that created the process exits, not when the process
 // does (PR_SET_PDEATHSIG), so the browser is started from a goroutine that
 // locks its thread and holds it until the browser has exited; the wand
 // process dying, however it dies, takes the thread and so the browser with
 // it. The signal is not inherited by the browser's own children, which the
-// process-group kill and the browser's own shutdown cover.
-func (l *Launcher) startCmd(cmd *exec.Cmd) error {
+// process-group kill and the browser's own shutdown cover. cmd.SysProcAttr
+// is the one osSetupCmd always sets.
+func (l *Launcher) osStart(cmd *exec.Cmd) error {
 	cmd.SysProcAttr.Pdeathsig = parentDeathSignal
 
 	started := make(chan error, 1)

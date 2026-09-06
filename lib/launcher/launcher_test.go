@@ -134,9 +134,9 @@ func TestGuardFlags(t *testing.T) {
 	// The Pipe tether's flag is passed at launch, with its descriptors, and
 	// never through FormatArgs, whose output a caller may hand to exec.Command.
 	l := launcher.New()
-	g.False(l.Has(flags.RemoteDebuggingPipe))
+	g.False(l.Has("remote-debugging-pipe"))
 	for _, arg := range l.FormatArgs() {
-		g.Neq(arg, "--"+string(flags.RemoteDebuggingPipe))
+		g.Neq(arg, "--remote-debugging-pipe")
 	}
 }
 

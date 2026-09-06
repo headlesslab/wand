@@ -10,6 +10,18 @@ import (
 	"github.com/headlesslab/wand/lib/launcher/flags"
 )
 
+// remoteDebuggingPipe is the browser flag of the Pipe tether. Launch passes
+// it only with descriptors 3 and 4 open, since Chrome 113 and later aborts
+// without them; it is no flags.Flag on purpose, so that FormatArgs never
+// lists it for a command built without the descriptors.
+const remoteDebuggingPipe = "--remote-debugging-pipe"
+
+// xvfbTether puts the Pipe tether back on descriptors 3 and 4 under xvfb-run,
+// which closes descriptor 3 for the command it runs: the tether also travels
+// as descriptors 5 and 6, and this shell line moves them into place before
+// it execs the browser.
+const xvfbTether = `exec "$0" "$@" 3<&5 4>&6 5<&- 6>&-`
+
 // newPipe is os.Pipe; a test replaces it to make the Pipe tether fail.
 var newPipe = os.Pipe
 
@@ -44,19 +56,15 @@ func (l *Launcher) osSetupCmd(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
-// start the browser, with the Orphan guard when guarded: the Pipe tether on
+// startGuarded starts the browser under the Orphan guard: the Pipe tether on
 // descriptors 3 and 4, and on Linux the parent-death signal.
-func (l *Launcher) start(cmd *exec.Cmd, guarded bool) error {
-	if !guarded {
-		return cmd.Start()
-	}
-
+func (l *Launcher) startGuarded(cmd *exec.Cmd) error {
 	browserEnds, err := l.tether(cmd)
 	if err != nil {
 		return err
 	}
 
-	err = l.startCmd(cmd)
+	err = l.osStart(cmd)
 
 	// The browser holds its ends now, or never will.
 	for _, f := range browserEnds {
@@ -69,9 +77,8 @@ func (l *Launcher) start(cmd *exec.Cmd, guarded bool) error {
 }
 
 // tether opens the Pipe tether: the browser reads descriptor 3 and writes
-// descriptor 4, wand keeps the other end of each pipe. The flag is passed
-// only here, with both descriptors open, since Chrome 113 and later aborts
-// without them; FormatArgs never lists it. It returns the browser's ends.
+// descriptor 4, wand keeps the other end of each pipe. It returns the
+// browser's ends.
 func (l *Launcher) tether(cmd *exec.Cmd) ([]*os.File, error) {
 	browserRead, wandWrite, err := newPipe()
 	if err != nil {
@@ -86,8 +93,20 @@ func (l *Launcher) tether(cmd *exec.Cmd) ([]*os.File, error) {
 	}
 
 	l.guard.held = []*os.File{wandWrite, wandRead}
-	cmd.ExtraFiles = []*os.File{browserRead, browserWrite}
-	cmd.Args = append(cmd.Args, "--"+string(flags.RemoteDebuggingPipe))
+	browserEnds := []*os.File{browserRead, browserWrite}
 
-	return cmd.ExtraFiles, nil
+	cmd.Args = append(cmd.Args, remoteDebuggingPipe)
+	cmd.ExtraFiles = browserEnds
+
+	if xvfb, has := l.GetFlags(flags.XVFB); has {
+		// cmd.Args is xvfb-run, its flags, then the browser and its
+		// arguments; the shell goes in front of the browser.
+		browser := 1 + len(xvfb)
+		args := append([]string{}, cmd.Args[:browser]...)
+		args = append(args, "sh", "-c", xvfbTether)
+		cmd.Args = append(args, cmd.Args[browser:]...)
+		cmd.ExtraFiles = append(browserEnds, browserEnds...)
+	}
+
+	return browserEnds, nil
 }

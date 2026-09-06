@@ -23,6 +23,10 @@ import (
 // parent-death signal so that the Pipe tether is proven on its own.
 const guardDriverEnv = "WAND_TEST_GUARD"
 
+// guardDirEnv is the user data directory the driver launches with, one the
+// test owns, since a driver killed hard never cleans up.
+const guardDirEnv = "WAND_TEST_GUARD_DIR"
+
 // guardBound is how long a browser may take to be gone once its driver is;
 // the mechanisms fire within a second, the bound covers a loaded runner.
 const guardBound = 30 * time.Second
@@ -33,7 +37,7 @@ func TestGuardDriver(_ *testing.T) {
 		return
 	}
 
-	l := New()
+	l := New().UserDataDir(os.Getenv(guardDirEnv))
 	if mode == "off" {
 		l.Leakless(false)
 	}
@@ -54,7 +58,7 @@ func startDriver(t *testing.T, mode string) (browserPID int, driver *exec.Cmd) {
 	t.Helper()
 
 	driver = exec.Command(os.Args[0], "-test.run=^TestGuardDriver$", "-test.timeout=2m")
-	driver.Env = append(os.Environ(), guardDriverEnv+"="+mode)
+	driver.Env = append(os.Environ(), guardDriverEnv+"="+mode, guardDirEnv+"="+t.TempDir())
 	driver.Stderr = os.Stderr
 
 	out, err := driver.StdoutPipe()
@@ -71,6 +75,10 @@ func startDriver(t *testing.T, mode string) (browserPID int, driver *exec.Cmd) {
 			browserPID, err = strconv.Atoi(pid)
 			if err != nil {
 				t.Fatal(err)
+			}
+			// A zero would turn the group kill below onto the test itself.
+			if browserPID <= 0 {
+				t.Fatalf("the driver reported browser PID %d", browserPID)
 			}
 			return browserPID, driver
 		}

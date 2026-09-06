@@ -5,12 +5,15 @@ package launcher
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"syscall"
 	"testing"
 )
 
 func processAlive(pid int) bool {
 	// Signal zero probes for the process; a permission error is a process.
+	// A zombie counts until its parent, init once the driver is gone, has
+	// reaped it.
 	err := syscall.Kill(pid, 0)
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
@@ -43,4 +46,22 @@ func TestTetherErr(t *testing.T) {
 			g.Desc("pipe %d", failAt).Err(f.Close())
 		}
 	}
+}
+
+// TestLaunchXVFB: under xvfb-run, which closes descriptor 3 for the command
+// it runs, the Pipe tether still reaches the browser as descriptors 3 and 4,
+// so a Chrome of 113 or later starts instead of aborting for want of them.
+func TestLaunchXVFB(t *testing.T) {
+	g := setup(t)
+
+	if _, err := exec.LookPath("xvfb-run"); err != nil {
+		g.Skip("xvfb-run is not installed")
+	}
+
+	l := New().XVFB("-a")
+	defer l.Kill()
+
+	u, err := l.Launch()
+	g.E(err)
+	g.Regex(`\Aws://.+\z`, u)
 }
