@@ -8,9 +8,9 @@ github.com/headlesslab/seqdiff v0.1.0 h1:zRbhrCxFCpAm4snuSKqbn2MmAnJzThHAHFvNQ1d
 github.com/headlesslab/seqdiff v0.1.0/go.mod h1:lqdRmX2/X60WgXLkSZHb0Fb4bkgL52/ZVIWJ5DRYeg4=
 github.com/ysmood/fetchup v0.2.3 h1:ulX+SonA0Vma5zUFXtv52Kzip/xe7aj4vqT5AJwQ+ZQ=
 github.com/ysmood/fetchup v0.2.3/go.mod h1:xhibcRKziSvol0H1/pj33dnKrYyI2ebIvz5cOOkYGns=
-github.com/ysmood/gop v0.2.0 h1:+tFrG0TWPxT6p9ZaZs+VY+opCvHU8/3Fk6BaNv6kqKg=
-github.com/ysmood/gop v0.2.0/go.mod h1:rr5z2z27oGEbyB787hpEcx4ab8cCiPnKxn0SUHt6xzk=
-github.com/ysmood/got v0.40.0 h1:ZQk1B55zIvS7zflRrkGfPDrPG3d7+JOza1ZkNxcc74Q=
-github.com/ysmood/got v0.40.0/go.mod h1:W7DdpuX6skL3NszLmAsC5hT7JAhuLZhByVzHTq874Qg=
+github.com/ysmood/gop v0.4.2 h1:KtW1/RugapWs1iW9ynQdk52BK6TWdP9zC0qDOhW8EDE=
+github.com/ysmood/gop v0.4.2/go.mod h1:K4LAB/BdLArknXrVSy+DyXcfb8P85JwAtwYM8zlb0mU=
+github.com/ysmood/got v0.43.0 h1:bcHlKg+qnhFz5JxNZ+j4fIfxxB8WWjTh6qdqeS8FfZw=
+github.com/ysmood/got v0.43.0/go.mod h1:rsfH2KJ5rcS/5n9pmybIGodoHlT/NTYxjgh3ob7UdSU=
 github.com/ysmood/leakless v0.9.0 h1:qxCG5VirSBvmi3uynXFkcnLMzkphdh3xx5FtrORwDCU=
 github.com/ysmood/leakless v0.9.0/go.mod h1:R8iAXPRaG97QJwqxs74RdwzcRHT1SWCGTNqY8q0JvMQ=
