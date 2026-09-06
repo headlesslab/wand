@@ -416,19 +416,13 @@ func (b *Browser) Event() <-chan *Message {
 	dst := make(chan *Message)
 	go func() {
 		defer close(dst)
-		for {
+		// src closes once the browser context ends, which ends the loop; the
+		// select only guards a send the consumer has stopped picking up by then.
+		for e := range src {
 			select {
 			case <-b.ctx.Done():
 				return
-			case e, ok := <-src:
-				if !ok {
-					return
-				}
-				select {
-				case <-b.ctx.Done():
-					return
-				case dst <- e.(*Message): //nolint: forcetypeassert
-				}
+			case dst <- e.(*Message): //nolint: forcetypeassert
 			}
 		}
 	}()

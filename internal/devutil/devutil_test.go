@@ -61,6 +61,14 @@ func TestExecErr(t *testing.T) {
 	})
 }
 
+func TestExecLineReturnsStdoutOnly(t *testing.T) {
+	g := setup(t)
+
+	// go build -n writes the commands it would run to stderr and nothing to
+	// stdout, so anything returned here leaked in from stderr.
+	g.Eq(devutil.ExecLine(false, "go build -n ."), "")
+}
+
 func TestEscapeGoString(t *testing.T) {
 	g := setup(t)
 

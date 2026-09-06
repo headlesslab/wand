@@ -1,0 +1,104 @@
+# The Gate: every push and every pull request runs the whole suite with a real
+# browser on linux/amd64 and must keep statement coverage at 100 %. The main
+# ruleset requires the job below as a status check, so a red run blocks the
+# merge and nothing else (spec #33, section 13; ticket #36). Later tickets grow
+# this file into the full Tier 1 / Tier 2 matrix (#54) and add the security
+# Gates (#56).
+#
+# Every action is pinned to a full-length commit SHA with its version in a
+# trailing comment; Dependabot keeps the pins moving once #56 turns it on.
+name: Gate
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Never download a newer toolchain: a dependency raising its Go floor above
+  # ours must fail the run, not silently pull a toolchain.
+  GOTOOLCHAIN: local
+
+jobs:
+  test:
+    name: Tier 1 linux/amd64 (Go stable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      # Ubuntu 24.04 confines unprivileged user namespaces through AppArmor,
+      # which leaves Chromium's sandbox nothing to run in ("No usable
+      # sandbox!"). Lifting that restriction for the job keeps the sandbox on,
+      # as on a developer machine, rather than spreading --no-sandbox over the
+      # tests; rod #1070 stays a documented limitation for users.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # The Managed browser arrives through Browser resolution's own download
+      # on every run, never through an Actions cache; the pre-fetch command
+      # runs that download before any test does. The launcher serializes
+      # downloads and validations behind one port lock, so a package suite
+      # that started while another package was still downloading would spend
+      # its timing budgets waiting behind that lock.
+      - run: go run ./cmd/wand-fetch-browser
+
+      # Everything runs from the workspace root. `./...` stops at the two
+      # nested example modules, so they are named to be compiled against this
+      # checkout; e2e-testing has only test files, hence vet but no build.
+      - run: go build ./... ./lib/examples/custom-websocket
+
+      - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
+
+      # The ci-test wrapper sets GODEBUG=tracebackancestors=100 for the leak
+      # checker. -count=1 keeps go test from replaying results the restored
+      # build cache holds for a package whose inputs did not change. Examples
+      # reach the public internet until #52 lands and belong to the examples
+      # Nightly (#61), hence -run=^Test.
+      - run: go run ./internal/tools/ci-test -race -count=1 -coverprofile=coverage.out -run=^Test ./...
+
+      # 100 % per file, checked by got's check-cov at the version go.mod pins
+      # (go run resolves it from the build list, never @latest). Since Go 1.20
+      # the profile of ./... also lists packages without tests, at 0 %, which
+      # upstream avoided with a hand-written package list. This check instead
+      # drops entry points, package main (the commands, the tools, the
+      # generators, the fixture binaries and the examples), which are run
+      # rather than unit-tested and which upstream never held to 100 % either;
+      # every other package must be at 100 %. The awk matches a file's package
+      # exactly, so a package nested under an entry point stays in.
+      - name: Coverage at 100 %
+        run: |
+          go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... > main-packages.txt
+          awk 'NR == FNR { main[$0] = 1; next }
+               /^mode:/ { print; next }
+               { dir = $1; sub(/:.*/, "", dir); sub(/\/[^\/]*$/, "", dir); if (!(dir in main)) print }' \
+            main-packages.txt coverage.out > coverage-lib.out
+          go run github.com/ysmood/got/cmd/check-cov -cov-file=coverage-lib.out
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-linux-amd64
+          path: |
+            tmp/cdp-log
+            coverage.out

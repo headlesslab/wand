@@ -12,17 +12,17 @@ go run ./internal/tools/repo-settings [-app <slug>] [-check <context>]... [-dry-
 
 It needs the GitHub CLI logged in as a user with admin access to every repository listed (`gh auth status`; a classic token needs the `repo` scope). The bundle, in the order the script applies it:
 
-| Setting | What the script sets | Where it shows in the repository settings |
-| --- | --- | --- |
-| Secret scanning | On | Advanced Security → Secret Protection |
-| Push protection | On (needs secret scanning first) | Advanced Security → Secret Protection |
-| Dependabot alerts | On | Advanced Security → Dependabot |
-| Dependabot security updates | On (needs the alerts first) | Advanced Security → Dependabot |
-| Private vulnerability reporting | On | Advanced Security |
-| Immutable releases | On: a published release's tag and assets are locked; title, notes and the pre-release and latest markers stay editable | General → Releases |
-| Actions SHA pinning | Required: every action reference must be a full-length commit SHA; the other Actions permissions are left as they are | Actions → General |
-| Ruleset `main` | Targets the default branch. Rules: no deletion, no force push, every change through a pull request (no approvals required), and the `-check` contexts required green before a merge. With no `-check` the status-check rule is left out. | Rules → Rulesets |
-| Ruleset `v*` | Targets `refs/tags/v*`. Creating, moving and deleting such a tag is restricted to the bypass actors, so a published tag never changes (ADR-0008). | Rules → Rulesets |
+| Setting                         | What the script sets                                                                                                                                                                                                                     | Where it shows in the repository settings |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Secret scanning                 | On                                                                                                                                                                                                                                       | Advanced Security → Secret Protection     |
+| Push protection                 | On (needs secret scanning first)                                                                                                                                                                                                         | Advanced Security → Secret Protection     |
+| Dependabot alerts               | On                                                                                                                                                                                                                                       | Advanced Security → Dependabot            |
+| Dependabot security updates     | On (needs the alerts first)                                                                                                                                                                                                              | Advanced Security → Dependabot            |
+| Private vulnerability reporting | On                                                                                                                                                                                                                                       | Advanced Security                         |
+| Immutable releases              | On: a published release's tag and assets are locked; title, notes and the pre-release and latest markers stay editable                                                                                                                   | General → Releases                        |
+| Actions SHA pinning             | Required: every action reference must be a full-length commit SHA; the other Actions permissions are left as they are                                                                                                                    | Actions → General                         |
+| Ruleset `main`                  | Targets the default branch. Rules: no deletion, no force push, every change through a pull request (no approvals required), and the `-check` contexts required green before a merge. With no `-check` the status-check rule is left out. | Rules → Rulesets                          |
+| Ruleset `v*`                    | Targets `refs/tags/v*`. Creating, moving and deleting such a tag is restricted to the bypass actors, so a published tag never changes (ADR-0008).                                                                                        | Rules → Rulesets                          |
 
 Both rulesets list the repository admin role as a bypass actor with mode "always", and the GitHub App from `-app` beside it once it exists. A bypass actor can still push to `main` directly and cut a `v*` tag by hand, which is how the satellites are released; the Gates bind everyone else, Dependabot included. Rulesets inherited from the organisation are ignored.
 
@@ -31,7 +31,9 @@ Both rulesets list the repository admin role as a bypass actor with mode "always
 Run each line from the wand checkout. The Gates are the check names the reusable workflow in `headlesslab/.github` produces; a satellite that calls it with `cross-platform: true` (today only `fetch`) gets two more. A check is matched by name from any source, so the flag carries no app id.
 
 ```sh
-go run ./internal/tools/repo-settings headlesslab/wand
+go run ./internal/tools/repo-settings \
+  -check "Tier 1 linux/amd64 (Go stable)" \
+  headlesslab/wand
 
 go run ./internal/tools/repo-settings \
   -check "go / test (ubuntu-latest, floor)" \
@@ -50,7 +52,7 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires no checks yet: its Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only after its workflow has run once on `main`.
+wand's `main` ruleset requires the minimal Gate of `.github/workflows/gate.yml`, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the remaining Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 

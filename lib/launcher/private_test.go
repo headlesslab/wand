@@ -94,7 +94,10 @@ func TestGetURLErr(t *testing.T) {
 func TestManaged(t *testing.T) {
 	g := setup(t)
 
-	ctx := g.Timeout(5 * time.Second)
+	// The budget covers a browser launch through the manager (behind the
+	// launcher's port lock, which the other package suites contend for on a
+	// 4-vCPU runner under -race), a crash, the cleanup and a second handshake.
+	ctx := g.Timeout(15 * time.Second)
 
 	s := got.New(g).Serve()
 	rl := NewManager()
@@ -153,10 +156,11 @@ func TestURLParserErr(t *testing.T) {
 }
 
 func TestTestOpen(_ *testing.T) {
+	// Open releases the process it starts, so it needs one that exists and
+	// exits at once: this test binary running no test. A zero-value os.Process
+	// is not an option since Go 1.23 refuses to release one.
 	openExec = func(_ string, _ ...string) *exec.Cmd {
-		cmd := exec.Command("not-exists")
-		cmd.Process = &os.Process{}
-		return cmd
+		return exec.Command(os.Args[0], "-test.run=^$")
 	}
 	defer func() { openExec = exec.Command }()
 

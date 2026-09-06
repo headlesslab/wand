@@ -62,7 +62,13 @@ func Exec(line string, rest ...string) string {
 
 var execLogger = log.New(os.Stdout, "[exec] ", 0)
 
-// ExecLine of command.
+// ExecLine of command. It returns what the command wrote to its standard
+// output; standard error is echoed when std is true and otherwise kept only
+// for the panic message on failure, so that a caller parsing the output, such
+// as UseNode, is not confused by the "go: downloading" lines that go run
+// prints on a cold module cache. Each stream gets a buffer of its own: os/exec
+// serves two distinct writers from two goroutines, so a buffer they shared
+// would be a data race (only one identical writer for both gets one goroutine).
 func ExecLine(std bool, line string, rest ...string) string {
 	args := rest
 	if line != "" {
@@ -71,26 +77,27 @@ func ExecLine(std bool, line string, rest ...string) string {
 
 	execLogger.Println(utils.FormatCLIArgs(args))
 
-	buf := bytes.NewBuffer(nil)
+	stdout := bytes.NewBuffer(nil)
+	stderr := bytes.NewBuffer(nil)
 
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stderr = buf
-	cmd.Stdout = buf
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if std {
 		cmd.Stdin = os.Stdin
-		cmd.Stderr = io.MultiWriter(buf, os.Stderr)
-		cmd.Stdout = io.MultiWriter(buf, os.Stdout)
+		cmd.Stdout = io.MultiWriter(stdout, os.Stdout)
+		cmd.Stderr = os.Stderr
 	}
 
 	if err := cmd.Run(); err != nil {
 		if std {
 			panic(err)
 		}
-		panic(fmt.Sprintf("%v\n%v", err, buf.String()))
+		panic(fmt.Sprintf("%v\n%v%v", err, stdout.String(), stderr.String()))
 	}
 
-	return buf.String()
+	return stdout.String()
 }
 
 // UseNode installs Node.js and set the bin path to PATH env var.

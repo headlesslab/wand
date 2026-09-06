@@ -1016,19 +1016,13 @@ func (p *Page) Event() <-chan *Message {
 
 	go func() {
 		defer close(dst)
-		for {
+		// s closes once the page context ends, which ends the loop; the select
+		// only guards a send the consumer has stopped picking up by then.
+		for msg := range s {
 			select {
 			case <-p.ctx.Done():
 				return
-			case msg, ok := <-s:
-				if !ok {
-					return
-				}
-				select {
-				case <-p.ctx.Done():
-					return
-				case dst <- msg.(*Message): //nolint: forcetypeassert
-				}
+			case dst <- msg.(*Message): //nolint: forcetypeassert
 			}
 		}
 	}()
