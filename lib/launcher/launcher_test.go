@@ -121,6 +121,25 @@ func TestLaunchUserMode(t *testing.T) {
 	g.Eq(url, launcher.NewUserMode().RemoteDebuggingPort(port).MustLaunch())
 }
 
+func TestGuardFlags(t *testing.T) {
+	g := setup(t)
+
+	// The Orphan guard is on in New and off in User mode; the switch keeps
+	// its name.
+	g.True(launcher.New().Has(flags.Leakless))
+	g.False(launcher.NewUserMode().Has(flags.Leakless))
+	g.False(launcher.New().Leakless(false).Has(flags.Leakless))
+	g.True(launcher.NewUserMode().Leakless(true).Has(flags.Leakless))
+
+	// The Pipe tether's flag is passed at launch, with its descriptors, and
+	// never through FormatArgs, whose output a caller may hand to exec.Command.
+	l := launcher.New()
+	g.False(l.Has(flags.RemoteDebuggingPipe))
+	for _, arg := range l.FormatArgs() {
+		g.Neq(arg, "--"+string(flags.RemoteDebuggingPipe))
+	}
+}
+
 func TestUserModeErr(t *testing.T) {
 	g := setup(t)
 

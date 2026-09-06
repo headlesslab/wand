@@ -181,7 +181,7 @@ func (m *Manager) launch(w http.ResponseWriter, r *http.Request) {
 
 	kill := l.Has(flags.Leakless)
 
-	// Always enable leakless so that if the Manager process crashes
+	// Always enable the Orphan guard so that if the Manager process crashes
 	// all the managed browsers will be killed.
 	u := l.Leakless(true).MustLaunch()
 	defer m.cleanup(l, kill)
