@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 // HijackRequests same as Page.HijackRequests, but can intercept requests of the entire browser.
@@ -287,8 +287,8 @@ func (ctx *HijackRequest) Body() string {
 }
 
 // JSONBody of the request.
-func (ctx *HijackRequest) JSONBody() gson.JSON {
-	return gson.NewFrom(ctx.Body())
+func (ctx *HijackRequest) JSONBody() lazyjson.JSON {
+	return lazyjson.NewFrom(ctx.Body())
 }
 
 // Req returns the underlying http.Request instance that will be used to send the request.

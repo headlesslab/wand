@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/devices"
@@ -20,7 +21,6 @@ import (
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func TestGetElementPage(t *testing.T) {
@@ -670,7 +670,7 @@ func TestWaitStable(t *testing.T) {
 	g.Gt(time.Since(start), time.Second)
 
 	ctx := g.Context()
-	g.mc.stub(1, proto.DOMGetContentQuads{}, func(send StubSend) (gson.JSON, error) {
+	g.mc.stub(1, proto.DOMGetContentQuads{}, func(send StubSend) (lazyjson.JSON, error) {
 		go func() {
 			utils.Sleep(0.1)
 			ctx.Cancel()
@@ -732,8 +732,8 @@ func TestResource(t *testing.T) {
 	el := p.MustElement("img")
 	g.Eq(len(el.MustResource()), 22661)
 
-	g.mc.stub(1, proto.PageGetResourceContent{}, func(_ StubSend) (gson.JSON, error) {
-		return gson.New(proto.PageGetResourceContentResult{
+	g.mc.stub(1, proto.PageGetResourceContent{}, func(_ StubSend) (lazyjson.JSON, error) {
+		return lazyjson.New(proto.PageGetResourceContentResult{
 			Content:       "ok",
 			Base64Encoded: false,
 		}), nil

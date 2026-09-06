@@ -3,7 +3,7 @@
 package proto
 
 import (
-	"github.com/ysmood/gson"
+	"github.com/headlesslab/lazyjson"
 )
 
 /*
@@ -85,7 +85,7 @@ type DatabaseExecuteSQLResult struct {
 	ColumnNames []string `json:"columnNames,omitempty"`
 
 	// Values (optional) ...
-	Values []gson.JSON `json:"values,omitempty"`
+	Values []lazyjson.JSON `json:"values,omitempty"`
 
 	// SQLError (optional) ...
 	SQLError *DatabaseError `json:"sqlError,omitempty"`

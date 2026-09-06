@@ -25,7 +25,7 @@ func main() {
 
 		import (
 			"reflect"
-			"github.com/ysmood/gson"
+			"github.com/headlesslab/lazyjson"
 		)
 
 		// Version of cdp protocol
@@ -49,7 +49,7 @@ func main() {
 			package proto
 
 			import (
-				"github.com/ysmood/gson"
+				"github.com/headlesslab/lazyjson"
 			)
 		`
 

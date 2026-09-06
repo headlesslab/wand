@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
-func getSchema() gson.JSON {
+func getSchema() lazyjson.JSON {
 	l := launcher.New().Bin(launcher.NewBrowser().MustGet())
 	defer l.Kill()
 
@@ -30,7 +30,7 @@ func getSchema() gson.JSON {
 	data, err := io.ReadAll(res.Body)
 	utils.E(err)
 
-	obj := gson.New(data)
+	obj := lazyjson.New(data)
 
 	utils.E(utils.OutputFile("tmp/proto.json", obj.JSON("", "  ")))
 
@@ -44,12 +44,12 @@ func mapType(n string) string {
 		"integer": "int",
 		"string":  "string",
 		"binary":  "[]byte",
-		"object":  "map[string]gson.JSON",
-		"any":     "gson.JSON",
+		"object":  "map[string]lazyjson.JSON",
+		"any":     "lazyjson.JSON",
 	}[n]
 }
 
-func typeName(domain *domain, schema gson.JSON) string {
+func typeName(domain *domain, schema lazyjson.JSON) string {
 	typeName := ""
 	if schema.Has("type") {
 		typeName = schema.Get("type").Str()
@@ -88,7 +88,7 @@ func typeName(domain *domain, schema gson.JSON) string {
 	return typeName
 }
 
-func enumList(schema gson.JSON) []string {
+func enumList(schema lazyjson.JSON) []string {
 	var enum []string
 	if schema.Has("enum") {
 		enum = []string{}

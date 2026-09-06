@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/launcher"
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 // For example, when you log into your github account, and you want to reuse the login session for automation task.
@@ -50,7 +50,7 @@ func linkPreviewer(browser *wand.Browser) {
 		page.MustEvalOnNewDocument(js)
 
 		// Expose a function to the page to provide preview
-		page.MustExpose("getPreview", func(url gson.JSON) (interface{}, error) {
+		page.MustExpose("getPreview", func(url lazyjson.JSON) (interface{}, error) {
 			p := pool.MustGet(create)
 			defer pool.Put(p)
 			p.MustNavigate(url.Str())

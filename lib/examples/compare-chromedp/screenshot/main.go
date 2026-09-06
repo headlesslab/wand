@@ -4,9 +4,9 @@ package main
 import (
 	"os"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand"
 	"github.com/headlesslab/wand/lib/proto"
-	"github.com/ysmood/gson"
 )
 
 // This example demonstrates how to take a screenshot of a specific element and
@@ -21,7 +21,7 @@ func main() {
 	// capture entire browser viewport, returning jpg with quality=90
 	buf, err := browser.MustPage("https://brank.as/").Screenshot(true, &proto.PageCaptureScreenshot{
 		Format:  proto.PageCaptureScreenshotFormatJpeg,
-		Quality: gson.Int(90),
+		Quality: lazyjson.Int(90),
 	})
 	if err != nil {
 		panic(err)

@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/internal/devutil"
 	"github.com/headlesslab/wand/lib/utils"
-	"github.com/ysmood/gson"
 )
 
 func main() {
@@ -56,7 +56,7 @@ func fnName(name string) string {
 	return strings.ToUpper(name[0:1]) + name[1:]
 }
 
-func getList() gson.JSON {
+func getList() lazyjson.JSON {
 	devutil.UseNode(false)
 	code := devutil.ExecLine(false, "npx -ys -- uglify-js@3.17.4 -c -m -- lib/js/helper.js")
 
@@ -78,5 +78,5 @@ func getList() gson.JSON {
 
 	utils.E(utils.OutputFile(tmp, script))
 
-	return gson.NewFrom(devutil.ExecLine(false, "node", tmp))
+	return lazyjson.NewFrom(devutil.ExecLine(false, "node", tmp))
 }

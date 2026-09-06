@@ -3,7 +3,7 @@
 package proto
 
 import (
-	"github.com/ysmood/gson"
+	"github.com/headlesslab/lazyjson"
 )
 
 /*
@@ -345,10 +345,10 @@ type DOMShapeOutsideInfo struct {
 	Bounds DOMQuad `json:"bounds"`
 
 	// Shape coordinate details
-	Shape []gson.JSON `json:"shape"`
+	Shape []lazyjson.JSON `json:"shape"`
 
 	// MarginShape Margin shape bounds
-	MarginShape []gson.JSON `json:"marginShape"`
+	MarginShape []lazyjson.JSON `json:"marginShape"`
 }
 
 // DOMRect Rectangle.
