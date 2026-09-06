@@ -48,6 +48,13 @@ jobs:
 
       - run: go version
 
+      # Ubuntu 24.04 confines unprivileged user namespaces through AppArmor,
+      # which leaves Chromium's sandbox nothing to run in ("No usable
+      # sandbox!"). Lifting that restriction for the job keeps the sandbox on,
+      # as on a developer machine, rather than spreading --no-sandbox over the
+      # tests; rod #1070 stays a documented limitation for users.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       # Everything runs from the workspace root. `./...` stops at the two
       # nested example modules, so they are named to be compiled against this
       # checkout; e2e-testing has only test files, hence vet but no build.

@@ -127,6 +127,7 @@
     "Typedarray",
     "tzdata",
     "Unserializable",
+    "userns",
     "Wasmvalue",
     "Weakmap",
     "Weakset",
