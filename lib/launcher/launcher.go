@@ -159,15 +159,16 @@ func New() *Launcher {
 // profile wand owns, so that logins, extensions and settings survive between
 // runs; useful for the automation of a personal browser. The profile is
 // [DefaultUserModeDir], made at launch if missing, and [Launcher.UserDataDir]
-// overrides it. Since Chrome 136 branded Google Chrome refuses remote
+// overrides it. Branded Google Chrome of 136 or later refuses remote
 // debugging on its own default profile, so a launcher pointed at Chrome's
 // profile directory gets that refusal (ADR-0010). The Orphan guard is off, so
 // the browser survives the wand process; a browser already listening on the
 // port is reused rather than launched again, and a launch that fails on a
-// running browser's port is resolved by closing that browser. Like any user
-// data directory, the profile goes with [Launcher.Cleanup]; [Launcher.Kill]
-// leaves it. The browser comes from the same Browser resolution as [New], so
-// a System browser is preferred to a Managed one.
+// running browser's port is resolved by closing that browser. After a browser
+// this launcher started exits, [Launcher.Cleanup] removes the profile like
+// any user data directory; [Launcher.Kill] leaves it. The browser comes from
+// the same Browser resolution as [New], so a System browser is preferred to a
+// Managed one.
 func NewUserMode() *Launcher {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -177,9 +178,15 @@ func NewUserMode() *Launcher {
 		Flags: map[flags.Flag][]string{
 			flags.RemoteDebuggingPort: {"37712"},
 			"no-startup-window":       nil,
-			flags.Bin:                 {defaults.Bin},
-			flags.Download:            {downloadDefault()},
-			flags.UserDataDir:         {DefaultUserModeDir},
+			// The profile is wand's own, so its first run is the browser's
+			// first run: branded Chrome on Linux and macOS then shows a
+			// modal dialog (default browser, usage statistics) before it
+			// starts the DevTools server, which no one dismisses under
+			// automation, and Launch would wait forever.
+			"no-first-run":    nil,
+			flags.Bin:         {defaults.Bin},
+			flags.Download:    {downloadDefault()},
+			flags.UserDataDir: {DefaultUserModeDir},
 		},
 		browser:    NewBrowser(),
 		findSystem: LookPath,
@@ -538,10 +545,8 @@ func (l *Launcher) Launch() (string, error) {
 		return "", err
 	}
 
-	l.setupUserPreferences()
-
 	// A guarded browser is this launcher's own; without the guard a browser
-	// already listening on the port is reused.
+	// already listening on the port is reused, and nothing below is written.
 	guarded := l.Has(flags.Leakless)
 	if !guarded {
 		port := l.Get(flags.RemoteDebuggingPort)
@@ -553,16 +558,19 @@ func (l *Launcher) Launch() (string, error) {
 
 	// The user data directory is made here rather than left to the browser:
 	// New's temporary one, the one the caller named, or User mode's
-	// persistent profile, which so exists from the first run (ADR-0010). A
-	// path that cannot be made fails the launch at once, where a browser
-	// given one may start on a profile of its own choosing, or hang. A
-	// launcher with none set launches on the browser's own default profile.
+	// persistent profile, which then exists from the first run (ADR-0010).
+	// A path that cannot be made fails the launch at once, before the
+	// preferences are written into it, where a browser given such a path
+	// may start on a profile of its own choosing, or hang. A launcher with
+	// none set launches on the browser's own default profile.
 	if dir := l.Get(flags.UserDataDir); dir != "" {
 		err = os.MkdirAll(dir, 0o700)
 		if err != nil {
 			return "", err
 		}
 	}
+
+	l.setupUserPreferences()
 
 	cmd := exec.Command(bin, l.FormatArgs()...)
 	l.setupCmd(cmd)

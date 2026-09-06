@@ -11,11 +11,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/headlesslab/wand/lib/cdp"
 	"github.com/headlesslab/wand/lib/defaults"
@@ -134,6 +134,7 @@ func TestLaunchUserMode(t *testing.T) {
 
 	g.Eq(l.FormatArgs(), []string{
 		"--headless",
+		"--no-first-run",
 		"--no-startup-window",
 		"--proxy-server=test.com",
 		fmt.Sprintf("--remote-debugging-port=%d", port),
@@ -143,28 +144,31 @@ func TestLaunchUserMode(t *testing.T) {
 	})
 
 	url := l.MustLaunch()
-	g.PathExists(dir)
+	g.True(g.PathExists(dir))
 
 	g.Eq(url, launcher.NewUserMode().RemoteDebuggingPort(port).MustLaunch())
 }
 
 // TestUserModeBrandedChrome is the Confirmed fix for rod #1189 and #1184:
 // User mode launches a visible browser on wand's own profile directory,
-// against the branded Google Chrome that discovery finds, connects to it and
-// closes it. Since Chrome 136 branded Chrome refuses remote debugging on its
-// default profile, the one the Snapshot's NewUserMode launched on, so the
-// Snapshot fails this test with Chrome's refusal. Chrome for Testing,
-// Chromium and Edge are exempt from the rule and would not reproduce it, so
-// the test skips, naming what it found, where discovery finds no branded
-// Chrome (ubuntu-24.04-arm ships none). A visible browser needs a display:
-// on Linux without one the launch goes through xvfb-run where it is
-// installed (ubuntu-latest), and skips otherwise.
+// against the branded Google Chrome that LookPath finds on this machine,
+// connects to it and closes it. Branded Chrome of 136 or later refuses
+// remote debugging on its default profile, the one the Snapshot's
+// NewUserMode launched on, so the Snapshot fails this test with Chrome's
+// refusal. Chrome for Testing, Chromium and Edge are exempt from the rule
+// and would not reproduce it, so the test skips, naming what it found, where
+// LookPath finds no branded Chrome (ubuntu-24.04-arm ships none); for the
+// same reason it launches the browser LookPath found, not the one
+// WAND_BROWSER_BIN pins, and it must, since the profile it launches on is
+// the persistent one. A visible browser needs a display: on Linux without
+// one the launch goes through xvfb-run where it is installed
+// (ubuntu-latest), and skips otherwise.
 func TestUserModeBrandedChrome(t *testing.T) {
 	g := setup(t)
 
 	bin, has := launcher.LookPath()
 	if !has || !brandedChrome(bin) {
-		g.Skip(fmt.Sprintf("no branded Google Chrome by discovery (found %q)", bin))
+		g.Skip(fmt.Sprintf("no branded Google Chrome among the System browsers (found %q)", bin))
 	}
 
 	l := launcher.NewUserMode().Bin(bin).RemoteDebuggingPort(freePort(g)).Context(g.Context())
@@ -174,16 +178,15 @@ func TestUserModeBrandedChrome(t *testing.T) {
 		}
 		l.XVFB("-a")
 	}
-	// Kill, never Cleanup: the profile is the persistent one of User mode,
-	// on a developer's machine the user's own.
+	// Kill, never Cleanup or stop: the profile is the persistent one of User
+	// mode, on a developer's machine the user's own, and it stays.
 	defer l.Kill()
 
 	g.False(l.Has(flags.Headless))
-	g.False(l.Has(flags.Leakless))
 
 	u, err := l.Launch()
 	g.E(err)
-	g.PathExists(l.Get(flags.UserDataDir))
+	g.True(g.PathExists(l.Get(flags.UserDataDir)))
 
 	c := cdp.MustStartWithURL(g.Context(), u, nil)
 	res, err := c.Call(g.Context(), "", "Browser.getVersion", nil)
@@ -193,30 +196,38 @@ func TestUserModeBrandedChrome(t *testing.T) {
 	g.Has(string(res), `"product":"Chrome/`)
 
 	_, _ = c.Call(g.Context(), "", "Browser.close", nil)
-	// The connection ends when the browser has gone.
-	for range c.Event() {
-		continue
+	// The connection ends when the browser has gone; one that lingers fails
+	// the test rather than holding the run to its timeout.
+	gone := make(chan struct{})
+	go func() {
+		for range c.Event() {
+			continue
+		}
+		close(gone)
+	}()
+	select {
+	case <-gone:
+	case <-time.After(30 * time.Second):
+		g.Fatal("the browser is still connected 30 s after Browser.close")
 	}
 }
 
-// brandedChrome is whether bin, as discovery found it, is branded Google
-// Chrome by its install path: the one browser that refuses remote debugging
-// on its default profile since Chrome 136, which Chrome for Testing, Chromium
-// and Microsoft Edge do not. The path decides, since chrome.exe prints
-// nothing for --version on Windows.
+// brandedChrome is whether bin, a System browser LookPath found, is branded
+// Google Chrome by its path, of any channel: the one browser that refuses
+// remote debugging on its default profile since Chrome 136, which Chrome for
+// Testing, Chromium and Microsoft Edge do not. The path decides, since
+// chrome.exe prints nothing for --version on Windows: Google's install
+// directories on Windows and Linux, the app bundle on macOS, the google-chrome
+// names on PATH, a link to any of them included; Chrome for Testing's bundle
+// is the one Google name to leave out.
 func brandedChrome(bin string) bool {
 	p := strings.ToLower(filepath.ToSlash(bin))
-
-	switch {
-	case strings.HasSuffix(p, "/google/chrome/application/chrome.exe"): // Windows
-		return true
-	case strings.Contains(p, "/google chrome.app/"): // macOS
-		return true
-	case strings.HasPrefix(path.Base(p), "google-chrome"), strings.Contains(p, "/opt/google/chrome/"): // Linux
-		return true
+	if resolved, err := filepath.EvalSymlinks(bin); err == nil {
+		p += " " + strings.ToLower(filepath.ToSlash(resolved))
 	}
+	google := strings.Contains(p, "google/chrome") || strings.Contains(p, "google chrome") || strings.Contains(p, "google-chrome")
 
-	return false
+	return google && !strings.Contains(p, "for testing")
 }
 
 // TestUserDataDirErr: a user data directory that cannot be made fails the
@@ -227,7 +238,7 @@ func TestUserDataDirErr(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "file")
 	g.E(os.WriteFile(file, nil, 0o644))
 
-	l := launcher.New().Preferences("").UserDataDir(filepath.Join(file, "user-data"))
+	l := launcher.New().UserDataDir(filepath.Join(file, "user-data"))
 	_, err := l.Launch()
 	g.Err(err)
 	g.Eq(l.PID(), 0)
@@ -264,7 +275,11 @@ func TestUserModeDir(t *testing.T) {
 	dir := l.Get(flags.UserDataDir)
 	g.Eq(dir, launcher.DefaultUserModeDir)
 	config, err := os.UserConfigDir()
-	g.E(err)
+	if err != nil {
+		// A user without a configuration directory, as in a container with
+		// no HOME.
+		config = os.TempDir()
+	}
 	g.Eq(dir, filepath.Join(config, "wand", "user-mode"))
 	g.Has(l.FormatArgs(), "--user-data-dir="+dir)
 	g.False(l.Has(flags.Leakless))
@@ -281,11 +296,12 @@ func TestUserModeErr(t *testing.T) {
 	g := setup(t)
 
 	// With no user data directory at all, which a caller after the
-	// browser's own default profile has, there is none to make.
+	// browser's own default profile has, there is none to make; and none of
+	// these failed launches makes the persistent profile of User mode.
 	_, err := launcher.NewUserMode().RemoteDebuggingPort(freePort(g)).UserDataDir("").Bin("not-exists").Launch()
 	g.Err(err)
 
-	_, err = launcher.NewUserMode().RemoteDebuggingPort(freePort(g)).Bin("echo").Launch()
+	_, err = launcher.NewUserMode().RemoteDebuggingPort(freePort(g)).UserDataDir("").Bin("echo").Launch()
 	g.Err(err)
 }
 

@@ -188,7 +188,7 @@ func TestDownloadDeadHost(t *testing.T) {
 	b.Hosts = []string{dead.URL(hostTemplate), live.URL(hostTemplate)}
 
 	g.E(b.Download())
-	g.PathExists(b.BinPath())
+	g.True(g.PathExists(b.BinPath()))
 }
 
 func TestDownloadUnverified(t *testing.T) {
@@ -207,7 +207,7 @@ func TestDownloadUnverified(t *testing.T) {
 	b.Logger = log.New(logs, "", 0)
 
 	g.E(b.Download())
-	g.PathExists(b.BinPath())
+	g.True(g.PathExists(b.BinPath()))
 	g.Has(logs.String(), "chrome-0.0.0.1")
 	g.Has(logs.String(), "not verified")
 }
@@ -232,7 +232,7 @@ func TestGetReplacesBrokenCache(t *testing.T) {
 	p, err := b.Get()
 	g.E(err)
 	g.Eq(p, b.BinPath())
-	g.PathExists(b.BinPath())
+	g.True(g.PathExists(b.BinPath()))
 	_, err = os.Stat(stray)
 	g.True(errors.Is(err, os.ErrNotExist))
 }

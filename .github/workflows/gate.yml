@@ -88,6 +88,17 @@ jobs:
       # Nightly (#61), hence -run=^Test.
       - run: go run ./internal/tools/ci-test -race -count=1 -coverprofile=coverage.out -run=^Test ./...
 
+      # The Confirmed fix for rod #1189 (#47) proves itself only when it
+      # runs: TestUserModeBrandedChrome launches the branded Google Chrome
+      # the runner ships, under xvfb-run, on the User mode profile, and skips
+      # where it finds neither. A skip here would leave the fix unproven and
+      # the run green, so the test runs once more, verbosely, and its PASS
+      # line is required.
+      - name: The User mode Confirmed fix ran
+        run: |
+          go test -count=1 -run '^TestUserModeBrandedChrome$' -v ./lib/launcher | tee user-mode.log
+          grep -q -- '--- PASS: TestUserModeBrandedChrome' user-mode.log
+
       # 100 % per file, checked by got's check-cov at the version go.mod pins
       # (go run resolves it from the build list, never @latest). Since Go 1.20
       # the profile of ./... also lists packages without tests, at 0 %, which
