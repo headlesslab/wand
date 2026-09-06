@@ -7,12 +7,12 @@
 // The bundle is: secret scanning with push protection, Dependabot alerts and
 // security updates, private vulnerability reporting, immutable releases, the
 // Actions policy requiring full-length SHA pins, the "main" ruleset (the given
-// status checks required, no direct or force pushes, admins and the App as
-// bypass actors) and the "v*" tag ruleset (creation, update and deletion
-// restricted to the bypass actors). Every setting is read before it is
-// written, so a run on a repository that already matches reports no changes.
-// With -dry-run nothing is written and the exit status is 1 when anything
-// would change.
+// status checks required as Gates, no deletion, no direct or force pushes,
+// admins and the App as bypass actors) and the "v*" tag ruleset (creation,
+// update and deletion restricted to the bypass actors). Every setting is read
+// before it is written, so a run on a repository that already matches reports
+// no changes. With -dry-run nothing is written and the exit status is 1 when
+// anything would change.
 package main
 
 import (
@@ -20,8 +20,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -29,7 +31,7 @@ func main() {
 	opts, err := parseArgs(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		fmt.Fprintln(os.Stderr, usage)
+		usage(os.Stderr)
 		os.Exit(2)
 	}
 
@@ -61,12 +63,6 @@ func fail(err error) {
 	os.Exit(1)
 }
 
-const usage = `usage: go run ./internal/tools/repo-settings [-app <slug>] [-check <context>]... [-dry-run] <owner/repo>...
-
-  -app <slug>       GitHub App made a bypass actor of the main and v* rulesets
-  -check <context>  status check required on main; repeat for each check
-  -dry-run          report what would change, write nothing, exit 1 on drift`
-
 type options struct {
 	repos  []string
 	checks []string
@@ -76,11 +72,7 @@ type options struct {
 
 func parseArgs(args []string) (options, error) {
 	var opts options
-	fs := flag.NewFlagSet("repo-settings", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.Var((*list)(&opts.checks), "check", "status check required on main; repeat for each check")
-	fs.StringVar(&opts.app, "app", "", "GitHub App slug made a bypass actor of the rulesets")
-	fs.BoolVar(&opts.dryRun, "dry-run", false, "report what would change without writing")
+	fs := flagSet(&opts)
 	if err := fs.Parse(args); err != nil {
 		return options{}, err
 	}
@@ -97,28 +89,52 @@ func parseArgs(args []string) (options, error) {
 	return opts, nil
 }
 
-// list is a repeatable string flag.
-type list []string
+// flagSet declares the flags on opts. usage prints the same set, so every
+// flag is described once.
+func flagSet(opts *options) *flag.FlagSet {
+	fs := flag.NewFlagSet("repo-settings", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.Var((*repeatable)(&opts.checks), "check", "status check required on main as a Gate; repeat for each check")
+	fs.StringVar(&opts.app, "app", "",
+		"GitHub App made a bypass actor of both rulesets: its slug, or its numeric App ID when the slug does not resolve")
+	fs.BoolVar(&opts.dryRun, "dry-run", false, "report what would change, write nothing, exit 1 on drift")
+	return fs
+}
 
-func (l *list) String() string { return strings.Join(*l, ", ") }
+func usage(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "usage: go run ./internal/tools/repo-settings [-app <slug>] [-check <context>]... [-dry-run] <owner/repo>...")
+	fs := flagSet(&options{})
+	fs.SetOutput(w)
+	fs.PrintDefaults()
+}
 
-func (l *list) Set(v string) error {
-	*l = append(*l, v)
+// repeatable is a string flag that may be given more than once.
+type repeatable []string
+
+func (r *repeatable) String() string { return strings.Join(*r, ", ") }
+
+func (r *repeatable) Set(v string) error {
+	*r = append(*r, v)
 	return nil
 }
 
-// lookupApp resolves a GitHub App slug to the id rulesets name it by.
-func lookupApp(c *client, slug string) (int, error) {
-	var app struct {
+// lookupApp resolves the -app value to the id rulesets name a GitHub App by:
+// a numeric App ID as it is, a slug through the apps endpoint, which shows a
+// private App only to a token allowed to see it.
+func lookupApp(c *client, app string) (int, error) {
+	if id, err := strconv.Atoi(app); err == nil && id > 0 {
+		return id, nil
+	}
+	var res struct {
 		ID int `json:"id"`
 	}
-	if err := c.do(methodGet, "apps/"+slug, nil, &app); err != nil {
-		return 0, fmt.Errorf("looking up GitHub App %q: %w", slug, err)
+	if err := c.do(http.MethodGet, "apps/"+app, nil, &res); err != nil {
+		return 0, fmt.Errorf("looking up GitHub App %q (pass its numeric App ID if the App is private): %w", app, err)
 	}
-	if app.ID == 0 {
-		return 0, fmt.Errorf("looking up GitHub App %q: no id in the response", slug)
+	if res.ID == 0 {
+		return 0, fmt.Errorf("looking up GitHub App %q: no id in the response", app)
 	}
-	return app.ID, nil
+	return res.ID, nil
 }
 
 // run applies every setting to every repository, printing one line per

@@ -7,11 +7,6 @@ import (
 )
 
 const (
-	methodGet   = http.MethodGet
-	methodPut   = http.MethodPut
-	methodPost  = http.MethodPost
-	methodPatch = http.MethodPatch
-
 	enabled  = "enabled"
 	disabled = "disabled"
 )
@@ -58,7 +53,7 @@ func securityAnalysis(name, field string) setting {
 					Status string `json:"status"`
 				} `json:"security_and_analysis"`
 			}
-			if err := c.do(methodGet, "repos/"+repo, nil, &r); err != nil {
+			if err := c.do(http.MethodGet, "repos/"+repo, nil, &r); err != nil {
 				return "", false, err
 			}
 			status, ok := r.SecurityAndAnalysis[field]
@@ -69,7 +64,7 @@ func securityAnalysis(name, field string) setting {
 		},
 		write: func(c *client, repo string) error {
 			body := map[string]any{"security_and_analysis": map[string]any{field: map[string]any{"status": enabled}}}
-			return c.do(methodPatch, "repos/"+repo, body, nil)
+			return c.do(http.MethodPatch, "repos/"+repo, body, nil)
 		},
 	}
 }
@@ -87,7 +82,7 @@ func dependabotAlerts() setting {
 			return onOff(on), on, nil
 		},
 		write: func(c *client, repo string) error {
-			return c.do(methodPut, "repos/"+repo+"/vulnerability-alerts", nil, nil)
+			return c.do(http.MethodPut, "repos/"+repo+"/vulnerability-alerts", nil, nil)
 		},
 	}
 }
@@ -103,13 +98,13 @@ func enabledFlag(name, endpoint string) setting {
 			var r struct {
 				Enabled bool `json:"enabled"`
 			}
-			if err := c.do(methodGet, path(repo), nil, &r); err != nil {
+			if err := c.do(http.MethodGet, path(repo), nil, &r); err != nil {
 				return "", false, err
 			}
 			return onOff(r.Enabled), r.Enabled, nil
 		},
 		write: func(c *client, repo string) error {
-			return c.do(methodPut, path(repo), nil, nil)
+			return c.do(http.MethodPut, path(repo), nil, nil)
 		},
 	}
 }
@@ -129,7 +124,7 @@ func shaPinning() setting {
 		want: "required",
 		read: func(c *client, repo string) (string, bool, error) {
 			var p permissions
-			if err := c.do(methodGet, path(repo), nil, &p); err != nil {
+			if err := c.do(http.MethodGet, path(repo), nil, &p); err != nil {
 				return "", false, err
 			}
 			if p.SHAPinningRequired {
@@ -139,11 +134,11 @@ func shaPinning() setting {
 		},
 		write: func(c *client, repo string) error {
 			var p permissions
-			if err := c.do(methodGet, path(repo), nil, &p); err != nil {
+			if err := c.do(http.MethodGet, path(repo), nil, &p); err != nil {
 				return err
 			}
 			p.SHAPinningRequired = true
-			return c.do(methodPut, path(repo), p, nil)
+			return c.do(http.MethodPut, path(repo), p, nil)
 		},
 	}
 }
@@ -177,9 +172,9 @@ func ruleset(want map[string]any) setting {
 				return err
 			}
 			if id == 0 {
-				return c.do(methodPost, "repos/"+repo+"/rulesets", want, nil)
+				return c.do(http.MethodPost, "repos/"+repo+"/rulesets", want, nil)
 			}
-			return c.do(methodPut, fmt.Sprintf("repos/%s/rulesets/%d", repo, id), want, nil)
+			return c.do(http.MethodPut, fmt.Sprintf("repos/%s/rulesets/%d", repo, id), want, nil)
 		},
 	}
 }
@@ -188,20 +183,20 @@ func ruleset(want map[string]any) setting {
 // ruleset of that name; id is 0 when there is none. Rulesets inherited from
 // the organisation are listed by the same endpoint and skipped here.
 func findRuleset(c *client, repo, name string) (int, map[string]any, error) {
-	var list []struct {
+	var summaries []struct {
 		ID         int    `json:"id"`
 		Name       string `json:"name"`
 		SourceType string `json:"source_type"`
 	}
-	if err := c.do(methodGet, "repos/"+repo+"/rulesets", nil, &list); err != nil {
+	if err := c.do(http.MethodGet, "repos/"+repo+"/rulesets", nil, &summaries); err != nil {
 		return 0, nil, err
 	}
-	for _, rs := range list {
+	for _, rs := range summaries {
 		if rs.Name != name || rs.SourceType != "Repository" {
 			continue
 		}
 		var full map[string]any
-		if err := c.do(methodGet, fmt.Sprintf("repos/%s/rulesets/%d", repo, rs.ID), nil, &full); err != nil {
+		if err := c.do(http.MethodGet, fmt.Sprintf("repos/%s/rulesets/%d", repo, rs.ID), nil, &full); err != nil {
 			return 0, nil, err
 		}
 		return rs.ID, full, nil
@@ -246,14 +241,14 @@ func mainRuleset(checks []string, actors []actor) map[string]any {
 		}),
 	}
 	if len(checks) > 0 {
-		list := make([]any, 0, len(checks))
+		contexts := make([]any, 0, len(checks))
 		for _, check := range checks {
-			list = append(list, map[string]any{"context": check})
+			contexts = append(contexts, map[string]any{"context": check})
 		}
 		rules = append(rules, rule("required_status_checks", map[string]any{
 			"strict_required_status_checks_policy": false,
 			"do_not_enforce_on_create":             false,
-			"required_status_checks":               list,
+			"required_status_checks":               contexts,
 		}))
 	}
 	return map[string]any{

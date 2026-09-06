@@ -28,7 +28,7 @@ Both rulesets list the repository admin role as a bypass actor with mode "always
 
 ### The repositories today
 
-Run each line from the wand checkout. The required checks are the check names the reusable workflow in `headlesslab/.github` produces; a satellite that calls it with `cross-platform: true` (today only `fetch`) gets two more.
+Run each line from the wand checkout. The Gates are the check names the reusable workflow in `headlesslab/.github` produces; a satellite that calls it with `cross-platform: true` (today only `fetch`) gets two more. A check is matched by name from any source, so the flag carries no app id.
 
 ```sh
 go run ./internal/tools/repo-settings headlesslab/wand
@@ -50,12 +50,12 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires no checks yet: its Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a check only after its workflow has run once on `main`.
+wand's `main` ruleset requires no checks yet: its Gates (spec #33, section 13) land with the CI tickets, and each of those tickets adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only after its workflow has run once on `main`.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 
 ### What stays human
 
-- The GitHub App and organisation-wide two-factor authentication (#58). Once the App exists and is installed on the repositories, re-run every line above with `-app <slug>` so the App becomes a bypass actor of both rulesets; that is the only way the Roll and the release workflow can push to `main` and create tags.
+- The GitHub App and organisation-wide two-factor authentication (#58). Once the App exists and is installed on the repositories, re-run every line above with `-app <slug>` so the App becomes a bypass actor of both rulesets; that is the only way the Roll and the release workflow can push to `main` and create tags. `-app` also takes the numeric App ID from the App's settings page, for a private App the apps endpoint does not show to the token.
 - Organisation-level settings and rulesets: the script touches repositories only.
 - Turning a setting off: the script only switches things on and creates or updates the two rulesets. Anything else is a hand change in the repository settings, which the next run reports as drift and reverts.

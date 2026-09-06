@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -22,12 +23,14 @@ type api interface {
 // headers before the body, so the status is readable even though gh exits 1
 // on a non-2xx response.
 type ghAPI struct {
-	bin    string
-	prefix []string // arguments placed before "api"; the tests re-execute themselves through them
+	bin string
 }
 
+// command starts gh; the tests swap it to re-execute the test binary as a fake gh.
+var command = exec.CommandContext
+
 func (g ghAPI) call(method, path string, body any) (int, []byte, error) {
-	args := append(append([]string{}, g.prefix...), "api", "-i", "--method", method, path)
+	args := []string{"api", "-i", "--method", method, path}
 
 	var stdin io.Reader
 	if body != nil {
@@ -39,7 +42,7 @@ func (g ghAPI) call(method, path string, body any) (int, []byte, error) {
 		stdin = bytes.NewReader(b)
 	}
 
-	cmd := exec.CommandContext(context.Background(), g.bin, args...)
+	cmd := command(context.Background(), g.bin, args...)
 	cmd.Stdin = stdin
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
@@ -119,7 +122,7 @@ func (c *client) do(method, path string, body, out any) error {
 // exists reports whether a GET answers with a 2xx (true) or a 404 (false),
 // the way GitHub's on/off endpoints without a body answer.
 func (c *client) exists(path string) (bool, error) {
-	status, resp, err := c.api.call(methodGet, path, nil)
+	status, resp, err := c.api.call(http.MethodGet, path, nil)
 	if err != nil {
 		return false, err
 	}
@@ -129,7 +132,7 @@ func (c *client) exists(path string) (bool, error) {
 	case success(status):
 		return true, nil
 	}
-	return false, &apiError{method: methodGet, path: path, status: status, message: message(resp)}
+	return false, &apiError{method: http.MethodGet, path: path, status: status, message: message(resp)}
 }
 
 func success(status int) bool {
