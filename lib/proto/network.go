@@ -85,9 +85,6 @@ type NetworkLoaderID string
 // a network request.
 type NetworkRequestID string
 
-// NetworkInterceptionID Unique intercepted request identifier.
-type NetworkInterceptionID string
-
 // NetworkErrorReason Network level fetch failure reason.
 type NetworkErrorReason string
 
@@ -1323,31 +1320,6 @@ type NetworkAuthChallengeResponse struct {
 	Password string `json:"password,omitempty"`
 }
 
-// NetworkInterceptionStage (experimental) Stages of the interception to begin intercepting. Request will intercept before the request is
-// sent. Response will intercept after the response is received.
-type NetworkInterceptionStage string
-
-const (
-	// NetworkInterceptionStageRequest enum const.
-	NetworkInterceptionStageRequest NetworkInterceptionStage = "Request"
-
-	// NetworkInterceptionStageHeadersReceived enum const.
-	NetworkInterceptionStageHeadersReceived NetworkInterceptionStage = "HeadersReceived"
-)
-
-// NetworkRequestPattern (experimental) Request pattern for interception.
-type NetworkRequestPattern struct {
-	// URLPattern (optional) Wildcards (`'*'` -> zero or more, `'?'` -> exactly one) are allowed. Escape character is
-	// backslash. Omitting is equivalent to `"*"`.
-	URLPattern string `json:"urlPattern,omitempty"`
-
-	// ResourceType (optional) If set, only requests for matching resource types will be intercepted.
-	ResourceType NetworkResourceType `json:"resourceType,omitempty"`
-
-	// InterceptionStage (optional) Stage at which to begin intercepting requests. Default is Request.
-	InterceptionStage NetworkInterceptionStage `json:"interceptionStage,omitempty"`
-}
-
 // NetworkSignedExchangeSignature (experimental) Information about a signed exchange signature.
 // https://wicg.github.io/webpackage/draft-yasskin-httpbis-origin-signed-exchanges-impl.html#rfc.section.3.1.
 type NetworkSignedExchangeSignature struct {
@@ -1451,23 +1423,6 @@ type NetworkSignedExchangeInfo struct {
 	// Errors (optional) Errors occurred while handling the signed exchange.
 	Errors []*NetworkSignedExchangeError `json:"errors,omitempty"`
 }
-
-// NetworkContentEncoding (experimental) List of content encodings supported by the backend.
-type NetworkContentEncoding string
-
-const (
-	// NetworkContentEncodingDeflate enum const.
-	NetworkContentEncodingDeflate NetworkContentEncoding = "deflate"
-
-	// NetworkContentEncodingGzip enum const.
-	NetworkContentEncodingGzip NetworkContentEncoding = "gzip"
-
-	// NetworkContentEncodingBr enum const.
-	NetworkContentEncodingBr NetworkContentEncoding = "br"
-
-	// NetworkContentEncodingZstd enum const.
-	NetworkContentEncodingZstd NetworkContentEncoding = "zstd"
-)
 
 // NetworkNetworkConditions (experimental) ...
 type NetworkNetworkConditions struct {
@@ -2203,6 +2158,12 @@ const (
 
 	// NetworkDeviceBoundSessionFetchResultPreProvisionedKeyNotFound enum const.
 	NetworkDeviceBoundSessionFetchResultPreProvisionedKeyNotFound NetworkDeviceBoundSessionFetchResult = "PreProvisionedKeyNotFound"
+
+	// NetworkDeviceBoundSessionFetchResultAttestationCertificationError enum const.
+	NetworkDeviceBoundSessionFetchResultAttestationCertificationError NetworkDeviceBoundSessionFetchResult = "AttestationCertificationError"
+
+	// NetworkDeviceBoundSessionFetchResultAttestationSigningError enum const.
+	NetworkDeviceBoundSessionFetchResultAttestationSigningError NetworkDeviceBoundSessionFetchResult = "AttestationSigningError"
 )
 
 // NetworkDeviceBoundSessionFailedRequest (experimental) Details about a failed device bound session network request.
@@ -2263,14 +2224,19 @@ const (
 
 	// NetworkRefreshEventDetailsRefreshResultTransientSigningError enum const.
 	NetworkRefreshEventDetailsRefreshResultTransientSigningError NetworkRefreshEventDetailsRefreshResult = "TransientSigningError"
+
+	// NetworkRefreshEventDetailsRefreshResultInScopeRefreshNotYetNeeded enum const.
+	NetworkRefreshEventDetailsRefreshResultInScopeRefreshNotYetNeeded NetworkRefreshEventDetailsRefreshResult = "InScopeRefreshNotYetNeeded"
 )
 
 // NetworkRefreshEventDetails (experimental) Session event details specific to refresh.
 type NetworkRefreshEventDetails struct {
 	// RefreshResult The result of a refresh.
+	// LINT.IfChange(DeviceBoundSessionRefreshResult).
 	RefreshResult NetworkRefreshEventDetailsRefreshResult `json:"refreshResult"`
 
-	// FetchResult (optional) If there was a fetch attempt, the result of that.
+	// FetchResult (optional) LINT.ThenChange(//net/device_bound_sessions/refresh_result.h:DeviceBoundSessionRefreshResult,//content/browser/devtools/protocol/network_handler.cc:DeviceBoundSessionRefreshResult)
+	// If there was a fetch attempt, the result of that.
 	FetchResult NetworkDeviceBoundSessionFetchResult `json:"fetchResult,omitempty"`
 
 	// NewSession (optional) The session display if there was a newly created session. This is populated
@@ -2380,33 +2346,6 @@ type NetworkLoadNetworkResourceOptions struct {
 	IncludeCredentials bool `json:"includeCredentials"`
 }
 
-// NetworkSetAcceptedEncodings (experimental) Sets a list of content encodings that will be accepted. Empty list means no encoding is accepted.
-type NetworkSetAcceptedEncodings struct {
-	// Encodings List of accepted content encodings.
-	Encodings []NetworkContentEncoding `json:"encodings"`
-}
-
-// ProtoReq name.
-func (m NetworkSetAcceptedEncodings) ProtoReq() string { return "Network.setAcceptedEncodings" }
-
-// Call sends the request.
-func (m NetworkSetAcceptedEncodings) Call(c Client) error {
-	return call(m.ProtoReq(), m, nil, c)
-}
-
-// NetworkClearAcceptedEncodingsOverride (experimental) Clears accepted encodings set by setAcceptedEncodings.
-type NetworkClearAcceptedEncodingsOverride struct{}
-
-// ProtoReq name.
-func (m NetworkClearAcceptedEncodingsOverride) ProtoReq() string {
-	return "Network.clearAcceptedEncodingsOverride"
-}
-
-// Call sends the request.
-func (m NetworkClearAcceptedEncodingsOverride) Call(c Client) error {
-	return call(m.ProtoReq(), m, nil, c)
-}
-
 // NetworkCanClearBrowserCache (deprecated) Tells whether clearing browser cache is supported.
 //
 // Deprecated: Network.canClearBrowserCache is deprecated in the Chrome DevTools Protocol.
@@ -2494,55 +2433,6 @@ func (m NetworkClearBrowserCookies) ProtoReq() string { return "Network.clearBro
 
 // Call sends the request.
 func (m NetworkClearBrowserCookies) Call(c Client) error {
-	return call(m.ProtoReq(), m, nil, c)
-}
-
-// NetworkContinueInterceptedRequest (deprecated) (experimental) Response to Network.requestIntercepted which either modifies the request to continue with any
-// modifications, or blocks it, or completes it with the provided response bytes. If a network
-// fetch occurs as a result which encounters a redirect an additional Network.requestIntercepted
-// event will be sent with the same InterceptionId.
-// Deprecated, use Fetch.continueRequest, Fetch.fulfillRequest and Fetch.failRequest instead.
-//
-// Deprecated: Network.continueInterceptedRequest is deprecated in the Chrome DevTools Protocol.
-type NetworkContinueInterceptedRequest struct {
-	// InterceptionID ...
-	InterceptionID NetworkInterceptionID `json:"interceptionId"`
-
-	// ErrorReason (optional) If set this causes the request to fail with the given reason. Passing `Aborted` for requests
-	// marked with `isNavigationRequest` also cancels the navigation. Must not be set in response
-	// to an authChallenge.
-	ErrorReason NetworkErrorReason `json:"errorReason,omitempty"`
-
-	// RawResponse (optional) If set the requests completes using with the provided base64 encoded raw response, including
-	// HTTP status line and headers etc... Must not be set in response to an authChallenge. (Encoded as a base64 string when passed over JSON).
-	RawResponse []byte `json:"rawResponse,omitempty"`
-
-	// URL (optional) If set the request url will be modified in a way that's not observable by page. Must not be
-	// set in response to an authChallenge.
-	URL string `json:"url,omitempty"`
-
-	// Method (optional) If set this allows the request method to be overridden. Must not be set in response to an
-	// authChallenge.
-	Method string `json:"method,omitempty"`
-
-	// PostData (optional) If set this allows postData to be set. Must not be set in response to an authChallenge.
-	PostData string `json:"postData,omitempty"`
-
-	// Headers (optional) If set this allows the request headers to be changed. Must not be set in response to an
-	// authChallenge.
-	Headers NetworkHeaders `json:"headers,omitempty"`
-
-	// AuthChallengeResponse (optional) Response to a requestIntercepted with an authChallenge. Must not be set otherwise.
-	AuthChallengeResponse *NetworkAuthChallengeResponse `json:"authChallengeResponse,omitempty"`
-}
-
-// ProtoReq name.
-func (m NetworkContinueInterceptedRequest) ProtoReq() string {
-	return "Network.continueInterceptedRequest"
-}
-
-// Call sends the request.
-func (m NetworkContinueInterceptedRequest) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
@@ -2854,58 +2744,6 @@ type NetworkGetRequestPostDataResult struct {
 	Base64Encoded bool `json:"base64Encoded"`
 }
 
-// NetworkGetResponseBodyForInterception (experimental) Returns content served for the given currently intercepted request.
-type NetworkGetResponseBodyForInterception struct {
-	// InterceptionID Identifier for the intercepted request to get body for.
-	InterceptionID NetworkInterceptionID `json:"interceptionId"`
-}
-
-// ProtoReq name.
-func (m NetworkGetResponseBodyForInterception) ProtoReq() string {
-	return "Network.getResponseBodyForInterception"
-}
-
-// Call the request.
-func (m NetworkGetResponseBodyForInterception) Call(c Client) (*NetworkGetResponseBodyForInterceptionResult, error) {
-	var res NetworkGetResponseBodyForInterceptionResult
-	return &res, call(m.ProtoReq(), m, &res, c)
-}
-
-// NetworkGetResponseBodyForInterceptionResult (experimental) ...
-type NetworkGetResponseBodyForInterceptionResult struct {
-	// Body Response body.
-	Body string `json:"body"`
-
-	// Base64Encoded True, if content was sent as base64.
-	Base64Encoded bool `json:"base64Encoded"`
-}
-
-// NetworkTakeResponseBodyForInterceptionAsStream (experimental) Returns a handle to the stream representing the response body. Note that after this command,
-// the intercepted request can't be continued as is -- you either need to cancel it or to provide
-// the response body. The stream only supports sequential read, IO.read will fail if the position
-// is specified.
-type NetworkTakeResponseBodyForInterceptionAsStream struct {
-	// InterceptionID ...
-	InterceptionID NetworkInterceptionID `json:"interceptionId"`
-}
-
-// ProtoReq name.
-func (m NetworkTakeResponseBodyForInterceptionAsStream) ProtoReq() string {
-	return "Network.takeResponseBodyForInterceptionAsStream"
-}
-
-// Call the request.
-func (m NetworkTakeResponseBodyForInterceptionAsStream) Call(c Client) (*NetworkTakeResponseBodyForInterceptionAsStreamResult, error) {
-	var res NetworkTakeResponseBodyForInterceptionAsStreamResult
-	return &res, call(m.ProtoReq(), m, &res, c)
-}
-
-// NetworkTakeResponseBodyForInterceptionAsStreamResult (experimental) ...
-type NetworkTakeResponseBodyForInterceptionAsStreamResult struct {
-	// Stream ...
-	Stream IOStreamHandle `json:"stream"`
-}
-
 // NetworkReplayXHR (experimental) This method sends a new XMLHttpRequest which is identical to the original one. The following
 // parameters should be identical: method, url, async, request body, extra headers, withCredentials
 // attribute, user, password.
@@ -3101,24 +2939,6 @@ func (m NetworkSetAttachDebugStack) ProtoReq() string { return "Network.setAttac
 
 // Call sends the request.
 func (m NetworkSetAttachDebugStack) Call(c Client) error {
-	return call(m.ProtoReq(), m, nil, c)
-}
-
-// NetworkSetRequestInterception (deprecated) (experimental) Sets the requests to intercept that match the provided patterns and optionally resource types.
-// Deprecated, please use Fetch.enable instead.
-//
-// Deprecated: Network.setRequestInterception is deprecated in the Chrome DevTools Protocol.
-type NetworkSetRequestInterception struct {
-	// Patterns Requests matching any of these patterns will be forwarded and wait for the corresponding
-	// continueInterceptedRequest call.
-	Patterns []*NetworkRequestPattern `json:"patterns"`
-}
-
-// ProtoReq name.
-func (m NetworkSetRequestInterception) ProtoReq() string { return "Network.setRequestInterception" }
-
-// Call sends the request.
-func (m NetworkSetRequestInterception) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
@@ -3389,62 +3209,6 @@ type NetworkLoadingFinished struct {
 // ProtoEvent name.
 func (evt NetworkLoadingFinished) ProtoEvent() string {
 	return "Network.loadingFinished"
-}
-
-// NetworkRequestIntercepted (deprecated) (experimental) Details of an intercepted HTTP request, which must be either allowed, blocked, modified or
-// mocked.
-// Deprecated, use Fetch.requestPaused instead.
-//
-// Deprecated: Network.requestIntercepted is deprecated in the Chrome DevTools Protocol.
-type NetworkRequestIntercepted struct {
-	// InterceptionID Each request the page makes will have a unique id, however if any redirects are encountered
-	// while processing that fetch, they will be reported with the same id as the original fetch.
-	// Likewise if HTTP authentication is needed then the same fetch id will be used.
-	InterceptionID NetworkInterceptionID `json:"interceptionId"`
-
-	// Request ...
-	Request *NetworkRequest `json:"request"`
-
-	// FrameID The id of the frame that initiated the request.
-	FrameID PageFrameID `json:"frameId"`
-
-	// ResourceType How the requested resource will be used.
-	ResourceType NetworkResourceType `json:"resourceType"`
-
-	// IsNavigationRequest Whether this is a navigation request, which can abort the navigation completely.
-	IsNavigationRequest bool `json:"isNavigationRequest"`
-
-	// IsDownload (optional) Set if the request is a navigation that will result in a download.
-	// Only present after response is received from the server (i.e. HeadersReceived stage).
-	IsDownload bool `json:"isDownload,omitempty"`
-
-	// RedirectURL (optional) Redirect location, only sent if a redirect was intercepted.
-	RedirectURL string `json:"redirectUrl,omitempty"`
-
-	// AuthChallenge (optional) Details of the Authorization Challenge encountered. If this is set then
-	// continueInterceptedRequest must contain an authChallengeResponse.
-	AuthChallenge *NetworkAuthChallenge `json:"authChallenge,omitempty"`
-
-	// ResponseErrorReason (optional) Response error if intercepted at response stage or if redirect occurred while intercepting
-	// request.
-	ResponseErrorReason NetworkErrorReason `json:"responseErrorReason,omitempty"`
-
-	// ResponseStatusCode (optional) Response code if intercepted at response stage or if redirect occurred while intercepting
-	// request or auth retry occurred.
-	ResponseStatusCode *int `json:"responseStatusCode,omitempty"`
-
-	// ResponseHeaders (optional) Response headers if intercepted at the response stage or if redirect occurred while
-	// intercepting request or auth retry occurred.
-	ResponseHeaders NetworkHeaders `json:"responseHeaders,omitempty"`
-
-	// RequestID (optional) If the intercepted request had a corresponding requestWillBeSent event fired for it, then
-	// this requestId will be the same as the requestId present in the requestWillBeSent event.
-	RequestID NetworkRequestID `json:"requestId,omitempty"`
-}
-
-// ProtoEvent name.
-func (evt NetworkRequestIntercepted) ProtoEvent() string {
-	return "Network.requestIntercepted"
 }
 
 // NetworkRequestServedFromCache Fired if request ended up loading from cache.
@@ -3793,7 +3557,7 @@ type NetworkDirectTCPSocketAborted struct {
 	Identifier NetworkRequestID `json:"identifier"`
 
 	// ErrorMessage ...
-	ErrorMessage string `json:"errorMessage"`
+	ErrorMessage NetworkErrorReason `json:"errorMessage"`
 
 	// Timestamp ...
 	Timestamp MonotonicTime `json:"timestamp"`
@@ -3932,7 +3696,7 @@ type NetworkDirectUDPSocketAborted struct {
 	Identifier NetworkRequestID `json:"identifier"`
 
 	// ErrorMessage ...
-	ErrorMessage string `json:"errorMessage"`
+	ErrorMessage NetworkErrorReason `json:"errorMessage"`
 
 	// Timestamp ...
 	Timestamp MonotonicTime `json:"timestamp"`

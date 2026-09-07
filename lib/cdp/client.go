@@ -85,8 +85,17 @@ type result struct {
 	err error
 }
 
-// Call a method and wait for its response.
+// Call a method and wait for its response. A context that has ended before
+// the call sends nothing and answers with its error. A reply that has
+// arrived by the time the context ends is the call's answer, since the
+// browser has done the work: the reply to Page.close and the detach that
+// ends the page's context arrive together, and a select between the two
+// would take either.
 func (cdp *Client) Call(ctx context.Context, sessionID, method string, params interface{}) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	req := &Request{
 		ID:        int(atomic.AddUint64(&cdp.count, 1)),
 		SessionID: sessionID,
@@ -117,7 +126,12 @@ func (cdp *Client) Call(ctx context.Context, sessionID, method string, params in
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		select {
+		case res := <-done:
+			return res.msg, res.err
+		default:
+			return nil, ctx.Err()
+		}
 	case res := <-done:
 		return res.msg, res.err
 	}

@@ -39,7 +39,7 @@ const (
 	WebAuthnCtap2VersionCtap22 WebAuthnCtap2Version = "ctap2_2"
 )
 
-// WebAuthnAuthenticatorTransport ...
+// WebAuthnAuthenticatorTransport LINT.IfChange(AuthenticatorTransport).
 type WebAuthnAuthenticatorTransport string
 
 const (
@@ -54,6 +54,12 @@ const (
 
 	// WebAuthnAuthenticatorTransportCable enum const.
 	WebAuthnAuthenticatorTransportCable WebAuthnAuthenticatorTransport = "cable"
+
+	// WebAuthnAuthenticatorTransportHybrid enum const.
+	WebAuthnAuthenticatorTransportHybrid WebAuthnAuthenticatorTransport = "hybrid"
+
+	// WebAuthnAuthenticatorTransportSmartCard enum const.
+	WebAuthnAuthenticatorTransportSmartCard WebAuthnAuthenticatorTransport = "smart-card"
 
 	// WebAuthnAuthenticatorTransportInternal enum const.
 	WebAuthnAuthenticatorTransportInternal WebAuthnAuthenticatorTransport = "internal"
@@ -150,8 +156,9 @@ type WebAuthnCredential struct {
 	// credential to a specific user. (Encoded as a base64 string when passed over JSON).
 	UserHandle []byte `json:"userHandle,omitempty"`
 
-	// SignCount Signature counter. This is incremented by one for each successful
-	// assertion.
+	// SignCount Signature counter. Must be equal to or greater than -1.
+	// If -1, the credential won't have an associated signature counter, and
+	// every assertion operation will report a value of 0.
 	// See https://w3c.github.io/webauthn/#signature-counter.
 	SignCount int `json:"signCount"`
 
@@ -433,6 +440,12 @@ type WebAuthnSetCredentialProperties struct {
 
 	// GenerateCmtgKeyOnNextOperation (optional) ...
 	GenerateCmtgKeyOnNextOperation bool `json:"generateCmtgKeyOnNextOperation,omitempty"`
+
+	// SignCount (optional) Must be equal to or greater than -1.
+	// If -1, the signature counter is removed from the credential, and every
+	// assertion operation will report a value of 0.
+	// See https://w3c.github.io/webauthn/#signature-counter.
+	SignCount *int `json:"signCount,omitempty"`
 }
 
 // ProtoReq name.

@@ -53,12 +53,14 @@ func TestGuardDriver(_ *testing.T) {
 }
 
 // startDriver runs the driver in the given mode and returns the PID of the
-// browser it launched, once the browser is up.
-func startDriver(t *testing.T, mode string) (browserPID int, driver *exec.Cmd) {
+// browser it launched, once the browser is up, and the user data directory
+// the browser runs on, which the test removes once the browser is gone.
+func startDriver(t *testing.T, mode string) (browserPID int, driver *exec.Cmd, dir string) {
 	t.Helper()
 
 	driver = exec.Command(os.Args[0], "-test.run=^TestGuardDriver$", "-test.timeout=2m")
-	driver.Env = append(os.Environ(), guardDriverEnv+"="+mode, guardDirEnv+"="+t.TempDir())
+	dir = t.TempDir()
+	driver.Env = append(os.Environ(), guardDriverEnv+"="+mode, guardDirEnv+"="+dir)
 	driver.Stderr = os.Stderr
 
 	out, err := driver.StdoutPipe()
@@ -80,13 +82,13 @@ func startDriver(t *testing.T, mode string) (browserPID int, driver *exec.Cmd) {
 			if browserPID <= 0 {
 				t.Fatalf("the driver reported browser PID %d", browserPID)
 			}
-			return browserPID, driver
+			return browserPID, driver, dir
 		}
 	}
 
 	_ = driver.Wait()
 	t.Fatal("the driver reported no browser PID")
-	return 0, nil
+	return 0, nil, ""
 }
 
 // killDriver kills the driver the way a crash or an OOM kill would, with no
@@ -113,16 +115,35 @@ func waitGone(pid int, bound time.Duration) bool {
 	return !processAlive(pid)
 }
 
+// waitReleased reports whether the user data directory can be removed within
+// the bound. A browser's helper processes, and on Windows its open files, can
+// outlive the browser process by a moment, and the test's temporary directory
+// is removed once, right after the test; a directory still held then would
+// fail the test at its cleanup rather than at an assertion.
+func waitReleased(dir string, bound time.Duration) bool {
+	deadline := time.Now().Add(bound)
+	for {
+		if err := os.RemoveAll(dir); err == nil {
+			return true
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 // TestGuardOff: with the guard off, the browser outlives a driver that dies
 // hard, and is then cleaned up here with the launcher's own group kill.
 func TestGuardOff(t *testing.T) {
 	g := setup(t)
 
-	pid, driver := startDriver(t, "off")
+	pid, driver, dir := startDriver(t, "off")
 	killDriver(t, driver)
 
 	g.False(waitGone(pid, 2*time.Second))
 
 	killGroup(pid)
 	g.True(waitGone(pid, guardBound))
+	g.True(waitReleased(dir, guardBound))
 }

@@ -287,9 +287,6 @@ const (
 	// PagePermissionsPolicyFeatureInterestCohort enum const.
 	PagePermissionsPolicyFeatureInterestCohort PagePermissionsPolicyFeature = "interest-cohort"
 
-	// PagePermissionsPolicyFeatureJoinAdInterestGroup enum const.
-	PagePermissionsPolicyFeatureJoinAdInterestGroup PagePermissionsPolicyFeature = "join-ad-interest-group"
-
 	// PagePermissionsPolicyFeatureKeyboardMap enum const.
 	PagePermissionsPolicyFeatureKeyboardMap PagePermissionsPolicyFeature = "keyboard-map"
 
@@ -338,9 +335,6 @@ const (
 	// PagePermissionsPolicyFeaturePictureInPicture enum const.
 	PagePermissionsPolicyFeaturePictureInPicture PagePermissionsPolicyFeature = "picture-in-picture"
 
-	// PagePermissionsPolicyFeaturePrivateAggregation enum const.
-	PagePermissionsPolicyFeaturePrivateAggregation PagePermissionsPolicyFeature = "private-aggregation"
-
 	// PagePermissionsPolicyFeaturePrivateStateTokenIssuance enum const.
 	PagePermissionsPolicyFeaturePrivateStateTokenIssuance PagePermissionsPolicyFeature = "private-state-token-issuance"
 
@@ -353,14 +347,8 @@ const (
 	// PagePermissionsPolicyFeaturePublickeyCredentialsGet enum const.
 	PagePermissionsPolicyFeaturePublickeyCredentialsGet PagePermissionsPolicyFeature = "publickey-credentials-get"
 
-	// PagePermissionsPolicyFeatureRecordAdAuctionEvents enum const.
-	PagePermissionsPolicyFeatureRecordAdAuctionEvents PagePermissionsPolicyFeature = "record-ad-auction-events"
-
 	// PagePermissionsPolicyFeatureRewriter enum const.
 	PagePermissionsPolicyFeatureRewriter PagePermissionsPolicyFeature = "rewriter"
-
-	// PagePermissionsPolicyFeatureRunAdAuction enum const.
-	PagePermissionsPolicyFeatureRunAdAuction PagePermissionsPolicyFeature = "run-ad-auction"
 
 	// PagePermissionsPolicyFeatureScreenWakeLock enum const.
 	PagePermissionsPolicyFeatureScreenWakeLock PagePermissionsPolicyFeature = "screen-wake-lock"
@@ -1045,9 +1033,6 @@ type PageFileHandler struct {
 	// Name ...
 	Name string `json:"name"`
 
-	// Icons (optional) ...
-	Icons []*PageImageResource `json:"icons,omitempty"`
-
 	// Accepts (optional) Mimic a map, name is the key, accepts is the value.
 	Accepts []*PageFileFilter `json:"accepts,omitempty"`
 
@@ -1666,6 +1651,9 @@ const (
 
 	// PageBackForwardCacheNotRestoredReasonEmbedderExtensionFrame enum const.
 	PageBackForwardCacheNotRestoredReasonEmbedderExtensionFrame PageBackForwardCacheNotRestoredReason = "EmbedderExtensionFrame"
+
+	// PageBackForwardCacheNotRestoredReasonEmbedderPrivilegedWebContents enum const.
+	PageBackForwardCacheNotRestoredReasonEmbedderPrivilegedWebContents PageBackForwardCacheNotRestoredReason = "EmbedderPrivilegedWebContents"
 
 	// PageBackForwardCacheNotRestoredReasonRequestedByWebViewClient enum const.
 	PageBackForwardCacheNotRestoredReasonRequestedByWebViewClient PageBackForwardCacheNotRestoredReason = "RequestedByWebViewClient"
@@ -2898,6 +2886,54 @@ func (m PageStartScreencast) ProtoReq() string { return "Page.startScreencast" }
 // Call sends the request.
 func (m PageStartScreencast) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
+}
+
+// PageStartScreenRecording (experimental) Starts screencast video recording.
+type PageStartScreenRecording struct {
+	// Audio (optional) ...
+	Audio bool `json:"audio,omitempty"`
+
+	// MaxWidth (optional) Maximum frame width in pixels.
+	MaxWidth *int `json:"maxWidth,omitempty"`
+
+	// MaxHeight (optional) Maximum frame height in pixels.
+	MaxHeight *int `json:"maxHeight,omitempty"`
+
+	// FrameRate (optional) Maximum frame rate in frames per second.
+	FrameRate *int `json:"frameRate,omitempty"`
+}
+
+// ProtoReq name.
+func (m PageStartScreenRecording) ProtoReq() string { return "Page.startScreenRecording" }
+
+// Call the request.
+func (m PageStartScreenRecording) Call(c Client) (*PageStartScreenRecordingResult, error) {
+	var res PageStartScreenRecordingResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageStartScreenRecordingResult (experimental) ...
+type PageStartScreenRecordingResult struct {
+	// Stream (experimental) A handle of the stream that holds resulting screencast data.
+	Stream IOStreamHandle `json:"stream"`
+}
+
+// PageStopScreenRecording (experimental) Stops screencast video recording.
+type PageStopScreenRecording struct{}
+
+// ProtoReq name.
+func (m PageStopScreenRecording) ProtoReq() string { return "Page.stopScreenRecording" }
+
+// Call the request.
+func (m PageStopScreenRecording) Call(c Client) (*PageStopScreenRecordingResult, error) {
+	var res PageStopScreenRecordingResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageStopScreenRecordingResult (experimental) ...
+type PageStopScreenRecordingResult struct {
+	// Stream (experimental) A handle of the stream that holds resulting screencast data.
+	Stream IOStreamHandle `json:"stream"`
 }
 
 // PageStopLoading Force the page stop all navigations and pending resource fetches.

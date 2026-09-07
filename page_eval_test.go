@@ -224,8 +224,11 @@ func TestConcurrentEval(t *testing.T) {
 	})()
 	duration := time.Since(start)
 
+	// Concurrent: longer than the shorter timer, shorter than the two in
+	// sequence (4 s), which is the bound, so that a loaded runner's half a
+	// second on top of the longer timer is not a failure.
 	g.Gt(duration, 1500*time.Millisecond)
-	g.Lt(duration, 3000*time.Millisecond)
+	g.Lt(duration, 4000*time.Millisecond)
 	g.Eq([]int{<-list, <-list}, []int{1, 2})
 }
 

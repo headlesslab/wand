@@ -329,6 +329,9 @@ type DebuggerEvaluateOnCallFrame struct {
 
 	// Timeout (experimental) (optional) Terminate execution after timing out (number of milliseconds).
 	Timeout RuntimeTimeDelta `json:"timeout,omitempty"`
+
+	// ScopeNumber (experimental) (optional) Specifies the scope number to evaluate the expression in (default: 0, innermost scope).
+	ScopeNumber *int `json:"scopeNumber,omitempty"`
 }
 
 // ProtoReq name.
@@ -919,13 +922,9 @@ func (m DebuggerSetReturnValue) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
-// DebuggerSetScriptSource Edits JavaScript source live.
+// DebuggerSetScriptSource (deprecated) Live edit is no longer supported and this command always fails with a "no longer available" error.
 //
-// In general, functions that are currently on the stack can not be edited with
-// a single exception: If the edited function is the top-most stack frame and
-// that is the only activation of that function on the stack. In this case
-// the live edit will be successful and a `Debugger.restartFrame` for the
-// top-most function is automatically triggered.
+// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 type DebuggerSetScriptSource struct {
 	// ScriptID Id of the script to edit.
 	ScriptID RuntimeScriptID `json:"scriptId"`
@@ -951,27 +950,41 @@ func (m DebuggerSetScriptSource) Call(c Client) (*DebuggerSetScriptSourceResult,
 	return &res, call(m.ProtoReq(), m, &res, c)
 }
 
-// DebuggerSetScriptSourceResultStatus enum.
+// DebuggerSetScriptSourceResultStatus (deprecated) enum.
+//
+// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 type DebuggerSetScriptSourceResultStatus string
 
 const (
 	// DebuggerSetScriptSourceResultStatusOk enum const.
+	//
+	// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 	DebuggerSetScriptSourceResultStatusOk DebuggerSetScriptSourceResultStatus = "Ok"
 
 	// DebuggerSetScriptSourceResultStatusCompileError enum const.
+	//
+	// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 	DebuggerSetScriptSourceResultStatusCompileError DebuggerSetScriptSourceResultStatus = "CompileError"
 
 	// DebuggerSetScriptSourceResultStatusBlockedByActiveGenerator enum const.
+	//
+	// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 	DebuggerSetScriptSourceResultStatusBlockedByActiveGenerator DebuggerSetScriptSourceResultStatus = "BlockedByActiveGenerator"
 
 	// DebuggerSetScriptSourceResultStatusBlockedByActiveFunction enum const.
+	//
+	// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 	DebuggerSetScriptSourceResultStatusBlockedByActiveFunction DebuggerSetScriptSourceResultStatus = "BlockedByActiveFunction"
 
 	// DebuggerSetScriptSourceResultStatusBlockedByTopLevelEsModuleChange enum const.
+	//
+	// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 	DebuggerSetScriptSourceResultStatusBlockedByTopLevelEsModuleChange DebuggerSetScriptSourceResultStatus = "BlockedByTopLevelEsModuleChange"
 )
 
-// DebuggerSetScriptSourceResult ...
+// DebuggerSetScriptSourceResult (deprecated) ...
+//
+// Deprecated: Debugger.setScriptSource is deprecated in the Chrome DevTools Protocol.
 type DebuggerSetScriptSourceResult struct {
 	// CallFrames (deprecated) (optional) New stack trace in case editing has happened while VM was stopped.
 	//

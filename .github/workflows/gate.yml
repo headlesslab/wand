@@ -1,10 +1,17 @@
-# The Gate: every push and every pull request runs the whole suite with a real
-# browser on linux/amd64 and must keep statement coverage at 100 % (the test
-# job), and regenerates everything from the pinned inputs and lints, which
-# must leave the tree unchanged (the generate job). The main ruleset requires
-# both as status checks, so a red run blocks the merge and nothing else (spec
-# #33, section 13; tickets #36 and #42). Later tickets grow this file into the
-# full Tier 1 / Tier 2 matrix (#54) and add the security Gates (#56).
+# The Gate: every push and every pull request proves wand on the four Tier 1
+# platforms with a real browser and -race (the seven Tier 1 jobs: linux/amd64
+# and linux/arm64 on Go stable and on the Go floor, windows/amd64 and
+# darwin/arm64 on stable, and linux/amd64 once more on the Companion
+# Chromium), builds, vets and compiles the tests for the three Tier 2 targets
+# on both Go versions (the three Tier 2 jobs), keeps statement coverage at
+# 100 % on the linux/amd64 stable job, and regenerates everything from the
+# pinned inputs and lints, which must leave the tree unchanged (the generate
+# job). Every Tier 1 job asserts that the browser it ran on is the pin and
+# ends by proving that no browser process or user data directory was left
+# behind. The main ruleset requires every job as a status check, so a red run
+# blocks the merge and nothing else (spec #33, sections 12 and 13; tickets
+# #36, #42 and #54). The in-container run comes with #55 and the security
+# Gates with #56.
 #
 # Every action is pinned to a full-length commit SHA with its version in a
 # trailing comment; Dependabot keeps the pins moving once #56 turns it on.
@@ -29,11 +36,67 @@ env:
   # ours must fail the run, not silently pull a toolchain.
   GOTOOLCHAIN: local
 
+# One shell on every runner, Windows included, so that each step is written
+# once for the four platforms.
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  test:
-    name: Tier 1 linux/amd64 (Go stable)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  # Tier 1: every package from the workspace root with -race, on the Managed
+  # browser that Browser resolution downloads on every run (no cache action,
+  # so every run exercises the download and the hash verification). One job
+  # per entry below, each a required check under its name.
+  tier1:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # branded: the runner ships the branded Google Chrome, so the User
+          # mode Confirmed fix is proven there. coverage: the one job that
+          # holds the suite to 100 %.
+          - name: Tier 1 linux/amd64 (Go stable)
+            runner: ubuntu-latest
+            go: stable
+            source: chrome
+            branded: true
+            coverage: true
+            artifact: linux-amd64-stable
+          - name: Tier 1 linux/amd64 (Go 1.21)
+            runner: ubuntu-latest
+            go: 1.21.x
+            source: chrome
+            artifact: linux-amd64-go1.21
+          - name: Tier 1 linux/arm64 (Go stable)
+            runner: ubuntu-24.04-arm
+            go: stable
+            source: chrome
+            artifact: linux-arm64-stable
+          - name: Tier 1 linux/arm64 (Go 1.21)
+            runner: ubuntu-24.04-arm
+            go: 1.21.x
+            source: chrome
+            artifact: linux-arm64-go1.21
+          - name: Tier 1 windows/amd64 (Go stable)
+            runner: windows-latest
+            go: stable
+            source: chrome
+            branded: true
+            artifact: windows-amd64-stable
+          - name: Tier 1 darwin/arm64 (Go stable)
+            runner: macos-latest
+            go: stable
+            source: chrome
+            branded: true
+            artifact: darwin-arm64-stable
+          - name: Tier 1 linux/amd64 (Companion Chromium)
+            runner: ubuntu-latest
+            go: stable
+            source: chromium
+            artifact: linux-amd64-chromium
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,7 +104,7 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable
+          go-version: ${{ matrix.go }}
           check-latest: true
           cache-dependency-path: |
             go.work.sum
@@ -53,8 +116,10 @@ jobs:
       # which leaves Chromium's sandbox nothing to run in ("No usable
       # sandbox!"). Lifting that restriction for the job keeps the sandbox on,
       # as on a developer machine, rather than spreading --no-sandbox over the
-      # tests; rod #1070 stays a documented limitation for users.
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # tests; rod #1070 stays a documented limitation for users. Windows and
+      # macOS have no equivalent.
+      - if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       # The Managed browser arrives through Browser resolution's own download
       # on every run, never through an Actions cache; the pre-fetch command
@@ -64,15 +129,48 @@ jobs:
       # timing budgets waiting behind that lock.
       #
       # Browser resolution takes a System browser before a Managed one, and
-      # the runner image ships Google Chrome, so WAND_BROWSER_BIN points every
+      # the runner images ship Google Chrome, so WAND_BROWSER_BIN points every
       # suite at the Managed browser just downloaded, whose path the command
-      # prints: Tier 1 runs on the Target Chrome pin, never on whatever the
-      # runner installed (spec #33, section 12).
-      - name: Fetch the Target Chrome
+      # prints: Tier 1 runs on the Target Chrome pin, or on the Companion
+      # Chromium pin, never on whatever the runner installed (spec #33,
+      # section 12).
+      - name: Fetch the Managed browser
+        env:
+          SOURCE: ${{ matrix.source }}
         run: |
-          bin="$(go run ./cmd/wand-fetch-browser)"
+          bin="$(go run ./cmd/wand-fetch-browser -source "$SOURCE")"
           echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
-          "$bin" --version
+          echo "browser: $bin"
+
+      # The root suite resolves the browser once in TestMain and prints the
+      # path and the version the browser reports, before any test; a run of
+      # no test prints that one line. The version the browser reports must be
+      # the Target Chrome pin. A Chromium trunk build has a position, not a
+      # version, so the Companion Chromium is held to its pin by the path,
+      # chromium-<position> being the launcher's directory for it, and to the
+      # Target Chrome's major by the version it reports, since the Companion
+      # sits at or below the Target Chrome's branch position. The pins come
+      # through the pins printer, never by parsing source.
+      - name: The browser is the pin
+        env:
+          SOURCE: ${{ matrix.source }}
+        run: |
+          go test -count=1 -run '^$' -v . | tee browser.log
+          line="$(grep '^browser: ' browser.log)"
+          pins="$(go run ./internal/tools/print-pins -json)"
+          chrome="$(jq -r .chrome <<< "$pins")"
+          chromium="$(jq -r .chromium <<< "$pins")"
+          echo "pins: $pins"
+          case "$SOURCE" in
+            chrome)
+              want="browser: $WAND_BROWSER_BIN (<product>/$chrome), <n> pooled testers"
+              [[ "$line" == "browser: $WAND_BROWSER_BIN ("*"/$chrome), "* ]] ;;
+            chromium)
+              want="browser: <path with /chromium-$chromium/> (<product>/${chrome%%.*}.<version>), <n> pooled testers"
+              [[ "$WAND_BROWSER_BIN" == *"/chromium-$chromium/"* && "$line" == "browser: $WAND_BROWSER_BIN ("*"/${chrome%%.*}."* ]] ;;
+            *)
+              want="a source of chrome or chromium, not \"$SOURCE\"" && false ;;
+          esac || { echo "::error::the browser is not the pin: got \"$line\", want $want"; exit 1; }
 
       # Everything runs from the workspace root. `./...` stops at the two
       # nested example modules, so they are named to be compiled against this
@@ -90,11 +188,12 @@ jobs:
 
       # The Confirmed fix for rod #1189 (#47) proves itself only when it
       # runs: TestUserModeBrandedChrome launches the branded Google Chrome
-      # the runner ships, under xvfb-run, on the User mode profile, and skips
-      # where it finds neither. A skip here would leave the fix unproven and
-      # the run green, so the test runs once more, verbosely, and its PASS
-      # line is required.
+      # the runner ships, under xvfb-run on Linux, on the User mode profile,
+      # and skips where it finds no branded Chrome. A skip here would leave
+      # the fix unproven and the run green, so on the three runners that ship
+      # one the test runs once more, verbosely, and its PASS line is required.
       - name: The User mode Confirmed fix ran
+        if: matrix.branded
         run: |
           go test -count=1 -run '^TestUserModeBrandedChrome$' -v ./lib/launcher | tee user-mode.log
           grep -q -- '--- PASS: TestUserModeBrandedChrome' user-mode.log
@@ -109,6 +208,7 @@ jobs:
       # every other package must be at 100 %. The awk matches a file's package
       # exactly, so a package nested under an entry point stays in.
       - name: Coverage at 100 %
+        if: matrix.coverage
         run: |
           go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... > main-packages.txt
           awk 'NR == FNR { main[$0] = 1; next }
@@ -117,13 +217,100 @@ jobs:
             main-packages.txt coverage.out > coverage-lib.out
           go run github.com/ysmood/got/cmd/check-cov -cov-file=coverage-lib.out
 
+      # The CDP logs of the failed tests (the root suite removes a passed
+      # test's), the coverage profile and the browser line.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: cdp-log-linux-amd64
+          name: cdp-log-${{ matrix.artifact }}
           path: |
             tmp/cdp-log
             coverage.out
+            browser.log
+
+      # Zero leftover: whatever the outcome above, the job ends by waiting up
+      # to 30 s for the last browser to be gone and fails on any chrome or
+      # chromium process still running or any user data directory the
+      # launcher left under its temporary prefix; what is left is listed.
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
+
+  # Tier 2: built and vetted, and every test binary compiled, on the Go floor
+  # and then on Go stable, never run with a browser (CONTEXT.md, Support
+  # tier). macOS on amd64 and Windows on arm64 natively; linux/loong64
+  # cross-compiled on ubuntu-latest, as no hosted runner exists for it. One
+  # job per target, each a required check under its name.
+  #
+  # `go test -c` with -o at the null device links every test binary and
+  # runs none: a run of no test would still launch the runner's Chrome
+  # through Browser resolution, which is Tier 1's job, and cannot happen at
+  # all for loong64. (A directory would do as well, but three packages are
+  # named generate, and Go 1.21 refuses to write a second generate.test.)
+  tier2:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Tier 2 darwin/amd64
+            runner: macos-15-intel
+          - name: Tier 2 windows/arm64
+            runner: windows-11-arm
+          - name: Tier 2 linux/loong64
+            runner: ubuntu-latest
+            goos: linux
+            goarch: loong64
+    env:
+      # Empty for the native targets, which is Go's default.
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The Go floor: the version go.mod declares, at its latest patch. The
+      # two example modules are named as in Tier 1; e2e-testing has only
+      # test files, so compiling the tests is the one step that builds it.
+      - name: Go floor
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: 1.21.x
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      - run: go build ./... ./lib/examples/custom-websocket
+
+      - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
+
+      - name: Compile the tests (Go floor)
+        run: go test -c -o "$([[ "$RUNNER_OS" == Windows ]] && echo NUL || echo /dev/null)" ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
+
+      # Go stable, the same steps.
+      - name: Go stable
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      - run: go build ./... ./lib/examples/custom-websocket
+
+      - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
+
+      - name: Compile the tests (Go stable)
+        run: go test -c -o "$([[ "$RUNNER_OS" == Windows ]] && echo NUL || echo /dev/null)" ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
 
   # The generate Gate: every go:generate step of browser.go, in its order,
   # from the pinned inputs (the devtools-protocol tag the pins name, the

@@ -730,6 +730,15 @@ const (
 
 	// AuditsConnectionAllowlistErrorInvalidURLPattern enum const.
 	AuditsConnectionAllowlistErrorInvalidURLPattern AuditsConnectionAllowlistError = "InvalidUrlPattern"
+
+	// AuditsConnectionAllowlistErrorIFrameAttributeLoosensEmbeddingRequirement enum const.
+	AuditsConnectionAllowlistErrorIFrameAttributeLoosensEmbeddingRequirement AuditsConnectionAllowlistError = "IFrameAttributeLoosensEmbeddingRequirement"
+
+	// AuditsConnectionAllowlistErrorInvalidAllowConnectionAllowlistFrom enum const.
+	AuditsConnectionAllowlistErrorInvalidAllowConnectionAllowlistFrom AuditsConnectionAllowlistError = "InvalidAllowConnectionAllowlistFrom"
+
+	// AuditsConnectionAllowlistErrorEmbeddingRequirementNotSatisfied enum const.
+	AuditsConnectionAllowlistErrorEmbeddingRequirementNotSatisfied AuditsConnectionAllowlistError = "EmbeddingRequirementNotSatisfied"
 )
 
 // AuditsQuirksModeIssueDetails Details for issues about documents in Quirks Mode
@@ -969,6 +978,9 @@ const (
 	// AuditsFederatedAuthRequestIssueReasonWellKnownNoResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonWellKnownNoResponse AuditsFederatedAuthRequestIssueReason = "WellKnownNoResponse"
 
+	// AuditsFederatedAuthRequestIssueReasonWellKnownBlockedByConnectionAllowlist enum const.
+	AuditsFederatedAuthRequestIssueReasonWellKnownBlockedByConnectionAllowlist AuditsFederatedAuthRequestIssueReason = "WellKnownBlockedByConnectionAllowlist"
+
 	// AuditsFederatedAuthRequestIssueReasonWellKnownInvalidResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonWellKnownInvalidResponse AuditsFederatedAuthRequestIssueReason = "WellKnownInvalidResponse"
 
@@ -989,6 +1001,9 @@ const (
 
 	// AuditsFederatedAuthRequestIssueReasonConfigNoResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonConfigNoResponse AuditsFederatedAuthRequestIssueReason = "ConfigNoResponse"
+
+	// AuditsFederatedAuthRequestIssueReasonConfigBlockedByConnectionAllowlist enum const.
+	AuditsFederatedAuthRequestIssueReasonConfigBlockedByConnectionAllowlist AuditsFederatedAuthRequestIssueReason = "ConfigBlockedByConnectionAllowlist"
 
 	// AuditsFederatedAuthRequestIssueReasonConfigInvalidResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonConfigInvalidResponse AuditsFederatedAuthRequestIssueReason = "ConfigInvalidResponse"
@@ -1017,6 +1032,9 @@ const (
 	// AuditsFederatedAuthRequestIssueReasonAccountsNoResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonAccountsNoResponse AuditsFederatedAuthRequestIssueReason = "AccountsNoResponse"
 
+	// AuditsFederatedAuthRequestIssueReasonAccountsBlockedByConnectionAllowlist enum const.
+	AuditsFederatedAuthRequestIssueReasonAccountsBlockedByConnectionAllowlist AuditsFederatedAuthRequestIssueReason = "AccountsBlockedByConnectionAllowlist"
+
 	// AuditsFederatedAuthRequestIssueReasonAccountsInvalidResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonAccountsInvalidResponse AuditsFederatedAuthRequestIssueReason = "AccountsInvalidResponse"
 
@@ -1031,6 +1049,9 @@ const (
 
 	// AuditsFederatedAuthRequestIssueReasonIDTokenNoResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonIDTokenNoResponse AuditsFederatedAuthRequestIssueReason = "IdTokenNoResponse"
+
+	// AuditsFederatedAuthRequestIssueReasonIDTokenBlockedByConnectionAllowlist enum const.
+	AuditsFederatedAuthRequestIssueReasonIDTokenBlockedByConnectionAllowlist AuditsFederatedAuthRequestIssueReason = "IdTokenBlockedByConnectionAllowlist"
 
 	// AuditsFederatedAuthRequestIssueReasonIDTokenInvalidResponse enum const.
 	AuditsFederatedAuthRequestIssueReasonIDTokenInvalidResponse AuditsFederatedAuthRequestIssueReason = "IdTokenInvalidResponse"

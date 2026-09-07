@@ -277,9 +277,12 @@ func TestCancelCallLeak(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		id := 0
 		wait := make(chan int)
+		ctx := g.Context()
 
 		ws := &MockWebSocket{
 			send: func([]byte) error {
+				// The context ends while the call is pending.
+				ctx.Cancel()
 				close(wait)
 				utils.Sleep(0.01)
 				return nil
@@ -301,9 +304,132 @@ func TestCancelCallLeak(t *testing.T) {
 		}
 
 		c := cdp.New().Start(ws)
-		ctx := g.Context()
-		ctx.Cancel()
 		_, _ = c.Call(ctx, "1234567890", "method", 1)
+	}
+}
+
+// TestCallContextEnded: a context that is over before the call sends
+// nothing and answers with its error.
+func TestCallContextEnded(t *testing.T) {
+	g := setup(t)
+
+	leakcheck.CheckLeak(g, 0)
+
+	ws := &MockWebSocket{
+		send: func([]byte) error {
+			g.Fatal("a call with an ended context was sent")
+			return nil
+		},
+		read: func() ([]byte, error) {
+			return nil, io.EOF
+		},
+	}
+	c := cdp.New().Start(ws)
+
+	ctx := g.Context()
+	ctx.Cancel()
+	_, err := c.Call(ctx, "", "method", nil)
+	g.Is(err, context.Canceled)
+}
+
+// TestReplyWithoutCall: a reply to a call nobody is waiting for any more,
+// one whose context ended before the browser answered, is dropped and the
+// message loop goes on.
+func TestReplyWithoutCall(t *testing.T) {
+	g := setup(t)
+
+	leakcheck.CheckLeak(g, 0)
+
+	reads := 0
+	ws := &MockWebSocket{
+		read: func() ([]byte, error) {
+			reads++
+			if reads == 1 {
+				return json.Marshal(cdp.Response{ID: 99, Result: json.RawMessage("1")})
+			}
+			return nil, io.EOF
+		},
+	}
+	c := cdp.New().Start(ws)
+
+	// The event channel closes once the loop has gone past the stray reply
+	// and read the end of the connection.
+	for range c.Event() {
+		g.Fatal("a reply is not an event")
+	}
+	g.Eq(reads, 2)
+}
+
+// TestCallContextEndsPending: a context that ends while the call is
+// pending, with no reply in, answers with its error.
+func TestCallContextEndsPending(t *testing.T) {
+	g := setup(t)
+
+	leakcheck.CheckLeak(g, 0)
+
+	ctx := g.Context()
+	closed := make(chan struct{})
+
+	ws := &MockWebSocket{
+		send: func([]byte) error {
+			ctx.Cancel()
+			return nil
+		},
+		read: func() ([]byte, error) {
+			<-closed
+			return nil, io.EOF
+		},
+	}
+	c := cdp.New().Start(ws)
+
+	_, err := c.Call(ctx, "", "method", nil)
+	g.Is(err, context.Canceled)
+	close(closed)
+}
+
+// TestCallReplyAsContextEnds: a reply that has arrived by the time the
+// context ends is the call's answer, whichever case the select takes
+// (Page.close's reply and the detach that ends the page's context arrive
+// together). The select's pick between two ready cases is random, so the
+// scene plays enough times to reach the context's case, where the reply is
+// looked for once more.
+func TestCallReplyAsContextEnds(t *testing.T) {
+	g := setup(t)
+
+	leakcheck.CheckLeak(g, 0)
+
+	for i := 0; i < 64; i++ {
+		ctx := g.Context()
+		sent := make(chan struct{})
+		both := make(chan struct{})
+		reads := 0
+
+		ws := &MockWebSocket{
+			send: func([]byte) error {
+				close(sent)
+				// Call reaches its select only once the reply is in and the
+				// context is over.
+				<-both
+				return nil
+			},
+			read: func() ([]byte, error) {
+				reads++
+				if reads == 1 {
+					<-sent
+					return json.Marshal(cdp.Response{ID: 1, Result: json.RawMessage("1")})
+				}
+
+				// The message loop has delivered the reply; now the context ends.
+				ctx.Cancel()
+				close(both)
+				return nil, io.EOF
+			},
+		}
+		c := cdp.New().Start(ws)
+
+		res, err := c.Call(ctx, "", "method", nil)
+		g.E(err)
+		g.Eq(string(res), "1")
 	}
 }
 

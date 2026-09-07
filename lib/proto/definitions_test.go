@@ -1135,6 +1135,12 @@ func (t T) DOMForceShowPopover() {
 	t.Nil(err)
 }
 
+func (t T) DOMForceShowInterest() {
+	c := &Client{}
+	err := proto.DOMForceShowInterest{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) DOMAttributeModified() {
 	e := proto.DOMAttributeModified{}
 	t.Regex("", e.ProtoEvent())
@@ -1468,6 +1474,12 @@ func (t T) EmulationSetDefaultBackgroundColorOverride() {
 func (t T) EmulationSetSafeAreaInsetsOverride() {
 	c := &Client{}
 	err := proto.EmulationSetSafeAreaInsetsOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationSetVirtualKeyboardGeometryOverride() {
+	c := &Client{}
+	err := proto.EmulationSetVirtualKeyboardGeometryOverride{}.Call(c)
 	t.Nil(err)
 }
 
@@ -2304,18 +2316,6 @@ func (t T) MemoryGetSamplingProfile() {
 	t.Nil(err)
 }
 
-func (t T) NetworkSetAcceptedEncodings() {
-	c := &Client{}
-	err := proto.NetworkSetAcceptedEncodings{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) NetworkClearAcceptedEncodingsOverride() {
-	c := &Client{}
-	err := proto.NetworkClearAcceptedEncodingsOverride{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) NetworkCanClearBrowserCache() {
 	c := &Client{}
 	_, err := proto.NetworkCanClearBrowserCache{}.Call(c)
@@ -2343,12 +2343,6 @@ func (t T) NetworkClearBrowserCache() {
 func (t T) NetworkClearBrowserCookies() {
 	c := &Client{}
 	err := proto.NetworkClearBrowserCookies{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) NetworkContinueInterceptedRequest() {
-	c := &Client{}
-	err := proto.NetworkContinueInterceptedRequest{}.Call(c)
 	t.Nil(err)
 }
 
@@ -2424,18 +2418,6 @@ func (t T) NetworkGetRequestPostData() {
 	t.Nil(err)
 }
 
-func (t T) NetworkGetResponseBodyForInterception() {
-	c := &Client{}
-	_, err := proto.NetworkGetResponseBodyForInterception{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) NetworkTakeResponseBodyForInterceptionAsStream() {
-	c := &Client{}
-	_, err := proto.NetworkTakeResponseBodyForInterceptionAsStream{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) NetworkReplayXHR() {
 	c := &Client{}
 	err := proto.NetworkReplayXHR{}.Call(c)
@@ -2487,12 +2469,6 @@ func (t T) NetworkSetExtraHTTPHeaders() {
 func (t T) NetworkSetAttachDebugStack() {
 	c := &Client{}
 	err := proto.NetworkSetAttachDebugStack{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) NetworkSetRequestInterception() {
-	c := &Client{}
-	err := proto.NetworkSetRequestInterception{}.Call(c)
 	t.Nil(err)
 }
 
@@ -2567,11 +2543,6 @@ func (t T) NetworkLoadingFailed() {
 
 func (t T) NetworkLoadingFinished() {
 	e := proto.NetworkLoadingFinished{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) NetworkRequestIntercepted() {
-	e := proto.NetworkRequestIntercepted{}
 	t.Regex("", e.ProtoEvent())
 }
 
@@ -3301,6 +3272,18 @@ func (t T) PageSetTouchEmulationEnabled() {
 func (t T) PageStartScreencast() {
 	c := &Client{}
 	err := proto.PageStartScreencast{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PageStartScreenRecording() {
+	c := &Client{}
+	_, err := proto.PageStartScreenRecording{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PageStopScreenRecording() {
+	c := &Client{}
+	_, err := proto.PageStopScreenRecording{}.Call(c)
 	t.Nil(err)
 }
 

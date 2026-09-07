@@ -663,11 +663,14 @@ func TestWaitStable(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/wait-stable.html"))
 	el := p.MustElement("button")
+	// The clock starts before the goroutine's second does, so the wait is
+	// held to the second whatever the scheduler makes of the two (on the
+	// pooled testers the wait once ended 906 ms after a later start).
+	start := time.Now()
 	go func() {
 		utils.Sleep(1)
 		el.MustEval(`() => this.classList.remove("play")`)
 	}()
-	start := time.Now()
 	el.MustWaitStable()
 	g.Gt(time.Since(start), time.Second)
 
@@ -696,11 +699,11 @@ func TestWaitStableRAP(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/wait-stable.html"))
 	el := p.MustElement("button")
+	start := time.Now()
 	go func() {
 		utils.Sleep(1)
 		el.MustEval(`() => this.classList.remove("play")`)
 	}()
-	start := time.Now()
 	g.E(el.WaitStableRAF())
 	g.Gt(time.Since(start), time.Second)
 
@@ -1047,8 +1050,11 @@ func TestShapeInIframe(t *testing.T) {
 	p := g.page.MustNavigate(g.srcFile("fixtures/click-iframe.html"))
 	pt := p.MustElement("iframe").MustFrame().MustElement("button").MustShape().OnePointInside()
 
+	// The centre of the button in the page's coordinates: the fixture sizes
+	// the button and the heading, so the point depends on no font, which
+	// differs between the runners (the linux/arm64 image put it 3 px right).
 	g.InDelta(pt.X, 238, 1)
-	g.InDelta(pt.Y, 287, 1)
+	g.InDelta(pt.Y, 279, 1)
 }
 
 func TestElementFromPointErr(t *testing.T) {
