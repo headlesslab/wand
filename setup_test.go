@@ -71,7 +71,7 @@ func run(m *testing.M) int {
 	}
 	browserBin = bin
 
-	testerPool = newTesterPool()
+	testerPool = wand.NewPool[G](testerLimit())
 
 	// The first tester is launched here, once: a browser that does not start
 	// fails the run at once, with its path, and one that does prints its
@@ -88,7 +88,7 @@ func run(m *testing.M) int {
 		log.Printf("browser %s: %v", bin, err)
 		return 1
 	}
-	fmt.Printf("browser: %s (%s), %d pooled testers\n", bin, version.Product, cap(testerPool)) //nolint: forbidigo
+	fmt.Printf("browser: %s (%s), %d pooled testers\n", bin, version.Product, testerLimit()) //nolint: forbidigo
 	testerPool.Put(first)
 
 	code := m.Run()
@@ -146,16 +146,16 @@ type G struct {
 	cancelTimeout func()
 }
 
-// The pooled tester count follows go test's -parallel, which is GOMAXPROCS
-// unless set, so a hosted 4-vCPU runner launches four browsers per job. If we
-// don't use pool to cache, the total time will be much longer.
-func newTesterPool() wand.Pool[G] {
+// testerLimit is how many testers the pool holds: one per parallel test. The
+// count follows go test's -parallel, which is GOMAXPROCS unless set, so a
+// hosted 4-vCPU runner launches four browsers per job. If we don't use pool
+// to cache, the total time will be much longer.
+func testerLimit() int {
 	parallel := got.Parallel()
 	if parallel == 0 {
 		parallel = runtime.GOMAXPROCS(0)
 	}
-
-	return wand.NewPool[G](parallel)
+	return parallel
 }
 
 // testers is every tester the run launched, in the pool or held by a test,

@@ -87,46 +87,98 @@ func NewBrowserPool(limit int) Pool[Browser] {
 	return NewPool[Browser](limit)
 }
 
-// Pool is used to thread-safely limit the number of elements at the same time.
-// It's a common practice to use a channel to limit concurrency, it's not special for wand.
-// This helper is more like an example to use Go Channel.
-// Reference: https://golang.org/doc/effective_go#channels
-type Pool[T any] chan *T
+// Pool is used to thread-safely limit the number of elements at the same time: Get takes one
+// of its slots, creating the element when the slot is empty, and Put gives the slot back with
+// the element in it for the next Get. Use [NewPool], the zero value is not a pool.
+//
+// Cleanup ends the pool: from then on Get returns [ErrPoolCleanedUp] at once, and an
+// element Put back later goes to Cleanup's function, so a caller that held one across
+// Cleanup leaks nothing and hits no closed channel.
+type Pool[T any] struct{ *pool[T] }
+
+type pool[T any] struct {
+	// slots holds one token per element the pool hands out at a time; a nil
+	// token means Get creates the element.
+	slots chan *T
+	// done is closed by Cleanup, to wake every Get waiting on slots.
+	done chan struct{}
+
+	// mu guards the two fields below, keeps a Put out of the pool once
+	// Cleanup drained it, and serializes the calls of cleanup.
+	mu      sync.Mutex
+	cleaned bool
+	cleanup func(*T)
+}
 
 // NewPool instance.
 func NewPool[T any](limit int) Pool[T] {
-	p := make(chan *T, limit)
+	p := &pool[T]{slots: make(chan *T, limit), done: make(chan struct{})}
 	for i := 0; i < limit; i++ {
-		p <- nil
+		p.slots <- nil
 	}
-	return p
+	return Pool[T]{p}
 }
 
 // Get a elem from the pool, allow error. Use the [Pool[T].Put] to make it reusable later.
+// A Get after Cleanup returns [ErrPoolCleanedUp]; one that took its slot before Cleanup
+// ran completes, and its elem goes to Cleanup's function when it is Put back.
 func (p Pool[T]) Get(create func() (*T, error)) (elem *T, err error) {
-	elem = <-p
+	select {
+	case elem = <-p.slots:
+	case <-p.done:
+		return nil, ErrPoolCleanedUp
+	}
 	if elem == nil {
 		elem, err = create()
 	}
 	return
 }
 
-// Put an elem back to the pool.
+// Put an elem back to the pool. After Cleanup the elem goes to Cleanup's function instead.
+// A Put with every slot in the pool already, a Put without a Get, panics.
 func (p Pool[T]) Put(elem *T) {
-	p <- elem
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.cleaned {
+		if elem != nil {
+			p.cleanup(elem)
+		}
+		return
+	}
+
+	select {
+	case p.slots <- elem:
+	default:
+		panic("wand: Pool.Put without a Get, every slot is in the pool already")
+	}
 }
 
-// Cleanup helper.
+// Cleanup runs iteratee on every element the pool holds and ends the pool: an element
+// out of the pool at the time goes to iteratee when it is Put back, and Get returns
+// [ErrPoolCleanedUp]. The calls of iteratee never overlap, whichever goroutine Puts;
+// iteratee must not use the pool itself. A second Cleanup does nothing.
 func (p Pool[T]) Cleanup(iteratee func(*T)) {
-	for i := 0; i < cap(p); i++ {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.cleaned {
+		return
+	}
+	p.cleaned, p.cleanup = true, iteratee
+
+	// Only what is in the pool right now: nothing comes back to it after
+	// this, so the pool is empty for good once the lock is released.
+	for i := 0; i < cap(p.slots); i++ {
 		select {
-		case elem := <-p:
+		case elem := <-p.slots:
 			if elem != nil {
 				iteratee(elem)
 			}
 		default:
 		}
 	}
+	close(p.done)
 }
 
 var _ io.ReadCloser = &StreamReader{}

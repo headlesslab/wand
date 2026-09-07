@@ -2,11 +2,15 @@ package wand
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/headlesslab/wand/lib/proto"
 	"github.com/headlesslab/wand/lib/utils"
 )
+
+// ErrPoolCleanedUp is what [Pool[T].Get] returns after [Pool[T].Cleanup].
+var ErrPoolCleanedUp = errors.New("pool has been cleaned up")
 
 // TryError error.
 type TryError struct {
