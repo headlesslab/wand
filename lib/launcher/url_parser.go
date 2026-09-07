@@ -3,6 +3,7 @@ package launcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -99,6 +100,12 @@ var (
 // The format of u can be "9222", ":9222", "host:9222", "ws://host:9222", "wss://host:9222",
 // "https://host:9222" "http://host:9222". The return string will look like:
 // "ws://host:9222/devtools/browser/4371405f-84df-4ad6-9e0f-eab81f7521cc"
+//
+// An answer that is not a browser's is an error: a status other than 200,
+// as a proxy in the way of the port gives, or a body without a
+// webSocketDebuggerUrl, as a web server that happens to listen on the port
+// gives. The Snapshot took both for a browser and returned a URL with "<nil>"
+// for a path (rod #1176).
 func ResolveURL(u string) (string, error) {
 	if u == "" {
 		u = "9222"
@@ -125,13 +132,26 @@ func ResolveURL(u string) (string, error) {
 	}
 	defer func() { _ = res.Body.Close() }()
 
-	data, err := io.ReadAll(res.Body)
-	utils.E(err)
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%s answered %s, not a browser", parsed, res.Status)
+	}
 
-	wsURL := lazyjson.New(data).Get("webSocketDebuggerUrl").Str()
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading the answer of %s: %w", parsed, err)
+	}
+
+	// The value, not the key: a null or a number is as much not a browser's
+	// as a missing field.
+	wsURL, _ := lazyjson.New(data).Get("webSocketDebuggerUrl").Val().(string)
+	if wsURL == "" {
+		return "", fmt.Errorf("%s answered without a webSocketDebuggerUrl, not a browser", parsed)
+	}
 
 	parsedWS, err := url.Parse(wsURL)
-	utils.E(err)
+	if err != nil {
+		return "", fmt.Errorf("the webSocketDebuggerUrl %s answered: %w", parsed, err)
+	}
 
 	parsedWS.Host = parsed.Host
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -318,6 +319,54 @@ func TestGetWebSocketDebuggerURLErr(t *testing.T) {
 
 	_, err := launcher.ResolveURL("1://")
 	g.Err(err)
+}
+
+// TestResolveURL is the regression test of rod #1176: an answer that is not a
+// browser's is an error, not a URL with "<nil>" for a path, whatever the
+// status: a proxy's 502 in the way of the port, a web server that happens to
+// listen on it and answers 200 with HTML, a null for the field, a URL that
+// does not parse, or a body cut short. A browser's answer gives the
+// WebSocket URL on the host that was asked. Each answer comes from an
+// ephemeral server of its own; the error is printed rather than called, so
+// that a nil one reads as nil on the Snapshot.
+func TestResolveURL(t *testing.T) {
+	g := setup(t)
+
+	serve := func(status int, body string, cut bool) *got.Router {
+		s := g.Serve()
+		s.Mux.HandleFunc("/json/version", func(w http.ResponseWriter, _ *http.Request) {
+			if cut {
+				w.Header().Set("Content-Length", "100")
+			}
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(body))
+		})
+		return s
+	}
+
+	notBrowsers := []struct {
+		name   string
+		status int
+		body   string
+		cut    bool
+		err    string
+	}{
+		{"a proxy in the way", http.StatusBadGateway, "<html><body>502 Bad Gateway</body></html>", false, "502 Bad Gateway"},
+		{"a web server on the port", http.StatusOK, "<html><body>hello</body></html>", false, "webSocketDebuggerUrl"},
+		{"a null field", http.StatusOK, `{"webSocketDebuggerUrl": null}`, false, "webSocketDebuggerUrl"},
+		{"a URL that does not parse", http.StatusOK, `{"webSocketDebuggerUrl": "ws://[::1"}`, false, "missing ']'"},
+		{"a body cut short", http.StatusOK, `{"webSocketDebuggerUrl":`, true, "unexpected EOF"},
+	}
+	for _, c := range notBrowsers {
+		_, err := launcher.ResolveURL(serve(c.status, c.body, c.cut).URL())
+		g.Desc(c.name).Err(err)
+		g.Desc(c.name).Has(fmt.Sprint(err), c.err)
+	}
+
+	browser := serve(http.StatusOK, `{"webSocketDebuggerUrl": "ws://localhost:1/devtools/browser/abc"}`, false)
+	u, err := launcher.ResolveURL(browser.URL())
+	g.E(err)
+	g.Eq(u, "ws://"+browser.HostURL.Host+"/devtools/browser/abc")
 }
 
 func TestLaunchErr(t *testing.T) {
