@@ -12,3 +12,6 @@ tmp/
 # The pinned Node tools of the generators and the lint tool.
 !internal/tools/package.json
 !internal/tools/package-lock.json
+
+# A GitHub App private key downloaded into a checkout by accident (#58).
+*.pem
