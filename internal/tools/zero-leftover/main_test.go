@@ -50,7 +50,7 @@ func TestClean(t *testing.T) {
 	g := setup(t)
 
 	out := &bytes.Buffer{}
-	code := run(g.Context(), out, out,quick(snapshots([]process{{1, "go"}, {2, "zero-leftover"}})))
+	code := run(g.Context(), out, out, quick(snapshots([]process{{1, "go"}, {2, "zero-leftover"}})))
 
 	g.Eq(code, 0)
 	g.Has(out.String(), "zero-leftover: no browser process, nothing under ")
@@ -62,7 +62,7 @@ func TestProcessGone(t *testing.T) {
 	chrome := []process{{7, "chrome"}, {8, "chrome_crashpad_handler"}}
 	out := &bytes.Buffer{}
 	start := time.Now()
-	code := run(g.Context(), out, out,quick(snapshots(chrome, chrome, chrome, []process{})))
+	code := run(g.Context(), out, out, quick(snapshots(chrome, chrome, chrome, []process{})))
 
 	g.Eq(code, 0)
 	g.Has(out.String(), "no browser process")
@@ -77,7 +77,7 @@ func TestProcessLeft(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	start := time.Now()
-	code := run(g.Context(), out, out,quick(snapshots([]process{{42, "chrome"}, {1, "go"}})))
+	code := run(g.Context(), out, out, quick(snapshots([]process{{42, "chrome"}, {1, "go"}})))
 
 	g.Eq(code, 1)
 	g.Gte(time.Since(start), 300*time.Millisecond)
@@ -97,7 +97,7 @@ func TestDirLeft(t *testing.T) {
 	g.E(os.WriteFile(file, nil, 0o644))
 
 	out := &bytes.Buffer{}
-	code := run(g.Context(), out, out,opts)
+	code := run(g.Context(), out, out, opts)
 
 	g.Eq(code, 1)
 	g.Has(out.String(), "0 browser processes and 2 directories left")
@@ -118,7 +118,7 @@ func TestDirRemoved(t *testing.T) {
 	}()
 
 	out := &bytes.Buffer{}
-	code := run(g.Context(), out, out,opts)
+	code := run(g.Context(), out, out, opts)
 
 	g.Eq(code, 0)
 	g.Has(out.String(), "nothing under "+opts.prefix+"\n")
@@ -133,7 +133,7 @@ func TestPrefixUnreadable(t *testing.T) {
 	opts.prefix = filepath.Join(t.TempDir(), "nul\x00byte")
 
 	out := &bytes.Buffer{}
-	code := run(g.Context(), out, out,opts)
+	code := run(g.Context(), out, out, opts)
 
 	g.Eq(code, 1)
 	g.Has(out.String(), "zero-leftover: reading "+opts.prefix+": ")
@@ -143,7 +143,7 @@ func TestListError(t *testing.T) {
 	g := setup(t)
 
 	out := &bytes.Buffer{}
-	code := run(g.Context(), out, out,quick(func(context.Context) ([]process, error) {
+	code := run(g.Context(), out, out, quick(func(context.Context) ([]process, error) {
 		return nil, errors.New("ps: exit status 1")
 	}))
 
@@ -211,7 +211,7 @@ func TestReal(t *testing.T) {
 	out := &bytes.Buffer{}
 	opts := quick(listProcesses)
 	opts.wait = 0
-	g.Eq(run(g.Context(), out, out,opts), 1)
+	g.Eq(run(g.Context(), out, out, opts), 1)
 	g.Has(out.String(), fmt.Sprintf("  pid %d ", pid))
 	g.Has(out.String(), "chrome-fixture")
 
