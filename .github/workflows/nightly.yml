@@ -185,20 +185,20 @@ jobs:
         include:
           - runner: ubuntu-latest
             branded: true
+            race: -race
           # No branded entry: whether this image ships a branded Google Chrome
           # is not something the runner images promise, and requiring a test
           # that needs one would fail this job for the wrong reason. The suite
           # below still runs it, and still skips it with a reason where there
-          # is none.
+          # is none. (The first Nightly found one: Chrome 152 at
+          # C:\Program Files\Google\Chrome\Application.)
+          #
+          # And no -race: the race detector has no windows/arm64 support, and
+          # go test says so and builds nothing. This is the only job that runs
+          # the suite there at all — Tier 2 compiles it and stops — so it is
+          # the only place that has to know.
           - runner: windows-11-arm
-    env:
-      # Discovery, and nothing else, may answer here: the browser cache points
-      # at a directory that does not exist and downloading is off, so Browser
-      # resolution either finds the browser this runner ships or fails saying
-      # it found none. Neither variable is what a Gate job sets: those name a
-      # Managed browser in WAND_BROWSER_BIN and never reach discovery at all.
-      WAND_BROWSER_CACHE: ${{ github.workspace }}/tmp/no-managed-browser
-      WAND_BROWSER_DOWNLOAD: '0'
+            race: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -219,15 +219,33 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       # A run of no test prints the one line TestMain writes, which says what
-      # Browser resolution found. There is nothing to assert it against: the
-      # two variables above leave discovery as the only answer, so a browser
-      # line at all is the proof, and its absence is resolution having failed.
+      # Browser resolution found. The two variables belong to this step and no
+      # further: lib/launcher's own suite tests what the launcher does when a
+      # Managed browser is missing and downloading is off, and reads these very
+      # variables to do it, so setting them for the whole job rewrote the
+      # answers those tests were written against rather than what this job
+      # proves (the first Nightly, run 34139823893).
+      #
+      # With the cache pointing at a directory that does not exist and
+      # downloading off, discovery is the only answer resolution can give: a
+      # browser line at all is the proof, and its absence is resolution having
+      # failed. The path it found then reaches the suite below as
+      # WAND_BROWSER_BIN, which is what every Gate job hands its own suite, so
+      # nothing but the browser differs between them.
       - name: What discovery found
+        env:
+          WAND_BROWSER_CACHE: ${{ github.workspace }}/tmp/no-managed-browser
+          WAND_BROWSER_DOWNLOAD: '0'
         run: |
           go test -count=1 -run '^$' -v . | tee browser.log
-          grep '^browser: ' browser.log
+          line="$(grep '^browser: ' browser.log)"
+          # browser: <path> (<product>/<version>), <n> pooled testers
+          bin="${line#browser: }"
+          bin="${bin%% (*}"
+          echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
+          echo "discovery found $bin"
 
-      - run: go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+      - run: go run ./internal/tools/ci-test ${{ matrix.race }} -count=1 -run=^Test ./...
 
       # The Confirmed fix for rod #1189 is claimed on the branded Google Chrome
       # a runner ships, and the spec asks for that launch test to be repeated
@@ -396,11 +414,6 @@ jobs:
     name: Support window
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      # The pins hold a hash for the Target Chrome and for nothing else, so
-      # this browser is downloaded unverified. Google's own bucket is then the
-      # only host it may come from, never a mirror (ADR-0005).
-      WAND_BROWSER_HOSTS: https://storage.googleapis.com/chrome-for-testing-public/{version}/{platform}/{archive}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -420,6 +433,15 @@ jobs:
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: The oldest Chrome in the Support window
+        env:
+          # This step and no further: NewBrowser reads WAND_BROWSER_HOSTS, and
+          # lib/launcher's own suite asserts on the hosts a default Browser
+          # carries, so the whole job carrying it rewrote what those tests saw
+          # (the first Nightly, run 34139823893). The pins hold a hash for the
+          # Target Chrome and for nothing else, so this browser is downloaded
+          # unverified, and Google's own bucket is then the only host it may
+          # come from, never a mirror (ADR-0005).
+          WAND_BROWSER_HOSTS: https://storage.googleapis.com/chrome-for-testing-public/{version}/{platform}/{archive}
         run: |
           version="$(go run ./internal/tools/support-window)"
           bin="$(go run ./cmd/wand-fetch-browser -version "$version")"
