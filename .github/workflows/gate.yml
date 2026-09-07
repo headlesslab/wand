@@ -8,13 +8,19 @@
 # pinned inputs and lints, which must leave the tree unchanged (the generate
 # job). Every Tier 1 job asserts that the browser it ran on is the pin and
 # ends by proving that no browser process or user data directory was left
-# behind. The main ruleset requires every job as a status check, so a red run
-# blocks the merge and nothing else (spec #33, sections 12 and 13; tickets
-# #36, #42 and #54). The in-container run comes with #55 and the security
-# Gates with #56.
+# behind. Two more Gates read what the code depends on rather than what it
+# does: govulncheck on the linux/amd64 stable job, and the dependency review
+# job on what a pull request adds to the graph. The main ruleset requires
+# every job as a status check, so a red run blocks the merge and nothing else
+# (spec #33, sections 12, 13 and 16; tickets #36, #42, #54 and #56). The
+# in-container run comes with #55.
+#
+# CodeQL is not here: its default setup runs a workflow GitHub keeps, and the
+# main ruleset's code scanning rule is what holds a pull request to it (the
+# repo-settings tool applies both).
 #
 # Every action is pinned to a full-length commit SHA with its version in a
-# trailing comment; Dependabot keeps the pins moving once #56 turns it on.
+# trailing comment; Dependabot moves the pins weekly (.github/dependabot.yml).
 name: Gate
 
 # A pull request is checked as its merge result; a push to a branch is not
@@ -63,13 +69,15 @@ jobs:
         include:
           # branded: the runner ships the branded Google Chrome, so the User
           # mode Confirmed fix is proven there. coverage: the one job that
-          # holds the suite to 100 %.
+          # holds the suite to 100 %. govulncheck: the one job whose Go is
+          # new enough to build x/vuln.
           - name: Tier 1 linux/amd64 (Go stable)
             runner: ubuntu-latest
             go: stable
             source: chrome
             branded: true
             coverage: true
+            govulncheck: true
             artifact: linux-amd64-stable
           - name: Tier 1 linux/amd64 (Go 1.21)
             runner: ubuntu-latest
@@ -117,6 +125,15 @@ jobs:
             **/go.sum
 
       - run: go version
+
+      # The one Gate that needs no browser runs before the browser is even
+      # fetched, so a dependency whose advisory reaches wand's own code fails
+      # the job in a minute rather than after the suite. Only this job, since
+      # GOTOOLCHAIN=local leaves the Go 1.21 jobs nothing to build x/vuln
+      # with; the tool's doc comment carries the rest (ticket #56).
+      - name: govulncheck
+        if: matrix.govulncheck
+        run: go run ./internal/tools/govulncheck
 
       # Ubuntu 24.04 confines unprivileged user namespaces through AppArmor,
       # which leaves Chromium's sandbox nothing to run in ("No usable
@@ -383,3 +400,30 @@ jobs:
         run: |
           git status --porcelain
           git diff | head -300
+
+  # Dependency review: everything a pull request adds to the dependency graph
+  # — a module in go.mod or go.sum, an action in a workflow, a package in the
+  # lint lockfile — must carry no advisory of high severity or worse and no
+  # licence outside the allowlist. GitHub compares the graph of the two
+  # commits, so nothing is built or downloaded here. The allowlist is what the
+  # security posture decision (#31) fixed: the permissive licences a
+  # mainstream library carries, copyleft out. Widening it is a reviewed change
+  # to this file (spec #33, section 16; ticket #56).
+  #
+  # The comparison needs a pull request's two commits, which a push to main
+  # does not have, so this Gate belongs to that event alone: what it would
+  # find on main it found on the pull request that brought it there.
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, MPL-2.0

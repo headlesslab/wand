@@ -44,15 +44,18 @@ func TestMainRuleset(t *testing.T) {
 	g.Eq(rs.(map[string]any)["name"], "main")
 	g.Eq(rs.(map[string]any)["target"], "branch")
 	g.Eq(rs.(map[string]any)["enforcement"], "active")
-	g.Eq(ruleTypes(rs), []string{"deletion", "non_fast_forward", "pull_request"})
+	g.Eq(ruleTypes(rs), []string{"deletion", "non_fast_forward", "pull_request", "code_scanning"})
 	g.True(subset(j(`{"conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}}}`), rs))
 	g.True(subset(j(`{"bypass_actors":[{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"always"}]}`), rs))
 	g.True(subset(j(`{"rules":[{"type":"deletion"},{"type":"non_fast_forward"},
-		{"type":"pull_request","parameters":{"required_approving_review_count":0}}]}`), rs))
+		{"type":"pull_request","parameters":{"required_approving_review_count":0}},
+		{"type":"code_scanning","parameters":{"code_scanning_tools":[{"tool":"CodeQL",
+			"security_alerts_threshold":"high_or_higher","alerts_threshold":"errors"}]}}]}`), rs))
 
 	rs = normalize(mainRuleset([]string{"go / lint", "go / test (ubuntu-latest, floor)"}, bypassActors(7)))
-	g.Eq(ruleTypes(rs), []string{"deletion", "non_fast_forward", "pull_request", "required_status_checks"})
+	g.Eq(ruleTypes(rs), []string{"deletion", "non_fast_forward", "pull_request", "code_scanning", "required_status_checks"})
 	g.True(subset(j(`{"rules":[{"type":"deletion"},{"type":"non_fast_forward"},{"type":"pull_request"},
+		{"type":"code_scanning"},
 		{"type":"required_status_checks","parameters":{
 			"strict_required_status_checks_policy":false,
 			"required_status_checks":[{"context":"go / lint"},{"context":"go / test (ubuntu-latest, floor)"}]}}]}`), rs))
@@ -84,6 +87,36 @@ func TestSecurityAnalysisAbsent(t *testing.T) {
 	g.E(err)
 	g.False(ok)
 	g.Eq(current, "absent")
+}
+
+func TestCodeScanningDefaultSetup(t *testing.T) {
+	g := setup(t)
+
+	s := codeScanning()
+	g.Eq(s.name, "CodeQL default setup")
+	g.Eq(s.want, "configured (go)")
+
+	// A setup that is off lists the languages it could scan, and one just
+	// configured lists none, which is GitHub's own answer to the write this
+	// setting makes: neither names anything, and both count as scanning Go
+	// where the state says configured. A list that names languages must name
+	// Go; another beside it is the maintainer's and is left alone.
+	for _, c := range []struct {
+		body    string
+		current string
+		ok      bool
+	}{
+		{`{"state":"not-configured","languages":["actions","go","javascript"]}`, "not-configured", false},
+		{`{"state":"configured","languages":[]}`, "configured", true},
+		{`{"state":"configured","languages":["go"]}`, "configured (go)", true},
+		{`{"state":"configured","languages":["go","javascript"]}`, "configured (go, javascript)", true},
+		{`{"state":"configured","languages":["javascript"]}`, "configured (javascript)", false},
+	} {
+		current, ok, err := s.read(&client{api: stubAPI{status: 200, body: c.body}}, "o/r")
+		g.Desc("%s", c.body).E(err)
+		g.Desc("%s", c.body).Eq(current, c.current)
+		g.Desc("%s", c.body).Eq(ok, c.ok)
+	}
 }
 
 // j decodes a JSON literal the way responses are decoded.

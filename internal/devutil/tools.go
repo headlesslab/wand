@@ -7,6 +7,13 @@ package devutil
 // pins the same version (spec #33, section 13: no @latest in a Gate).
 const GolangciLint = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
 
+// Govulncheck is the vulnerability scanner of the security Gate, pinned here
+// for the same reason: no Gate resolves a version at run time (spec #33,
+// sections 13 and 16). The tool under internal/tools/govulncheck runs it;
+// x/vuln's own Go floor is well above wand's, so only a recent toolchain can
+// build it.
+const Govulncheck = "golang.org/x/vuln/cmd/govulncheck@v1.7.0"
+
 // GoTool runs a Go tool with args through go run, which builds it into the
 // build cache on first use and installs nothing: a pinned tool by its module
 // path at an exact version, such as GolangciLint, or a tool of this module by
