@@ -201,7 +201,15 @@ func TestCrash(t *testing.T) {
 		"expression":   `new Promise(() => {})`,
 		"awaitPromise": true,
 	})
-	g.Eq(err, io.EOF)
+	// The crash ends this evaluation in one of two ways, whichever wins the
+	// race between the renderer going and the socket closing: the closed
+	// connection (EOF), or Chromium's own report that the evaluation's
+	// context died with its renderer, which the Gate has seen on
+	// windows-latest. The crash call itself and the call after it are the
+	// browser's, not a renderer's, so only the closed connection can answer
+	// them.
+	g.Desc("EOF or %v, got %v", cdp.ErrCtxDestroyed, err).
+		True(errors.Is(err, io.EOF) || errors.Is(err, cdp.ErrCtxDestroyed))
 
 	g.Eq(<-crashed, io.EOF)
 

@@ -613,6 +613,23 @@ type StubSend func() (lazyjson.JSON, error)
 // When call the cdp.Client.Call the nth time use fn instead.
 // Use p to filter method.
 func (mc *MockClient) stub(nth int, p proto.Request, fn func(send StubSend) (lazyjson.JSON, error)) {
+	nthOnly := func(i int) bool { return i == nth }
+	mc.stubCalls(p, nthOnly, nthOnly, func(_ int, send StubSend) (lazyjson.JSON, error) {
+		return fn(send)
+	})
+}
+
+// When call the cdp.Client.Call the first n times use fn instead, with the
+// call's ordinal from 1; the calls after go to the browser again.
+// Use p to filter method.
+func (mc *MockClient) stubFirst(n int, p proto.Request, fn func(i int, send StubSend) (lazyjson.JSON, error)) {
+	mc.stubCalls(p, func(int) bool { return true }, func(i int) bool { return i == n }, fn)
+}
+
+// stubCalls is what stub and stubFirst share: the calls of p's method are
+// counted from 1, the ones use picks go to fn with their ordinal, the others
+// to the browser, and the one last picks is the last the stub sees.
+func (mc *MockClient) stubCalls(p proto.Request, use, last func(i int) bool, fn func(i int, send StubSend) (lazyjson.JSON, error)) {
 	if p == nil {
 		mc.t.Logf("p must be specified")
 		mc.t.FailNow()
@@ -621,20 +638,24 @@ func (mc *MockClient) stub(nth int, p proto.Request, fn func(send StubSend) (laz
 	count := int64(0)
 
 	mc.setCall(func(ctx context.Context, sessionID, method string, params interface{}) ([]byte, error) {
-		if method == p.ProtoReq() {
-			if int(atomic.AddInt64(&count, 1)) == nth {
-				mc.resetCall()
-				j, err := fn(func() (lazyjson.JSON, error) {
-					b, err := mc.principal.Call(ctx, sessionID, method, params)
-					return lazyjson.New(b), err
-				})
-				if err != nil {
-					return nil, err
-				}
-				return j.MarshalJSON()
-			}
+		if method != p.ProtoReq() {
+			return mc.principal.Call(ctx, sessionID, method, params)
 		}
-		return mc.principal.Call(ctx, sessionID, method, params)
+		i := int(atomic.AddInt64(&count, 1))
+		if last(i) {
+			mc.resetCall()
+		}
+		if !use(i) {
+			return mc.principal.Call(ctx, sessionID, method, params)
+		}
+		j, err := fn(i, func() (lazyjson.JSON, error) {
+			b, err := mc.principal.Call(ctx, sessionID, method, params)
+			return lazyjson.New(b), err
+		})
+		if err != nil {
+			return nil, err
+		}
+		return j.MarshalJSON()
 	})
 }
 

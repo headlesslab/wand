@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -113,14 +114,13 @@ func SplicePngVertical(files []ImgWithBox, format proto.PageCaptureScreenshotFor
 		if file.Box != nil {
 			bounds = *file.Box
 		}
-		start := bounds.Min
-		end := bounds.Max
-		for y := start.Y; y < end.Y; y++ {
-			for x := start.X; x < end.X; x++ {
-				color := img.At(x, y)
-				spliceImg.Set(x, y-start.Y+destY, color)
-			}
-		}
+
+		// The box's rows go under the images before, its columns in place.
+		// draw.Draw copies them in one pass through the decoder's own pixel
+		// format, where a copy through color.Color boxed every pixel: a page
+		// of 1280 by 4500 is 5.8 million of them, which under -race on a
+		// loaded runner held a screenshot test past its minute.
+		draw.Draw(spliceImg, image.Rect(bounds.Min.X, destY, bounds.Max.X, destY+bounds.Dy()), img, bounds.Min, draw.Src)
 
 		destY += bounds.Dy()
 	}
