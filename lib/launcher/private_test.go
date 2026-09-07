@@ -125,6 +125,15 @@ func TestResolve(t *testing.T) {
 			_, err := pinned.resolve(platform, false)
 			g.Desc(platform).Has(err.Error(), "no Chrome for Testing build exists for "+platform)
 			g.Desc(platform).Has(err.Error(), "Launcher.Bin()")
+
+			// A binary that exists nowhere is answered before the platform is
+			// even looked at, as in the Chromium case below: a caller who
+			// passed a name Chrome for Testing does not publish is told that,
+			// not that its platform is the problem.
+			unknown := NewBrowser()
+			unknown.Source, unknown.Binary = SourceChrome, "driver"
+			_, err = unknown.resolve(platform, false)
+			g.Desc(platform).Has(err.Error(), `unknown Chrome for Testing binary "driver"`)
 		}
 	}
 
@@ -483,7 +492,17 @@ func TestLaunchErrs(t *testing.T) {
 	g.Has(err.Error(), "Launcher.Bin()")
 	g.Has(err.Error(), "System browser")
 	g.Has(err.Error(), l.browser.BinPath())
-	g.Has(err.Error(), "can't download")
+
+	// The last step tried is the download, and what it has to say depends on
+	// the platform: one Chrome for Testing builds for reaches the host above
+	// and reports what came back, and one it does not — windows/arm64, where
+	// the Nightly's System browser job runs this suite (#61) — never resolves
+	// an archive to ask for. The test takes either and says which.
+	if hasManagedBrowser() {
+		g.Has(err.Error(), "can't download")
+	} else {
+		g.Has(err.Error(), "no Chrome for Testing build exists for")
+	}
 }
 
 // noSystemBrowser is a discovery that finds nothing, for the tests of the
