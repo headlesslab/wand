@@ -72,11 +72,176 @@ A second run reports `no changes` for every repository. `-dry-run` prints what a
 
 ### What stays human
 
-- The GitHub App and organisation-wide two-factor authentication (#58). Once the App exists and is installed on the repositories, re-run every line above with `-app <slug>` so the App becomes a bypass actor of both rulesets; that is the only way the Roll and the release workflow can push to `main` and create tags. `-app` also takes the numeric App ID from the App's settings page, for a private App the apps endpoint does not show to the token.
+- The GitHub App and organisation-wide two-factor authentication (#58), which [The automation identity](#the-automation-identity) below walks through end to end. Its last step re-runs every line above with `-app <slug>`, so the App joins the admin role in the bypass list of both rulesets; that is the only way the Roll and the release workflow can push to `main` and create tags. `-app` also takes the numeric App ID from the App's settings page, for a private App the apps endpoint does not show to the token.
 - The alerts CodeQL's first analysis finds. The ruleset holds a pull request to what it adds, so the Snapshot's own findings block nothing, but the rc ships with none open (#15): each is fixed, or dismissed in the Security tab with a reason, until the count is zero. Check there once the first analysis of `main` has finished, a few minutes after the setup is switched on.
 - **The dependency graph**, at Advanced Security → Dependency graph, or organisation-wide for every repository at once. It has no REST endpoint, so the script cannot set it and cannot report it as drift either. It is off on a repository of an organisation whose `dependency_graph_enabled_for_new_repositories` is false, which is how `headlesslab/wand` was created, and two things in the bundle are inert without it: the Dependency review Gate reds with "Dependency review is not supported on this repository", and Dependabot alerts, which the script switches on and GitHub reports as on, have no graph to raise an alert against. Enable it first, then re-run the failed Gate job.
 - Organisation-level settings and rulesets: the script touches repositories only.
 - Turning a setting off: the script only switches things on and creates or updates the two rulesets. Anything else is a hand change in the repository settings, which the next run reports as drift and reverts.
+
+## The automation identity
+
+The Roll, the release workflow and the Nightly issue opener act as a GitHub App the organisation owns, never as a personal access token (spec #33, section 15, whose "Automation identity" this is; #58). A token minted per run from the App's private key lives an hour, belongs to no person, expires on nobody's leaving, and is the bypass actor that lets those workflows push to `main` and create a `v*` tag while the rulesets bind everyone else.
+
+Creating an App, holding its private key, installing it and changing an organisation setting are things only an organisation owner can do: GitHub exposes no REST endpoint for any of them, so no agent and no token can stand in. What follows is therefore written for a human, in the order the dependencies force. The App must exist and be installed before its secrets are worth anything, the secrets must exist before a run can mint a token, and the settings script cannot name a bypass actor that does not exist yet.
+
+The identity, as it stands:
+
+| Property                      | Value                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------- |
+| Name                          | `headlesslab-automation`                                                        |
+| App ID                        | `4859989`                                                                       |
+| Owner                         | the `headlesslab` organisation, installable on this account only                |
+| Repository permissions        | contents: read and write, issues: read and write, pull requests: read and write |
+| Installed on                  | every repository of the organisation                                            |
+| Secrets on `headlesslab/wand` | `AUTOMATION_APP_CLIENT_ID`, `AUTOMATION_APP_PRIVATE_KEY`                        |
+
+The two secret names are what #59, #60 and #61 write into their workflows, so they are settled here rather than in whichever of those lands first. The Client ID rather than the App ID, because `actions/create-github-app-token` deprecated its `app-id` input in v3 and warns on every use; a secret rather than the variable its README suggests, because #58 asks for both halves of the identity to be repository secrets and a value only workflows read is no worse for being one. The App ID is not stored anywhere: it is read off the App's page, and it is what appears in a ruleset's bypass list.
+
+### 1. Create the App
+
+Open <https://github.com/organizations/headlesslab/settings/apps/new> and fill in:
+
+- **GitHub App name**: `headlesslab-automation`. The name is unique across GitHub; if it is taken, pick another and carry that one through the rest of these steps.
+- **Homepage URL**: `https://github.com/headlesslab/wand`.
+- **Webhook**: clear the **Active** checkbox. The App is a token source, not a listener.
+- **Repository permissions**: Contents **Read and write**, Issues **Read and write**, Pull requests **Read and write**. Metadata read-only comes with them and cannot be cleared. Nothing else: an organisation permission or an account permission the App never uses is a permission a leaked key would carry.
+- **Where can this GitHub App be installed**: **Only on this account**.
+
+Create it, then read three values off the App's General page: the **Client ID** (`Iv23li…`) for step 4's secret, the **App ID** (a number) for the bypass list step 8 reads back, and the **slug**, the last segment of the page's URL (`.../settings/apps/<slug>`), for step 8's `-app`.
+
+The same App can be created from a manifest instead, which is what #58 did: a local page posts a JSON description to `https://github.com/organizations/headlesslab/settings/apps/new?state=<nonce>`, GitHub shows its own confirmation page, and the redirect afterwards carries a one-shot code that `POST /app-manifests/<code>/conversions` turns into the App, private key included, once. It saves the form-filling and lets the key go straight from the response into `gh secret set`, never touching a disk. Two things to know before writing one: the manifest's `hook_attributes` block makes its own `url` mandatory as soon as it is present, so an App with no webhook omits the block rather than setting `active: false`; and the conversion response is the only copy of the key there will ever be.
+
+### 2. Generate the private key
+
+On the same page, **Private keys** → **Generate a private key**. The browser downloads a `.pem`. Save it outside any checkout: the working tree ignores `*.pem` as a backstop, but a key that never enters a repository cannot be committed by accident. (From a manifest the key arrives in the conversion response instead, and this step does not happen.)
+
+GitHub keeps only the public half, so the file is the only copy. A lost or leaked key is replaced by generating a second one, storing it (step 4) and deleting the old one on this page; a rotation is those three actions and no others.
+
+### 3. Install it on the organisation
+
+App page → **Install App** → **headlesslab** → **All repositories** → **Install**.
+
+All repositories rather than wand alone: the five satellites carry the same two rulesets and the same bypass list (section [Repository settings](#repository-settings) above), and a repository created later is covered without another visit here. An installation grants nothing on its own; the permissions of step 1 are the ceiling. Read it back with `gh api orgs/headlesslab/installations --jq '.installations[] | "\(.app_slug) \(.repository_selection)"'`, which must say `all`.
+
+### 4. Store the two secrets
+
+From a shell logged in as an admin of wand:
+
+```sh
+gh secret set AUTOMATION_APP_CLIENT_ID --repo headlesslab/wand --body '<the Client ID>'
+gh secret set AUTOMATION_APP_PRIVATE_KEY --repo headlesslab/wand < ~/headlesslab-automation.private-key.pem
+```
+
+Only wand carries them. The satellites are released by hand and mint no token; what they need from the App is an installation and a place in the bypass list, neither of which is a secret.
+
+### 5. Prove a minted token
+
+The proof is a workflow that lives on one branch and never reaches `main`. Neither `gate.yml` nor `scorecard.yml` runs on a push to a branch other than `main` — the Gate's other trigger is `pull_request` and Scorecard's is a weekly schedule — so pushing this branch with no pull request open runs this workflow and nothing else.
+
+```sh
+git switch -c chore/app-token-proof
+cat > .github/workflows/app-token-proof.yml <<'YAML'
+name: App token proof
+
+on:
+  push:
+    branches:
+      - chore/app-token-proof
+
+# The job's own GITHUB_TOKEN can do nothing at all, so an issue that opens
+# and closes proves the App's token and only the App's token.
+permissions: {}
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: token
+        with:
+          client-id: ${{ secrets.AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+
+      - name: Open and close an issue as the App
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          url=$(gh issue create --repo "$REPO" \
+            --title 'App token proof' \
+            --body 'Opened by the automation identity to prove its token (#58). Closed by the same run and deleted afterwards.')
+          echo "opened $url"
+          n=${url##*/}
+          gh issue close "$n" --repo "$REPO" --comment 'Closed by the same run.'
+          gh api "repos/$REPO/issues/$n" \
+            --jq '"state=\(.state) user=\(.user.login) type=\(.user.type)"'
+YAML
+git add .github/workflows/app-token-proof.yml
+git commit -m 'App token proof (#58)'
+git push -u origin chore/app-token-proof
+```
+
+The action is pinned to a full-length commit SHA because the Actions policy the settings bundle writes rejects any reference that is not one; a tag here fails the run before a step of it starts. Dependabot will not move this pin the way it moves the ones in `.github/workflows`: its `github-actions` entry covers workflow files, and this is prose. A future reader should check the action's own releases rather than trust the version comment.
+
+A run takes a few seconds to register, so ask for it in a loop rather than reading the list once:
+
+```sh
+until id=$(gh run list --branch chore/app-token-proof --limit 1 --json databaseId --jq '.[0].databaseId') && [ -n "$id" ]; do sleep 3; done
+gh run watch "$id" --exit-status
+```
+
+The last line of the log is the proof: `state=closed user=headlesslab-automation[bot] type=Bot`. The REST spelling of a bot login is `<slug>[bot]`; `gh issue view --json author` spells the same account `app/<slug>`, so a check written against `gh`'s spelling and a check written against REST's disagree on a run that worked. A login naming anything but the App means the token came from somewhere else. `Bad credentials` means the private key and the Client ID belong to different Apps, or the `.pem` reached the secret without its trailing newline; `Resource not accessible by integration` means the App is not installed on wand, or step 1's issues permission is missing.
+
+### 6. Remove the proof
+
+The workflow and the issue both go, so the App is the only thing this exercise leaves behind:
+
+```sh
+git switch main
+git branch -D chore/app-token-proof
+git push origin --delete chore/app-token-proof
+gh issue delete <n> --yes
+```
+
+### 7. Require two-factor authentication
+
+There is no API for this: `two_factor_requirement_enabled` is a field of `GET /orgs/{org}` and not a parameter of the `PATCH`. Check first from the shell, though, because the switch removes every member and outside collaborator who has not enabled 2FA, and each of them has to be invited back by hand:
+
+```sh
+gh api 'orgs/headlesslab/members?filter=2fa_disabled' --jq '.[].login'
+gh api 'orgs/headlesslab/outside_collaborators?filter=2fa_disabled' --jq '.[].login'
+```
+
+Both must print nothing. Then open <https://github.com/organizations/headlesslab/settings/security>, tick **Require two-factor authentication for everyone in the headlesslab organisation**, and confirm. The App is unaffected: it is not a member, has no password, and its credential is the private key of step 2, which is why the automation is an App and not somebody's account.
+
+```sh
+gh api orgs/headlesslab --jq .two_factor_requirement_enabled   # true
+```
+
+### 8. Re-run the settings script with the App
+
+Each of the three command lines of [The repositories today](#the-repositories-today) is run again with `-app headlesslab-automation` inserted after the package path and every `-check` left exactly as it stands there. Do not shorten the check list: the bundle writes the required checks from what `-check` gives it, so a line run with fewer of them silently drops the rest as required checks of `main`.
+
+Add `-dry-run` first. On a bundle that is otherwise already applied the two rulesets are the only changes it prints, and it exits 1 saying so:
+
+```
+ruleset main                     differs -> up to date (dry run)
+ruleset v*                       differs -> up to date (dry run)
+```
+
+Drop `-dry-run` to write. If the slug does not resolve, pass the numeric App ID of step 1 instead: `GET /apps/<slug>` shows a private App only to a token allowed to see it.
+
+The bypass list is what to read back, and it is the last acceptance criterion of #58:
+
+```sh
+gh api repos/headlesslab/wand/rulesets --jq '.[] | "\(.id) \(.name)"'
+gh api repos/headlesslab/wand/rulesets/<id> --jq .bypass_actors
+```
+
+Both rulesets must list `{"actor_id": 4859989, "actor_type": "Integration", "bypass_mode": "always"}` beside the admin role, and every satellite repository the same. Until they do, the Roll's pull request and the release workflow's tag are refused by the very rules they exist to be trusted through.
+
+Observed 2026-09-07, the run these steps were written from: the App was created from a manifest as App ID 4859989, installed across the organisation with `repository_selection: all`, and its proof opened and closed issue #101 of wand, which was then deleted with the branch. The settings script wrote the bypass actor into both rulesets of wand and of all five satellites; on all five satellites it also turned on the CodeQL default setup, which had not reached them since #56 added it to the bundle.
 
 ## The Roll
 
