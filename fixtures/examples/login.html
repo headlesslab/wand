@@ -1,0 +1,34 @@
+<html>
+  <head>
+    <title>wand login</title>
+  </head>
+  <body>
+    <form id="login-form">
+      <input id="id_login" name="login" placeholder="Username" />
+      <input
+        id="id_password"
+        name="password"
+        type="password"
+        placeholder="Password"
+      />
+      <input type="submit" value="Sign in" />
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+      // Any username signs in, as long as the password is "wand".
+      document.getElementById('login-form').onsubmit = (e) => {
+        e.preventDefault()
+
+        const user = document.getElementById('id_login').value
+        const password = document.getElementById('id_password').value
+
+        document.getElementById('result').innerHTML =
+          password === 'wand'
+            ? '<i class="nav-user-icon-base" title="' + user + '"></i>'
+            : '<p data-cy="sign-in-error">Wrong username or password</p>'
+      }
+    </script>
+  </body>
+</html>

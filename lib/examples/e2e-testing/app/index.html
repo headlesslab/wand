@@ -1,0 +1,72 @@
+<html>
+  <head>
+    <title>calculator</title>
+    <style>
+      .component-display {
+        font-size: 30px;
+        height: 40px;
+      }
+      button {
+        width: 40px;
+        height: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="component-display">0</div>
+
+    <div id="keypad">
+      <div>
+        <button>7</button><button>8</button><button>9</button><button>x</button>
+      </div>
+      <div>
+        <button>4</button><button>5</button><button>6</button><button>+</button>
+      </div>
+      <div>
+        <button>1</button><button>2</button><button>3</button><button>=</button>
+      </div>
+      <div>
+        <button>0</button>
+      </div>
+    </div>
+
+    <script>
+      const display = document.querySelector('.component-display')
+
+      let entry = ''
+      let left = 0
+      let operator = ''
+
+      const show = (value) => {
+        display.textContent = String(value)
+      }
+
+      const result = () => {
+        const right = Number(entry)
+        if (operator === '+') return left + right
+        if (operator === 'x') return left * right
+        return right
+      }
+
+      document.querySelectorAll('button').forEach((button) => {
+        button.onclick = () => {
+          const label = button.textContent
+
+          if (label >= '0' && label <= '9') {
+            entry += label
+            show(entry)
+          } else if (label === '=') {
+            show(result())
+            entry = ''
+            left = 0
+            operator = ''
+          } else {
+            left = entry === '' ? left : Number(entry)
+            operator = label
+            entry = ''
+          }
+        }
+      })
+    </script>
+  </body>
+</html>

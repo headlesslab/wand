@@ -1,0 +1,32 @@
+<html>
+  <head>
+    <title>wand suggestions</title>
+  </head>
+  <body>
+    <input id="search-input" placeholder="Search" />
+
+    <ul id="suggestions"></ul>
+
+    <script>
+      const list = document.getElementById('suggestions')
+
+      // Every keystroke asks the server for the matching suggestions, the way
+      // an autocomplete box does.
+      document.getElementById('search-input').oninput = (e) => {
+        const prefix = e.target.value.toLowerCase()
+
+        fetch('./suggestions.txt')
+          .then((res) => res.text())
+          .then((body) => {
+            list.innerHTML = body
+              .split('\n')
+              .filter((line) => line !== '' && line.indexOf(prefix) === 0)
+              .map(
+                (line) => '<li><a class="suggestion-link">' + line + '</a></li>'
+              )
+              .join('')
+          })
+      }
+    </script>
+  </body>
+</html>

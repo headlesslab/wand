@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <title>wand search</title>
+  </head>
+  <body>
+    <form id="search-form">
+      <input id="query" name="q" type="search" placeholder="Search" />
+      <label><input type="checkbox" name="regex" /> regex</label>
+      <input type="submit" value="Search" />
+    </form>
+
+    <ul id="results"></ul>
+
+    <footer><a href="./about.html">About</a></footer>
+
+    <script>
+      const pages = {
+        git: 'Git is the most widely used version control system.',
+        wand: 'wand drives Chrome through the DevTools Protocol.'
+      }
+
+      const query = document.getElementById('query')
+      const results = document.getElementById('results')
+
+      // "/" focuses the search box, the way many search pages do.
+      addEventListener('keydown', (e) => {
+        if (e.key === '/' && e.target !== query) {
+          e.preventDefault()
+          query.focus()
+        }
+      })
+
+      document.getElementById('search-form').onsubmit = (e) => {
+        e.preventDefault()
+        const text = pages[query.value] || 'No result for ' + query.value
+        document.title = query.value + ' - wand search'
+        results.innerHTML = '<li><span>' + text + '</span></li>'
+      }
+    </script>
+  </body>
+</html>

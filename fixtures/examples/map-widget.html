@@ -1,0 +1,20 @@
+<html>
+  <body>
+    <div id="map"></div>
+
+    <script>
+      // The zoom buttons live in a shadow DOM, the way a map widget hides its
+      // own controls from the page around it.
+      const root = document.getElementById('map').attachShadow({ mode: 'open' })
+
+      root.innerHTML =
+        '<style>button { width: 40px; height: 40px }</style>' +
+        '<button class="zoom-in">+</button>' +
+        '<button class="zoom-out">-</button>'
+
+      root.querySelector('.zoom-in').onclick = function () {
+        this.setAttribute('zoom', 'in')
+      }
+    </script>
+  </body>
+</html>

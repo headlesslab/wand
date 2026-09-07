@@ -3,6 +3,7 @@ package cdp_test
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/headlesslab/lazyjson"
 	"github.com/headlesslab/wand/lib/cdp"
@@ -15,10 +16,11 @@ func ExampleClient() {
 	ctx := context.Background()
 
 	// launch a browser
-	url := launcher.New().MustLaunch()
+	l := launcher.New()
+	defer l.Cleanup()
 
 	// create a controller
-	client := cdp.New().Start(cdp.MustConnectWS(url))
+	client := cdp.New().Start(cdp.MustConnectWS(l.MustLaunch()))
 
 	go func() {
 		for range client.Event() {
@@ -27,11 +29,15 @@ func ExampleClient() {
 		}
 	}()
 
+	// A page of this package, so that the example runs with no network.
+	page, err := filepath.Abs(filepath.FromSlash("fixtures/basic.html"))
+	utils.E(err)
+
 	// Such as call this endpoint on the api doc:
 	// https://chromedevtools.github.io/devtools-protocol/tot/Page#method-navigate
-	// This will create a new tab and navigate to the test.com
+	// This will create a new tab and navigate to the page
 	res, err := client.Call(ctx, "", "Target.createTarget", map[string]string{
-		"url": "http://test.com",
+		"url": "file://" + page,
 	})
 	utils.E(err)
 
@@ -44,14 +50,26 @@ func ExampleClient() {
 }
 
 func Example_customize_cdp_log() {
-	ws := cdp.MustConnectWS(launcher.New().MustLaunch())
+	l := launcher.New()
+	defer l.Cleanup()
 
-	cdp.New().
+	ws := cdp.MustConnectWS(l.MustLaunch())
+
+	client := cdp.New().
+		// Here we can customize how to log the requests, responses and events.
+		// This one reports the browser shutdown only, so that the example's
+		// output is the same on every run.
 		Logger(utils.Log(func(args ...interface{}) {
 			switch v := args[0].(type) {
 			case *cdp.Request:
-				fmt.Printf("id: %d", v.ID)
+				if v.Method == "Browser.close" {
+					fmt.Printf("request: %s\n", v.Method)
+				}
 			}
 		})).
 		Start(ws)
+
+	_ = proto.BrowserClose{}.Call(client)
+
+	// Output: request: Browser.close
 }
