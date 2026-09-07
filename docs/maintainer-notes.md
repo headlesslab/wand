@@ -396,7 +396,7 @@ Once a night at 02:41 UTC, and on demand, `.github/workflows/nightly.yml` proves
 | the seven `Tier 1 rerun …` jobs                                 | the Gate's four platforms  | the Gate's own matrix, rerun with no commit under it, from the same steps (`.github/actions/tier1`)                                                    | a flake, or a runner image that moved under a suite nobody changed                                                            |
 | `System browser ubuntu-latest`, `System browser windows-11-arm` | those two runners          | Browser resolution's discovery, on the browser the runner image ships, which every Gate job bypasses with `WAND_BROWSER_BIN`                           | the runner image dropped its Chrome, or discovery stopped finding one; on windows/arm64 this is the only place the suite runs |
 | `Examples`                                                      | `ubuntu-latest`            | every `Example` function of the root suite and the whole `lib/examples/e2e-testing` module, each on a browser of its own                               | an example that drifted from its `// Output:` comment, or one that started reaching for a public host                         |
-| `Updated graph (go get -u)`                                     | `ubuntu-latest`, Go 1.21.x | the whole dependency graph at its newest still resolves, builds and passes on the Go floor (ADR-0006)                                                  | a dependency whose newest version wants a newer Go than `go.mod` declares, or one that changed under a call wand makes        |
+| `Updated graph (go get -u)`                                     | `ubuntu-latest`, Go 1.21.x | every module moved as far forward as the Go floor allows, then the suite on that graph (ADR-0006)                                                      | wand's own code breaking on a dependency that moved; a module that could not come is a notice and a summary row, not a red    |
 | `Support window`                                                | `ubuntu-latest`            | the suite on the oldest Chrome wand claims to work with: the Target Chrome's milestone less three, at Chrome for Testing's last known good build of it | something Chrome changed in the three milestones since; best-effort support, so this is news rather than a fault              |
 | `govulncheck on main`                                           | `ubuntu-latest`            | the vulnerability database against code nobody has changed                                                                                             | an advisory published since the last pull request that reaches wand's own code                                                |
 | `Trivy on the published images`                                 | `ubuntu-latest`            | `ghcr.io/headlesslab/wand:latest` and `:dev` as the registry holds them, which no Gate ever sees                                                       | a base image that grew a fixable CRITICAL after the release was cut; the answer is a Dependabot digest bump and a patch       |
@@ -438,8 +438,8 @@ go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
 go run ./internal/tools/ci-test -count=1 -timeout=40m -run '^Example' ./...
 go run ./internal/tools/ci-test -count=1 ./lib/examples/e2e-testing
 
-# The graph at its newest, on a checkout you do not mind rewriting.
-GOWORK=off go get -u ./... && GOWORK=off go test -run '^Test' ./...
+# The graph at its newest the floor allows, on a checkout you do not mind rewriting.
+GOWORK=off go run ./internal/tools/updated-graph && GOWORK=off go test -run '^Test' ./...
 ```
 
 A version other than the Target Chrome has no pinned archive hash, so `wand-fetch-browser -version` says the download is unverified and takes it over TLS anyway; the Nightly narrows that to Google's own bucket with `WAND_BROWSER_HOSTS`, never a mirror (ADR-0005).
@@ -447,7 +447,7 @@ A version other than the Target Chrome has no pinned archive hash, so `wand-fetc
 ### What stays human
 
 - **Closing a Nightly issue**, and splitting whatever it turns out to be into an issue of its own.
-- **The pull request a red `Updated graph` prompts.** `go get -u` is run to find out, never to commit: `go.mod` moves through a reviewed pull request (section [Dependabot](#dependabot)). With `GOTOOLCHAIN=local` on the Go floor, a dependency whose newest version raises its own Go floor above wand's fails this job rather than pulling a toolchain, and the choice — take the newest versions that do resolve, or move the floor (ADR-0003) — is a decision, not a bump.
+- **The pull request an `Updated graph` run prompts.** `go get -u` is run to find out, never to commit: `go.mod` moves through a reviewed pull request (section [Dependabot](#dependabot)). `internal/tools/updated-graph` is what runs there rather than the bare `go get -u ./...`, because that command takes the newest version there is and, with `GOTOOLCHAIN=local`, one module that has raised its own Go floor above wand's then fails it outright — before a single test has run. The tool moves every module as far as the floor allows, so the suite runs on the updated graph, and names the ones held back with the Go version they wanted. Taking one of those means moving the floor, which ADR-0003 anchors to openEuler LTS: a decision, not a bump.
 - **Reading a red `Support window`.** The three milestones below the Target Chrome are best-effort, not tested support: what breaks there is written down, among the migration guide's known limitations when it affects users, and holds no release.
 
 ## The protocol layer

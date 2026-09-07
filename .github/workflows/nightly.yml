@@ -24,9 +24,10 @@
 #   Examples             every Example function and the e2e-testing module, each
 #                        launching a browser of its own outside the tester pool,
 #                        which is why the Gate runs -run=^Test instead
-#   Updated graph        the whole dependency graph at its newest on the Go
-#                        floor, which is what prompts the hand pull request that
-#                        moves go.mod (.github/dependabot.yml)
+#   Updated graph        the whole dependency graph as far forward as the Go
+#                        floor allows, then the suite on it, which is what
+#                        prompts the hand pull request that moves go.mod
+#                        (.github/dependabot.yml)
 #   Support window       the oldest Chrome wand claims to work with, which moves
 #                        whenever Chrome for Testing publishes a patch of that
 #                        milestone and so belongs to no pin
@@ -308,11 +309,17 @@ jobs:
   # that this is green rather than a build break (rod #1203, #1195, #1202,
   # #1237), and this job is what keeps saying so.
   #
-  # GOTOOLCHAIN=local is the whole point of running it on the floor: a
-  # dependency whose newest version wants a newer Go than go.mod declares fails
-  # here instead of silently pulling a toolchain nobody asked for, and that
-  # failure is the news. Nothing is committed; the pull request that moves
-  # go.mod is written by hand.
+  # The update stops at the floor rather than at the first module that has
+  # outrun it, because the two are different questions and only one of them is
+  # about wand: whether wand's own code survives its dependencies moving, and
+  # whether a dependency still declares a Go version this floor can build. With
+  # GOTOOLCHAIN=local the literal `go get -u ./...` answers only the second,
+  # with "no", and stops there — so it would never reach the suite, which is the
+  # answer ADR-0006 wants. The modules that could not come are said out loud
+  # instead, in the run summary and as notices.
+  #
+  # Nothing is committed; the pull request that moves go.mod is written by hand
+  # (.github/dependabot.yml).
   updated-graph:
     name: Updated graph (go get -u)
     runs-on: ubuntu-latest
@@ -341,12 +348,17 @@ jobs:
       # The sandbox, as .github/actions/tier1 explains it.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - name: Everything at its newest
+      # go get -u takes the newest version there is, and with GOTOOLCHAIN=local
+      # one module that has raised its own Go floor above wand's then fails the
+      # whole command, before a single test has run. That is why this is a tool
+      # rather than the one line: it moves every module as far as the floor
+      # allows and says which ones could not come the whole way, so the suite
+      # below runs on the updated graph, which is what ADR-0006 asks of this
+      # job. A module held back is a notice and a row in the run summary, not a
+      # red: what to do about it is a decision, not a bump.
+      - name: Everything at its newest the Go floor allows
         run: |
-          if ! go get -u ./...; then
-            echo "::error::go get -u ./... does not resolve on the Go floor: a dependency's newest version wants a newer Go than go.mod declares, and GOTOOLCHAIN=local will not fetch one. Either take the newest versions that do resolve, in a hand pull request, or move the floor (ADR-0003)."
-            exit 1
-          fi
+          go run ./internal/tools/updated-graph
           git --no-pager diff -- go.mod go.sum
 
       - name: Fetch the Managed browser
