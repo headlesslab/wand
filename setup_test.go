@@ -95,6 +95,7 @@ func run(m *testing.M) int {
 	code := m.Run()
 
 	stopTesters()
+	stopExampleFixtures()
 
 	if code != 0 {
 		return code

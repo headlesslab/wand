@@ -1,0 +1,40 @@
+<html>
+  <head>
+    <title>wand modal</title>
+    <style>
+      #dialog {
+        position: fixed;
+        left: 40px;
+        top: -160px;
+        width: 200px;
+        height: 120px;
+        background: #eeeeee;
+        transition: top 0.5s;
+      }
+      #dialog.open {
+        top: 40px;
+      }
+      #dialog.gone {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <button data-target="#dialog">Open the dialog</button>
+
+    <div id="dialog">
+      <p>A dialog that slides into place.</p>
+      <button>Close</button>
+    </div>
+
+    <script>
+      const dialog = document.getElementById('dialog')
+
+      document.querySelector('[data-target]').onclick = () =>
+        dialog.classList.add('open')
+
+      dialog.querySelector('button').onclick = () =>
+        dialog.classList.add('gone')
+    </script>
+  </body>
+</html>

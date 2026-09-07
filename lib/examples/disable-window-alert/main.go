@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/headlesslab/wand"
@@ -10,7 +11,7 @@ import (
 )
 
 func main() {
-	go serve()
+	url := serve()
 
 	browser := wand.New().MustConnect()
 	defer browser.MustClose()
@@ -23,18 +24,24 @@ func main() {
 	page.MustEvalOnNewDocument(`window.alert = () => {}`)
 
 	// Navigate to the website you want to visit
-	page.MustNavigate("http://localhost:8080")
+	page.MustNavigate(url)
 
 	fmt.Println(page.MustElement("script").MustText())
 }
 
 const testPage = `<html><script>alert("message")</script></html>`
 
-// mock a server.
-func serve() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(res http.ResponseWriter, _ *http.Request) {
-		utils.E(fmt.Fprint(res, testPage))
-	})
-	utils.E(http.ListenAndServe(":8080", mux))
+// serve mocks a server on a port the OS picks, so that the example takes no
+// port of the machine for itself.
+func serve() string {
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	utils.E(err)
+
+	go func() {
+		_ = http.Serve(l, http.HandlerFunc(func(res http.ResponseWriter, _ *http.Request) {
+			utils.E(fmt.Fprint(res, testPage))
+		}))
+	}()
+
+	return "http://" + l.Addr().String()
 }

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -19,8 +20,59 @@ import (
 	"github.com/headlesslab/wand/lib/utils"
 )
 
-// This example opens https://github.com/, searches for "git",
-// and then gets the header element which gives the description for Git.
+// exampleFixtures serves fixtures/examples, started by the first example that
+// asks for a page and stopped by run once the tests are over.
+var exampleFixtures struct {
+	sync.Mutex
+
+	srv *httptest.Server
+}
+
+// fixtureURL is the address of a page under fixtures/examples, on a loopback
+// port the OS picks. The examples below drive those pages instead of live
+// websites, so they need no network, take no port of the machine, and their
+// output never changes under them (spec #33, section 12). Your own code would
+// pass the address of the site you automate.
+func fixtureURL(name string) string {
+	exampleFixtures.Lock()
+	defer exampleFixtures.Unlock()
+
+	if exampleFixtures.srv == nil {
+		exampleFixtures.srv = httptest.NewServer(http.FileServer(http.Dir(slash("fixtures/examples"))))
+	}
+
+	return exampleFixtures.srv.URL + "/" + name
+}
+
+// stopExampleFixtures shuts the fixtures server down, so that a run leaves no
+// listener and no goroutine of it behind.
+func stopExampleFixtures() {
+	exampleFixtures.Lock()
+	defer exampleFixtures.Unlock()
+
+	if exampleFixtures.srv != nil {
+		exampleFixtures.srv.Close()
+		exampleFixtures.srv = nil
+	}
+}
+
+// outFile is where the examples below write the files they produce: the run's
+// tmp directory, which git ignores. Your own code would pass a path of its
+// own, such as "my.png".
+func outFile(name string) string {
+	path := slash("tmp/examples/" + name)
+	utils.E(os.MkdirAll(filepath.Dir(path), 0o755))
+
+	return path
+}
+
+// This example opens a search page, searches for "git",
+// and then gets the element that gives the description for Git.
+//
+// The page is one of this repository's own, under fixtures/examples, served
+// on a loopback port: every example here drives a local page rather than a
+// live website, so the whole set runs offline. Where an example calls
+// fixtureURL, pass the address of the site you automate instead.
 func Example_basic() {
 	// Launch a new browser with default options, and connect to it.
 	browser := wand.New().MustConnect()
@@ -29,13 +81,13 @@ func Example_basic() {
 	defer browser.MustClose()
 
 	// Create a new page
-	page := browser.MustPage("https://github.com").MustWaitStable()
+	page := browser.MustPage(fixtureURL("search.html")).MustWaitStable()
 
 	// Trigger the search input with hotkey "/"
 	page.Keyboard.MustType(input.Slash)
 
 	// We use css selector to get the search input element and input "git"
-	page.MustElement("#query-builder-test").MustInput("git").MustType(input.Enter)
+	page.MustElement("#query").MustInput("git").MustType(input.Enter)
 
 	// Wait until css selector get the element then get the text content of it.
 	text := page.MustElementR("span", "most widely used").MustText()
@@ -57,14 +109,18 @@ func Example_basic() {
 
 	// Output:
 	// Git is the most widely used version control system.
-	// Found 9 input elements
+	// Found 3 input elements
 	// 1 + 2 = 3
-	// Repository search results · GitHub
+	// git - wand search
 }
 
 // Shows how to disable headless mode and debug.
 // wand provides a lot of debug options, you can set them with setter methods or use environment variables.
 // Doc for environment variables: https://pkg.go.dev/github.com/headlesslab/wand/lib/defaults
+//
+// This example has no output comment, so it is compiled but never run: it puts
+// a browser window on the screen and then blocks in [utils.Pause], which needs
+// a display and a person in front of it.
 func Example_disable_headless_to_debug() {
 	// Headless runs the browser on foreground, you can also use flag "-wand=show"
 	// Devtools opens the tab in each new tab opened automatically
@@ -92,11 +148,11 @@ func Example_disable_headless_to_debug() {
 
 	defer browser.MustClose()
 
-	page := browser.MustPage("https://github.com/")
+	page := browser.MustPage(fixtureURL("search.html"))
 
-	page.MustElement("input").MustInput("git").MustType(input.Enter)
+	page.MustElement("#query").MustInput("git").MustType(input.Enter)
 
-	text := page.MustElement(".codesearch-results p").MustText()
+	text := page.MustElementR("span", "most widely used").MustText()
 
 	fmt.Println(text)
 
@@ -110,9 +166,12 @@ func Example_disable_headless_to_debug() {
 // [Page.Timeout] or [Page.WithCancel] is just a shortcut for Page.Context.
 // Of course, Browser or Element works the same way.
 func Example_context_and_timeout() {
-	page := wand.New().MustConnect().MustPage("https://github.com")
+	browser := wand.New().MustConnect()
+	defer browser.MustClose()
 
-	page.
+	page := browser.MustPage(fixtureURL("search.html"))
+
+	title := page.
 		// Set a 5-second timeout for all chained methods
 		Timeout(5 * time.Second).
 
@@ -129,6 +188,8 @@ func Example_context_and_timeout() {
 		// Panics if it takes more than 10 seconds
 		MustText()
 
+	fmt.Println(title)
+
 	// The two code blocks below are basically the same:
 	{
 		page.Timeout(5 * time.Second).MustElement("a").CancelTimeout()
@@ -136,19 +197,27 @@ func Example_context_and_timeout() {
 	{
 		// Use this way you can customize your own way to cancel long-running task
 		page, cancel := page.WithCancel()
+
+		cancelled := make(chan struct{})
 		go func() {
-			time.Sleep(time.Duration(rand.Int())) // cancel after randomly time
+			defer close(cancelled)
+			time.Sleep(time.Second) // cancel it a second from now
 			cancel()
 		}()
+
 		page.MustElement("a")
+
+		<-cancelled
 	}
+
+	// Output: wand search
 }
 
 func Example_context_and_EachEvent() {
 	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
-	page := browser.MustPage("https://github.com").MustWaitLoad()
+	page := browser.MustPage(fixtureURL("search.html")).MustWaitLoad()
 
 	page, cancel := page.WithCancel()
 
@@ -163,13 +232,18 @@ func Example_context_and_EachEvent() {
 	if page.GetContext().Err() == context.Canceled {
 		fmt.Println("cancelled")
 	}
+
+	// Output: cancelled
 }
 
 // We use "Must" prefixed functions to write example code. But in production you may want to use
 // the no-prefix version of them.
 // About why we use "Must" as the prefix, it's similar to https://golang.org/pkg/regexp/#MustCompile
 func Example_error_handling() {
-	page := wand.New().MustConnect().MustPage("https://mdn.dev")
+	browser := wand.New().MustConnect()
+	defer browser.MustClose()
+
+	page := browser.MustPage(fixtureURL("search.html"))
 
 	// We use Go's standard way to check error types, no magic.
 	check := func(err error) {
@@ -211,6 +285,10 @@ func Example_error_handling() {
 		}
 		fmt.Println(html)
 	}
+
+	// Output:
+	// <a href="./about.html">About</a>
+	// <a href="./about.html">About</a>
 }
 
 // Example_search shows how to use Search to get element inside nested iframes or shadow DOMs.
@@ -219,10 +297,11 @@ func Example_search() {
 	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
-	page := browser.MustPage("https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe")
+	page := browser.MustPage(fixtureURL("map.html"))
 
-	// Click the zoom-in button of the OpenStreetMap
-	page.MustSearch(".leaflet-control-zoom-in").MustClick()
+	// Click the zoom-in button of the map widget. The button is in a shadow DOM
+	// inside an iframe, which a css selector on the page cannot reach.
+	page.MustSearch(".zoom-in").MustClick()
 
 	fmt.Println("done")
 
@@ -230,10 +309,13 @@ func Example_search() {
 }
 
 func Example_page_screenshot() {
-	page := wand.New().MustConnect().MustPage("https://github.com").MustWaitLoad()
+	browser := wand.New().MustConnect()
+	defer browser.MustClose()
+
+	page := browser.MustPage(fixtureURL("search.html")).MustWaitLoad()
 
 	// simple version
-	page.MustScreenshot("my.png")
+	page.MustScreenshot(outFile("my.png"))
 
 	// customization version
 	img, _ := page.Screenshot(true, &proto.PageCaptureScreenshot{
@@ -248,14 +330,19 @@ func Example_page_screenshot() {
 		},
 		FromSurface: true,
 	})
-	_ = utils.OutputFile("my.jpg", img)
+	_ = utils.OutputFile(outFile("my.jpg"), img)
+
+	fmt.Println("done")
+
+	// Output: done
 }
 
 func Example_page_scroll_screenshot() {
 	browser := wand.New().MustConnect()
+	defer browser.MustClose()
 
 	// capture entire browser viewport, returning jpg with quality=90
-	img, err := browser.MustPage("https://desktop.github.com/").MustWaitStable().ScrollScreenshot(&wand.ScrollScreenshotOptions{
+	img, err := browser.MustPage(fixtureURL("tall.html")).MustWaitStable().ScrollScreenshot(&wand.ScrollScreenshotOptions{
 		Format:  proto.PageCaptureScreenshotFormatJpeg,
 		Quality: lazyjson.Int(90),
 	})
@@ -263,14 +350,21 @@ func Example_page_scroll_screenshot() {
 		panic(err)
 	}
 
-	_ = utils.OutputFile("my.jpg", img)
+	_ = utils.OutputFile(outFile("scroll.jpg"), img)
+
+	fmt.Println("done")
+
+	// Output: done
 }
 
 func Example_page_pdf() {
-	page := wand.New().MustConnect().MustPage("https://github.com").MustWaitLoad()
+	browser := wand.New().MustConnect()
+	defer browser.MustClose()
+
+	page := browser.MustPage(fixtureURL("tall.html")).MustWaitLoad()
 
 	// simple version
-	page.MustPDF("my.pdf")
+	page.MustPDF(outFile("my.pdf"))
 
 	// customized version
 	pdf, _ := page.PDF(&proto.PagePrintToPDF{
@@ -278,18 +372,24 @@ func Example_page_pdf() {
 		PaperHeight: lazyjson.Num(11),
 		PageRanges:  "1-3",
 	})
-	_ = utils.OutputFile("my.pdf", pdf)
+	_ = utils.OutputFile(outFile("custom.pdf"), pdf)
+
+	fmt.Println("done")
+
+	// Output: done
 }
 
 // Show how to handle multiple results of an action.
 // Such as when you login a page, the result can be success or wrong password.
 func Example_race_selectors() {
-	const username = ""
-	const password = ""
+	// The login fixture takes any username, and "wand" as the password.
+	const username = "gopher"
+	const password = "wand"
 
 	browser := wand.New().MustConnect()
+	defer browser.MustClose()
 
-	page := browser.MustPage("https://leetcode.com/accounts/login/")
+	page := browser.MustPage(fixtureURL("login.html"))
 
 	page.MustElement("#id_login").MustInput(username)
 	page.MustElement("#id_password").MustInput(password).MustType(input.Enter)
@@ -304,6 +404,8 @@ func Example_race_selectors() {
 		// when wrong username or password
 		panic(elm.MustText())
 	}
+
+	// Output: gopher
 }
 
 // wand uses mouse cursor to simulate clicks, so if a button is moving because of animation, the click may not work as expected.
@@ -312,11 +414,11 @@ func Example_wait_for_animation() {
 	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
-	page := browser.MustPage("https://getbootstrap.com/docs/4.0/components/modal/")
+	page := browser.MustPage(fixtureURL("modal.html"))
 
-	page.MustWaitLoad().MustElement("[data-target='#exampleModalLive']").MustClick()
+	page.MustWaitLoad().MustElement("[data-target='#dialog']").MustClick()
 
-	saveBtn := page.MustElementR("#exampleModalLive button", "Close")
+	saveBtn := page.MustElementR("#dialog button", "Close")
 
 	// Here, WaitStable will wait until the button's position and size become stable.
 	saveBtn.MustWaitStable().MustClick().MustWaitInvisible()
@@ -331,13 +433,13 @@ func Example_wait_for_request() {
 	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
-	page := browser.MustPage("https://www.wikipedia.org/").MustWaitLoad()
+	page := browser.MustPage(fixtureURL("suggestions.html")).MustWaitLoad()
 
 	// Start to analyze request events
 	wait := page.MustWaitRequestIdle()
 
 	// This will trigger the search ajax request
-	page.MustElement("#searchInput").MustClick().MustInput("lisp")
+	page.MustElement("#search-input").MustClick().MustInput("lisp")
 
 	// Wait until there's no active requests
 	wait()
@@ -355,7 +457,7 @@ func Example_customize_retry_strategy() {
 	browser := wand.New().MustConnect()
 	defer browser.MustClose()
 
-	page := browser.MustPage("https://github.com")
+	page := browser.MustPage(fixtureURL("search.html"))
 
 	// sleep for 0.5 seconds before every retry
 	sleeper := func() utils.Sleeper {
@@ -379,16 +481,24 @@ func Example_customize_retry_strategy() {
 	fmt.Println(el.MustProperty("name"))
 
 	// Output:
-	// type
-	// type
+	// q
+	// q
 }
 
 // Shows how we can further customize the browser with the launcher library.
 // Usually you use launcher lib to set the browser's command line flags (switches).
 // Doc for flags: https://peter.sh/experiments/chromium-command-line-switches
+//
+// This example has no output comment, so it is compiled but never run: it goes
+// through a proxy of your own, which this repository does not ship.
 func Example_customize_browser_launch() {
+	// The address of a proxy you run yourself, such as the one the CLI tool
+	// "mitmproxy --proxyauth user:pass" listens on. An example of this
+	// repository names no port of its own, so fill this in before you run it.
+	var proxyAddress string
+
 	url := launcher.New().
-		Proxy("127.0.0.1:8080").     // set flag "--proxy-server=127.0.0.1:8080"
+		Proxy(proxyAddress).         // set flag "--proxy-server=<proxyAddress>"
 		Delete("use-mock-keychain"). // delete flag "--use-mock-keychain"
 		MustLaunch()
 
@@ -399,18 +509,18 @@ func Example_customize_browser_launch() {
 	browser.MustIgnoreCertErrors(true)
 
 	// Adding authentication to the proxy, for the next auth request.
-	// We use CLI tool "mitmproxy --proxyauth user:pass" as an example.
 	go browser.MustHandleAuth("user", "pass")()
 
-	// mitmproxy needs a cert config to support https. We use http here instead,
-	// for example
 	fmt.Println(browser.MustPage("https://mdn.dev/").MustElement("title").MustText())
 }
 
 // When wand doesn't have a feature that you need. You can easily call the cdp to achieve it.
 // List of cdp API: https://github.com/headlesslab/wand/tree/main/lib/proto
 func Example_direct_cdp() {
-	page := wand.New().MustConnect().MustPage()
+	browser := wand.New().MustConnect()
+	defer browser.MustClose()
+
+	page := browser.MustPage()
 
 	// wand doesn't have a method to enable AD blocking,
 	// but you can call cdp interface directly to achieve it.
@@ -429,6 +539,10 @@ func Example_direct_cdp() {
 			"enabled": true,
 		})
 	}
+
+	fmt.Println("done")
+
+	// Output: done
 }
 
 // Shows how to listen for events.
@@ -449,7 +563,7 @@ func Example_handle_events() {
 	})()
 
 	wait := page.WaitEvent(&proto.PageLoadEventFired{})
-	page.MustNavigate("https://mdn.dev")
+	page.MustNavigate(fixtureURL("search.html"))
 	wait()
 
 	// EachEvent allows us to achieve the same functionality as above.
@@ -459,13 +573,13 @@ func Example_handle_events() {
 		wait := page.EachEvent(func(_ *proto.PageLoadEventFired) (stop bool) {
 			return true
 		})
-		page.MustNavigate("https://mdn.dev")
+		page.MustNavigate(fixtureURL("search.html"))
 		wait()
 	}
 
 	// Or the for-loop style to handle events to do the same thing above.
 	if false {
-		page.MustNavigate("https://mdn.dev")
+		page.MustNavigate(fixtureURL("search.html"))
 
 		for msg := range page.Event() {
 			e := proto.PageLoadEventFired{}
@@ -485,13 +599,21 @@ func Example_handle_events() {
 
 func Example_download_file() {
 	browser := wand.New().MustConnect()
-	page := browser.MustPage("https://file-examples.com/index.php/sample-documents-download/sample-pdf-download/")
+	defer browser.MustClose()
+
+	page := browser.MustPage(fixtureURL("download.html"))
 
 	wait := browser.MustWaitDownload()
 
-	page.MustElementR("a", "DOWNLOAD SAMPLE PDF FILE").MustClick()
+	page.MustElementR("a", "DOWNLOAD THE SAMPLE FILE").MustClick()
 
-	_ = utils.OutputFile("t.pdf", wait())
+	data := wait()
+
+	_ = utils.OutputFile(outFile("note.txt"), data)
+
+	fmt.Println(string(data))
+
+	// Output: A sample file for the download example.
 }
 
 // Shows how to intercept requests and modify
@@ -527,7 +649,7 @@ func Example_hijack_requests() {
 
 	go router.Run()
 
-	browser.MustPage("https://go-rod.github.io").MustWait(`() => document.title === 'hi'`)
+	browser.MustPage(fixtureURL("hijack.html")).MustWait(`() => document.title === 'hi'`)
 
 	fmt.Println("done")
 
@@ -536,14 +658,21 @@ func Example_hijack_requests() {
 
 // Shows how to share a remote object reference between two Eval.
 func Example_eval_reuse_remote_object() {
-	page := wand.New().MustConnect().MustPage()
+	browser := wand.New().MustConnect()
+	defer browser.MustClose()
 
-	fn := page.MustEvaluate(wand.Eval(`() => Math.random`).ByObject())
+	page := browser.MustPage()
 
-	res := page.MustEval(`f => f()`, fn)
+	// ByObject keeps the function in the browser and hands back a reference to
+	// it, instead of copying its return value into Go.
+	fn := page.MustEvaluate(wand.Eval(`() => n => n * 2`).ByObject())
 
-	// print a random number
-	fmt.Println(res.Num())
+	// Pass the reference to another Eval, which calls it in the browser.
+	res := page.MustEval(`(f, n) => f(n)`, fn, 21)
+
+	fmt.Println(res.Int())
+
+	// Output: 42
 }
 
 // Shows how to update the state of the current page.
@@ -588,7 +717,7 @@ func ExamplePage_pool() {
 		// so the instance can be reused by other goroutines.
 		defer pool.Put(page)
 
-		page.MustNavigate("http://mdn.dev").MustWaitLoad()
+		page.MustNavigate(fixtureURL("search.html")).MustWaitLoad()
 		fmt.Println(page.MustInfo().Title)
 	}
 
@@ -607,10 +736,10 @@ func ExamplePage_pool() {
 	pool.Cleanup(func(p *wand.Page) { p.MustClose() })
 
 	// Output:
-	// MDN Web Docs
-	// MDN Web Docs
-	// MDN Web Docs
-	// MDN Web Docs
+	// wand search
+	// wand search
+	// wand search
+	// wand search
 }
 
 // We can use [wand.BrowserPool] to concurrently control and reuse browsers.
@@ -639,7 +768,7 @@ func ExampleBrowser_pool() {
 			defer pool.Put(browser)
 
 			// Use the browser instance
-			page := browser.MustPage("https://www.google.com")
+			page := browser.MustPage(fixtureURL("search.html")).MustWaitLoad()
 			fmt.Println(page.MustInfo().Title)
 		}()
 	}
@@ -651,40 +780,57 @@ func ExampleBrowser_pool() {
 	pool.Cleanup(func(p *wand.Browser) {
 		p.MustClose()
 	})
+
+	// Output:
+	// wand search
+	// wand search
+	// wand search
 }
 
+// This example has no output comment, so it is compiled but never run: an
+// extension needs a browser with a window on screen, and a run has no display.
+// Reason: https://bugs.chromium.org/p/chromium/issues/detail?id=706008#c5
+// You can use XVFB to get rid of it: https://github.com/headlesslab/wand/blob/main/lib/examples/launch-managed/main.go
 func Example_load_extension() {
 	extPath, _ := filepath.Abs("fixtures/chrome-extension")
 
 	u := launcher.New().
 		// Must use abs path for an extension
 		Set("load-extension", extPath).
-		// Headless mode doesn't support extension yet.
-		// Reason: https://bugs.chromium.org/p/chromium/issues/detail?id=706008#c5
-		// You can use XVFB to get rid of it: https://github.com/headlesslab/wand/blob/main/lib/examples/launch-managed/main.go
 		Headless(false).
 		MustLaunch()
 
-	page := wand.New().ControlURL(u).MustConnect().MustPage("http://mdn.dev")
+	browser := wand.New().ControlURL(u).MustConnect()
+	defer browser.MustClose()
+
+	page := browser.MustPage(fixtureURL("search.html"))
 
 	page.MustWait(`() => document.title === 'test-extension'`)
 
 	fmt.Println("ok")
-
-	// Skip
-	// Output: ok
 }
 
 func Example_log_cdp_traffic() {
-	cdp := cdp.New().
+	l := launcher.New()
+	defer l.Cleanup()
+
+	client := cdp.New().
 		// Here we can customize how to log the requests, responses, and events transferred between wand and the browser.
+		// This one reports the navigations only, so that the example's output is the same on every run.
 		Logger(utils.Log(func(args ...interface{}) {
 			switch v := args[0].(type) {
 			case *cdp.Request:
-				fmt.Printf("id: %d", v.ID)
+				if v.Method == "Page.navigate" {
+					fmt.Printf("request: %s\n", v.Method)
+				}
 			}
 		})).
-		Start(cdp.MustConnectWS(launcher.New().MustLaunch()))
+		Start(cdp.MustConnectWS(l.MustLaunch()))
 
-	wand.New().Client(cdp).MustConnect().MustPage("http://mdn.dev")
+	browser := wand.New().Client(client).MustConnect()
+	defer browser.MustClose()
+
+	browser.MustPage(fixtureURL("search.html"))
+
+	// Output: request: Page.navigate
 }

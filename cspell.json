@@ -105,6 +105,7 @@
     "gocognit",
     "gocyclo",
     "GODEBUG",
+    "godoc",
     "gofmt",
     "gofumpt",
     "goimports",

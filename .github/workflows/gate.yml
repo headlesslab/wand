@@ -187,9 +187,11 @@ jobs:
 
       # The ci-test wrapper sets GODEBUG=tracebackancestors=100 for the leak
       # checker. -count=1 keeps go test from replaying results the restored
-      # build cache holds for a package whose inputs did not change. Examples
-      # reach the public internet until #52 lands and belong to the examples
-      # Nightly (#61), hence -run=^Test.
+      # build cache holds for a package whose inputs did not change. The
+      # examples run offline against the fixtures since #52, but each one
+      # launches a browser of its own outside the tester pool, so they belong
+      # to the examples Nightly (#61) rather than to every Gate, hence
+      # -run=^Test.
       - run: go run ./internal/tools/ci-test -race -count=1 -coverprofile=coverage.out -run=^Test ./...
 
       # The Confirmed fix for rod #1189 (#47) proves itself only when it

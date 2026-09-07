@@ -3,8 +3,6 @@ package main
 
 import "testing"
 
-const appURL = "https://go-rod.github.io/calculator/"
-
 // test case: 1 + 2 = 3.
 func TestAdd(t *testing.T) {
 	g := setup(t)
