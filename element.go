@@ -673,7 +673,20 @@ func (el *Element) BackgroundImage() ([]byte, error) {
 
 // Screenshot of the area of the element.
 func (el *Element) Screenshot(format proto.PageCaptureScreenshotFormat, quality int) ([]byte, error) {
-	err := el.ScrollIntoView()
+	// The capture has the device pixel ratio's pixels per CSS pixel, while
+	// Shape reports CSS pixels, so the crop box scales by the ratio the page
+	// sees, whatever set it: Page.Emulate, SetViewport, or a HiDPI screen in
+	// headful mode, which sets it with no override in the state store to read
+	// (rod #1198, #1034). A page that has overridden the property away gets
+	// the ratio of 1 rather than an empty crop. The read depends on nothing
+	// below, so it comes first.
+	ratio, err := el.Eval(`() => window.devicePixelRatio || 1`)
+	if err != nil {
+		return nil, err
+	}
+	scale := ratio.Value.Num()
+
+	err = el.ScrollIntoView()
 	if err != nil {
 		return nil, err
 	}
@@ -698,10 +711,10 @@ func (el *Element) Screenshot(format proto.PageCaptureScreenshotFormat, quality 
 
 	// TODO: proto.PageCaptureScreenshot has a Clip option, but it's buggy, so now we do in Go.
 	return utils.CropImage(bin, quality,
-		int(box.X),
-		int(box.Y),
-		int(box.Width),
-		int(box.Height),
+		int(box.X*scale),
+		int(box.Y*scale),
+		int(box.Width*scale),
+		int(box.Height*scale),
 	)
 }
 

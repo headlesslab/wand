@@ -2,6 +2,7 @@ package wand_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -709,6 +711,103 @@ func TestWaitStableRAP(t *testing.T) {
 	g.Err(el.WaitStableRAF())
 }
 
+// The three tests below are the regression tests of go-rod/rod#1241 (rod
+// #1179, ticket #49). WaitRepaint evaluates requestAnimationFrame on the root
+// page, and did so under the root page's context, so neither Page.Context nor
+// Page.Timeout, nor an Element.Timeout above them, could cancel the wait for
+// a frame a hidden or frozen page never paints.
+
+func TestWaitRepaintHonorsPageContext(t *testing.T) {
+	g := setup(t)
+
+	ctx, cancel := context.WithCancel(g.page.GetContext())
+	cancel()
+
+	g.Is(g.page.Context(ctx).WaitRepaint(), context.Canceled)
+}
+
+// alwaysRepaintingPage moves its button on every frame, so WaitStableRAF on
+// it ends only when its context does.
+const alwaysRepaintingPage = `<!doctype html>
+<style>#target { width: 80px; height: 30px; }</style>
+<button id="target">target</button>
+<script>
+let x = 0
+function move() {
+  document.getElementById('target').style.transform = 'translateX(' + (x++) + 'px)'
+  requestAnimationFrame(move)
+}
+requestAnimationFrame(move)
+</script>`
+
+// waitStableRAFWithin runs el.WaitStableRAF under ctx and returns its error,
+// or fails the test when it has not returned within d.
+func (g G) waitStableRAFWithin(ctx context.Context, el *wand.Element, d time.Duration) error {
+	g.Helper()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- el.Context(ctx).WaitStableRAF()
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-time.After(d):
+		g.Fatal("WaitStableRAF stayed blocked past its context")
+		return nil
+	}
+}
+
+func TestWaitStableRAFOnBackgroundPageHonorsContext(t *testing.T) {
+	g := setup(t)
+
+	target := g.newPage(g.html(alwaysRepaintingPage)).MustWaitLoad()
+	el := target.MustElement("#target")
+	other := g.newPage(g.blank()).MustWaitLoad()
+	other.MustActivate()
+
+	// Freeze the hidden target so that requestAnimationFrame cannot resolve;
+	// the wait must still return when the caller's context expires.
+	g.E(proto.PageSetWebLifecycleState{State: proto.PageSetWebLifecycleStateStateFrozen}.Call(target))
+
+	err := g.waitStableRAFWithin(g.Timeout(100*time.Millisecond), el, time.Second)
+	g.Is(err, context.DeadlineExceeded)
+}
+
+func TestWaitStableRAFSurvivesFrequentActivationSwitches(t *testing.T) {
+	g := setup(t)
+
+	target := g.newPage(g.html(alwaysRepaintingPage)).MustWaitLoad()
+	el := target.MustElement("#target")
+	other := g.newPage(g.blank()).MustWaitLoad()
+
+	done := make(chan struct{})
+	var switchers sync.WaitGroup
+	switchers.Add(1)
+	go func() {
+		defer switchers.Done()
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				_, _ = target.Activate()
+				_, _ = other.Activate()
+			case <-done:
+				return
+			}
+		}
+	}()
+	defer func() {
+		close(done)
+		switchers.Wait()
+	}()
+
+	err := g.waitStableRAFWithin(g.Timeout(250*time.Millisecond), el, 2*time.Second)
+	g.Is(err, context.DeadlineExceeded)
+}
+
 func TestCanvasToImage(t *testing.T) {
 	g := setup(t)
 
@@ -789,6 +888,42 @@ func TestElementScreenshot(t *testing.T) {
 		g.mc.stubErr(3, proto.DOMGetContentQuads{})
 		el.MustScreenshot()
 	})
+	g.Panic(func() {
+		g.mc.stubErr(1, proto.RuntimeCallFunctionOn{}) // the device pixel ratio
+		el.MustScreenshot()
+	})
+}
+
+// TestElementScreenshotDevicePixelRatio is the regression test of
+// go-rod/rod#1200 (rod #1198 and #1034, ticket #49): under device emulation
+// at a pixel ratio of 2 the capture has twice the pixels of the layout in
+// each direction, and the crop box, in CSS pixels, has to scale with it.
+// Every pixel of the result is the element's own colour, so the crop is the
+// element and not the quarter of the capture at its CSS coordinates.
+func TestElementScreenshotDevicePixelRatio(t *testing.T) {
+	g := setup(t)
+
+	page := g.newPage(g.html(`<html><body style="margin: 0; background: #fff">
+		<div id="box" style="position: absolute; left: 37px; top: 23px; width: 120px; height: 80px; background: #f00"></div>
+	</body></html>`))
+	page.MustEmulate(devices.LaptopWithHiDPIScreen.Landscape())
+	g.Eq(page.MustEval(`() => window.devicePixelRatio`).Int(), 2)
+
+	img, err := png.Decode(bytes.NewBuffer(page.MustElement("#box").MustScreenshot()))
+	g.E(err)
+	g.Eq(img.Bounds().Dx(), 240)
+	g.Eq(img.Bounds().Dy(), 160)
+
+	red := color.RGBA{R: 255, A: 255}
+	others := 0
+	for y := 0; y < img.Bounds().Dy(); y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			if color.RGBAModel.Convert(img.At(x, y)) != red {
+				others++
+			}
+		}
+	}
+	g.Eq(others, 0)
 }
 
 func TestUseReleasedElement(t *testing.T) {

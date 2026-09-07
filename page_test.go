@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -192,6 +193,62 @@ func TestLoadState(t *testing.T) {
 	g := setup(t)
 
 	g.True(g.page.LoadState(&proto.PageEnable{}))
+}
+
+// TestPageCloseClearsStates is the regression test of go-rod/rod#1235 (rod
+// #1226, ticket #49): closing a page drops every state the browser stored
+// under the page's session, the parameters of each call the page made, so a
+// browser that opens and closes pages does not keep the HTML of every
+// SetDocumentContent for as long as it lives.
+func TestPageCloseClearsStates(t *testing.T) {
+	g := setup(t)
+
+	html := "<html><body>" + strings.Repeat("x", 64*1024) + "</body></html>"
+	var sessions []proto.TargetSessionID
+
+	for i := 0; i < 5; i++ {
+		page := g.browser.MustPage(g.blank())
+		page.MustSetDocumentContent(html)
+		g.True(page.LoadState(&proto.PageSetDocumentContent{}))
+		g.True(page.LoadState(&proto.PageEnable{}))
+
+		page.MustClose()
+
+		g.False(page.LoadState(&proto.PageSetDocumentContent{}))
+		g.False(page.LoadState(&proto.PageEnable{}))
+		sessions = append(sessions, page.SessionID)
+	}
+
+	for _, id := range sessions {
+		g.False(g.browser.LoadState(id, &proto.PageSetDocumentContent{}))
+		g.False(g.browser.LoadState(id, &proto.PageEnable{}))
+	}
+
+	// the states of a page still open stay
+	g.True(g.page.LoadState(&proto.PageEnable{}))
+}
+
+// A page closed without Page.Close, by a script's window.close, by the user
+// or here by the browser, loses its states the same way once its session
+// detaches, before its context ends.
+func TestPageClosedByBrowserClearsStates(t *testing.T) {
+	g := setup(t)
+
+	// Chromium ignores a close of a page still navigating, the way Page.Close
+	// retries around, hence the wait for load.
+	page := g.browser.MustPage(g.blank()).MustWaitLoad()
+	g.True(page.LoadState(&proto.PageEnable{}))
+
+	g.E(proto.TargetCloseTarget{TargetID: page.TargetID}.Call(g.browser))
+
+	select {
+	case <-page.GetContext().Done():
+	case <-time.After(5 * time.Second):
+		g.Fatal("the closed page's session never detached")
+	}
+
+	g.False(page.LoadState(&proto.PageEnable{}))
+	g.False(g.browser.LoadState(page.SessionID, &proto.PageEnable{}))
 }
 
 func TestDisableDomain(t *testing.T) {
@@ -965,6 +1022,39 @@ func TestPageWaitLoadErr(t *testing.T) {
 		g.mc.stubErr(1, proto.RuntimeCallFunctionOn{})
 		g.page.MustWaitLoad()
 	})
+}
+
+// TestPageWaitLoadCircularReference is the regression test of go-rod/rod#1150
+// (ticket #49): a load listener registered ahead of WaitLoad's, as Bootstrap's
+// event delegation does, gives the event a circular property, and the promise
+// WaitLoad resolved with that event could not come back by value ("Object
+// reference chain is too long"). The fixture holds its load event back with
+// an iframe the server answers once the page has seen WaitLoad's listener
+// registered, so the listeners fire in the order of the bug on every run;
+// upstream's test navigated three times on a fixed port and hoped for it.
+// The document was still loading when the listener came, which is what the
+// readyState the fixture kept shows, so WaitLoad did wait for the event.
+func TestPageWaitLoadCircularReference(t *testing.T) {
+	g := setup(t)
+
+	listening := make(chan struct{})
+	var once sync.Once
+	s := g.Serve()
+	s.Route("/", "fixtures/wait-load-circular-reference.html")
+	s.Mux.HandleFunc("/listening", func(http.ResponseWriter, *http.Request) {
+		once.Do(func() { close(listening) })
+	})
+	s.Mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-listening:
+		case <-r.Context().Done():
+		}
+		_, _ = fmt.Fprint(w, "loaded")
+	})
+
+	page := g.page.Timeout(10 * time.Second).MustNavigate(s.URL())
+	g.E(page.WaitLoad())
+	g.Eq(page.MustEval(`() => window.readyStateAtListening`).Str(), "interactive")
 }
 
 func TestPageNavigation(t *testing.T) {
