@@ -1047,8 +1047,11 @@ func TestShapeInIframe(t *testing.T) {
 	p := g.page.MustNavigate(g.srcFile("fixtures/click-iframe.html"))
 	pt := p.MustElement("iframe").MustFrame().MustElement("button").MustShape().OnePointInside()
 
+	// The centre of the button in the page's coordinates: the fixture sizes
+	// the button and the heading, so the point depends on no font, which
+	// differs between the runners (the linux/arm64 image put it 3 px right).
 	g.InDelta(pt.X, 238, 1)
-	g.InDelta(pt.Y, 287, 1)
+	g.InDelta(pt.Y, 279, 1)
 }
 
 func TestElementFromPointErr(t *testing.T) {

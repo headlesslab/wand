@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -358,13 +359,38 @@ func setup(t *testing.T) G {
 
 	tester.G = got.New(t)
 	tester.mc.t = t
-	tester.mc.log.SetOutput(tester.Open(true, filepath.Join(LogDir, tester.mc.id, t.Name()+".log")))
+	tester.mc.log.SetOutput(openLog(t, tester.mc, filepath.Join(LogDir, tester.mc.id, t.Name()+".log")))
 
 	tester.checkLeaking()
 
 	tester.page.MustNavigate("")
 
 	return *tester
+}
+
+// openLog opens the CDP log of a test, mc's output for the test's duration.
+// The log of a failed test stays, for reading before a rerun and for the
+// artifact a Tier 1 job uploads; the log of a passed test is removed, so a
+// run leaves only what is worth reading. A test the run never finished keeps
+// its log too, since nothing removes it.
+func openLog(t *testing.T, mc *MockClient, path string) *os.File {
+	t.Helper()
+
+	utils.E(os.MkdirAll(filepath.Dir(path), 0o755))
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		mc.log.SetOutput(io.Discard)
+		_ = f.Close()
+		if !t.Failed() {
+			_ = os.Remove(path)
+		}
+	})
+
+	return f
 }
 
 func (g G) blank() string {
