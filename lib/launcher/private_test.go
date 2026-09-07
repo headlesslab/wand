@@ -258,6 +258,11 @@ func TestBinPaths(t *testing.T) {
 		{SourceChromium, BinaryChrome, "linux", "chromium-2/chrome"},
 		{SourceChromium, BinaryChrome, "darwin", "chromium-2/Chromium.app/Contents/MacOS/Chromium"},
 		{SourceChromium, BinaryChrome, "windows", "chromium-2/chrome.exe"},
+		// FreeBSD, where nothing downloads (rod #1233): the Linux layout,
+		// for a binary placed by hand.
+		{SourceChrome, BinaryChrome, "freebsd", "chrome-1.0/chrome"},
+		{SourceChrome, BinaryHeadlessShell, "freebsd", "chrome-headless-shell-1.0/chrome-headless-shell"},
+		{SourceChromium, BinaryChrome, "freebsd", "chromium-2/chrome"},
 	}
 
 	for _, c := range cases {
@@ -638,11 +643,21 @@ func TestSystemBrowsers(t *testing.T) {
 	g.Has(windows, filepath.Join(os.Getenv("LocalAppData"), `Microsoft\Edge\Application\msedge.exe`))
 
 	g.Eq(systemBrowsers("openbsd"), []string{"chrome", "chromium"})
+
+	// The Confirmed fix of rod #828 as spec #33 section 11 claims it (rod
+	// #1233): the Snapshot's LookPath had no list for FreeBSD, so every
+	// launch there went to a download that has no archive. Its list is
+	// inline and keyed by runtime.GOOS, so this test cannot run against
+	// it; the landing pull request quotes the list instead of a run. The
+	// names are what the ports install: chrome from www/chromium,
+	// ungoogled-chromium from www/ungoogled-chromium.
+	g.Eq(systemBrowsers("freebsd"), []string{"chrome", "chromium", "ungoogled-chromium"})
+
 	g.Len(systemBrowsers("plan9"), 0)
 
 	// No Domestic platform browser: none is verified to accept remote
 	// debugging (ADR-0005), so their paths go to WAND_BROWSER_BIN.
-	for _, goos := range []string{"darwin", "linux", "windows", "openbsd"} {
+	for _, goos := range []string{"darwin", "linux", "windows", "openbsd", "freebsd"} {
 		for _, p := range systemBrowsers(goos) {
 			for _, name := range []string{"lbrowser", "qianxin", "qax", "360", "uos"} {
 				g.Desc("%s %s", goos, p).False(strings.Contains(strings.ToLower(p), name))
