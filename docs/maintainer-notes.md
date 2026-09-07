@@ -393,7 +393,7 @@ Once a night at 02:41 UTC, and on demand, `.github/workflows/nightly.yml` proves
 
 | Job                                                             | Where                      | What it proves                                                                                                                                         | What a red usually is                                                                                                         |
 | --------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| the seven `Tier 1 …` jobs                                       | the Gate's four platforms  | the Gate's own matrix, rerun with no commit under it, from the same steps (`.github/actions/tier1`)                                                    | a flake, or a runner image that moved under a suite nobody changed                                                            |
+| the seven `Tier 1 rerun …` jobs                                 | the Gate's four platforms  | the Gate's own matrix, rerun with no commit under it, from the same steps (`.github/actions/tier1`)                                                    | a flake, or a runner image that moved under a suite nobody changed                                                            |
 | `System browser ubuntu-latest`, `System browser windows-11-arm` | those two runners          | Browser resolution's discovery, on the browser the runner image ships, which every Gate job bypasses with `WAND_BROWSER_BIN`                           | the runner image dropped its Chrome, or discovery stopped finding one; on windows/arm64 this is the only place the suite runs |
 | `Examples`                                                      | `ubuntu-latest`            | every `Example` function of the root suite and the whole `lib/examples/e2e-testing` module, each on a browser of its own                               | an example that drifted from its `// Output:` comment, or one that started reaching for a public host                         |
 | `Updated graph (go get -u)`                                     | `ubuntu-latest`, Go 1.21.x | the whole dependency graph at its newest still resolves, builds and passes on the Go floor (ADR-0006)                                                  | a dependency whose newest version wants a newer Go than `go.mod` declares, or one that changed under a call wand makes        |
@@ -402,7 +402,9 @@ Once a night at 02:41 UTC, and on demand, `.github/workflows/nightly.yml` proves
 | `Trivy on the published images`                                 | `ubuntu-latest`            | `ghcr.io/headlesslab/wand:latest` and `:dev` as the registry holds them, which no Gate ever sees                                                       | a base image that grew a fixable CRITICAL after the release was cut; the answer is a Dependabot digest bump and a patch       |
 | `Report`                                                        | `ubuntu-latest`            | —                                                                                                                                                      | the App token: with it rejected every issue the run would have opened is gone, so this job opens one about itself             |
 
-The Tier 1 matrix appears twice, once here and once in `gate.yml`, but its steps do not: they are a composite action under `.github/actions/tier1`, so the AppArmor line, the browser pin assertion and the suite invocation have one place to be fixed. That action uses no other action on purpose — Dependabot's `github-actions` updater reads `.github/workflows` and a root `action.yml` and nothing else, so a SHA pinned there would be a pin nothing moves; the checkout, the toolchain, the artifact upload and the zero-leftover step stay in each workflow, where Dependabot sees them.
+No job here may ever carry a Gate job's name, which is why every Tier 1 entry says "rerun". A job's name is its check run's name, the Nightly runs on the very commit the Gate ran on, and the release workflow reads that commit's required checks back through `check-runs?filter=latest`, which keeps the newest check run per name: a Nightly job sharing a Gate job's name would replace the Gate's answer with its own, and a red one would hold a release that no Nightly is allowed to hold.
+
+The Tier 1 matrix appears twice, once here and once in `gate.yml`, but its steps do not: they are a composite action under `.github/actions/tier1`, so the browser pin assertion, what the suite is run with and the coverage arithmetic have one place to be fixed. That action uses no other action on purpose — Dependabot's `github-actions` updater reads `.github/workflows` and a root `action.yml` and nothing else, so a SHA pinned there would be a pin nothing moves; the checkout, the toolchain, the artifact upload and the zero-leftover step stay in each workflow, where Dependabot sees them.
 
 ### The issue a red job opens
 
@@ -427,9 +429,10 @@ GH_TOKEN=$(gh auth token) go run ./internal/tools/nightly-report -repo headlessl
 Locally, one job at a time, from the module root:
 
 ```sh
-# The Support window: the Chrome, then the suite on it.
+# The Support window: the Chrome, then the suite on it, as the job runs it.
 version=$(go run ./internal/tools/support-window)
-WAND_BROWSER_BIN=$(go run ./cmd/wand-fetch-browser -version "$version") go test -run '^Test' .
+export WAND_BROWSER_BIN=$(go run ./cmd/wand-fetch-browser -version "$version")
+go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
 
 # The examples, which the Gate's -run=^Test leaves out.
 go run ./internal/tools/ci-test -count=1 -timeout=40m -run '^Example' ./...

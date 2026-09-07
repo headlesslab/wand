@@ -74,6 +74,15 @@ jobs:
   # a red that the Gate did not have is either a flake or something outside the
   # repository that moved.
   #
+  # Every name here says "rerun", and no job in this workflow may ever be named
+  # as one of the Gate's. A job's name is its check run's name, this workflow
+  # runs on the very commit the Gate ran on, and the release workflow reads the
+  # required checks of that commit back through check-runs?filter=latest, which
+  # keeps the newest check run per name: a Nightly job sharing a Gate job's name
+  # would replace the Gate's answer with its own, and a red one would hold a
+  # release that nothing here is allowed to hold (ADR-0008; release.yml, "The
+  # Gates are green on this commit").
+  #
   # govulncheck is the one column left out, because it is a job of its own here
   # and its issue should say govulncheck rather than name a platform.
   tier1:
@@ -84,41 +93,41 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Tier 1 linux/amd64 (Go stable)
+          - name: Tier 1 rerun linux/amd64 (Go stable)
             runner: ubuntu-latest
             go: stable
             source: chrome
             branded: true
             coverage: true
             artifact: linux-amd64-stable
-          - name: Tier 1 linux/amd64 (Go 1.21)
+          - name: Tier 1 rerun linux/amd64 (Go 1.21)
             runner: ubuntu-latest
             go: 1.21.x
             source: chrome
             artifact: linux-amd64-go1.21
-          - name: Tier 1 linux/arm64 (Go stable)
+          - name: Tier 1 rerun linux/arm64 (Go stable)
             runner: ubuntu-24.04-arm
             go: stable
             source: chrome
             artifact: linux-arm64-stable
-          - name: Tier 1 linux/arm64 (Go 1.21)
+          - name: Tier 1 rerun linux/arm64 (Go 1.21)
             runner: ubuntu-24.04-arm
             go: 1.21.x
             source: chrome
             artifact: linux-arm64-go1.21
-          - name: Tier 1 windows/amd64 (Go stable)
+          - name: Tier 1 rerun windows/amd64 (Go stable)
             runner: windows-latest
             go: stable
             source: chrome
             branded: true
             artifact: windows-amd64-stable
-          - name: Tier 1 darwin/arm64 (Go stable)
+          - name: Tier 1 rerun darwin/arm64 (Go stable)
             runner: macos-latest
             go: stable
             source: chrome
             branded: true
             artifact: darwin-arm64-stable
-          - name: Tier 1 linux/amd64 (Companion Chromium)
+          - name: Tier 1 rerun linux/amd64 (Companion Chromium)
             runner: ubuntu-latest
             go: stable
             source: chromium
@@ -172,9 +181,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner:
-          - ubuntu-latest
-          - windows-11-arm
+        include:
+          - runner: ubuntu-latest
+            branded: true
+          # No branded entry: whether this image ships a branded Google Chrome
+          # is not something the runner images promise, and requiring a test
+          # that needs one would fail this job for the wrong reason. The suite
+          # below still runs it, and still skips it with a reason where there
+          # is none.
+          - runner: windows-11-arm
     env:
       # Discovery, and nothing else, may answer here: the browser cache points
       # at a directory that does not exist and downloading is off, so Browser
@@ -198,6 +213,7 @@ jobs:
 
       - run: go version
 
+      # The sandbox, as .github/actions/tier1 explains it.
       - if: runner.os == 'Linux'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
@@ -211,6 +227,17 @@ jobs:
           grep '^browser: ' browser.log
 
       - run: go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+
+      # The Confirmed fix for rod #1189 is claimed on the branded Google Chrome
+      # a runner ships, and the spec asks for that launch test to be repeated
+      # here (spec #33, section 11). It skips where it finds no branded Chrome,
+      # and a skip would leave the fix unproven and this job green, so on the
+      # runner that ships one its PASS line is required, exactly as in the Gate.
+      - name: The User mode Confirmed fix ran
+        if: matrix.branded
+        run: |
+          go test -count=1 -run '^TestUserModeBrandedChrome$' -v ./lib/launcher | tee user-mode.log
+          grep -q -- '--- PASS: TestUserModeBrandedChrome' user-mode.log
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -248,6 +275,7 @@ jobs:
 
       - run: go version
 
+      # The sandbox, as .github/actions/tier1 explains it.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Fetch the Managed browser
@@ -310,6 +338,7 @@ jobs:
 
       - run: go version
 
+      # The sandbox, as .github/actions/tier1 explains it.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Everything at its newest
@@ -375,6 +404,7 @@ jobs:
 
       - run: go version
 
+      # The sandbox, as .github/actions/tier1 explains it.
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: The oldest Chrome in the Support window
@@ -459,8 +489,11 @@ jobs:
           persist-credentials: false
 
       # The package does not exist at all before the first release, which the
-      # API answers with a 404 rather than an empty list, so a failure here is
-      # read as "nothing published yet" and the two scans below skip.
+      # API answers with a 404, and that alone is the clean skip: any other
+      # refusal — a token not allowed to read the organisation's packages, an
+      # outage — leaves this job unable to tell an unpublished image from an
+      # unscanned one, and a job that cannot tell says so rather than going
+      # green on nothing.
       - name: Which tags are published?
         id: published
         env:
@@ -468,9 +501,18 @@ jobs:
         run: |
           owner=${GITHUB_REPOSITORY%%/*}
           package=${GITHUB_REPOSITORY#*/}
-          tags=$(gh api "/orgs/$owner/packages/container/$package/versions?per_page=100" --paginate \
-            --jq '.[].metadata.container.tags[]' || true)
-          echo "published tags: $(tr '\n' ' ' <<< "$tags")"
+          if tags=$(gh api "/orgs/$owner/packages/container/$package/versions?per_page=100" --paginate \
+            --jq '.[].metadata.container.tags[]' 2> "$RUNNER_TEMP/packages.err"); then
+            echo "published tags: $(tr '\n' ' ' <<< "$tags")"
+          elif grep -q 'HTTP 404' "$RUNNER_TEMP/packages.err"; then
+            echo "::notice::no container package exists yet, so there is nothing published to scan"
+            tags=''
+          else
+            cat "$RUNNER_TEMP/packages.err"
+            echo "::error::the container package of $GITHUB_REPOSITORY could not be read, so this job cannot tell an unpublished image from an unscanned one"
+            exit 1
+          fi
+
           for tag in latest dev; do
             if grep -qx -- "$tag" <<< "$tags"; then
               echo "$tag=true" >> "$GITHUB_OUTPUT"

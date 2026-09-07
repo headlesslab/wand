@@ -78,7 +78,7 @@ func oldest(target string) (int, error) {
 	}
 
 	if milestone <= milestones {
-		return 0, fmt.Errorf("the Target Chrome %q has no %dth milestone below it", target, milestones)
+		return 0, fmt.Errorf("the Target Chrome %q has fewer than %d milestones below it, so the Support window has no bottom", target, milestones)
 	}
 
 	return milestone - milestones, nil

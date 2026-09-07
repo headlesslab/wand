@@ -4,8 +4,11 @@
 #
 # These steps live here rather than in a workflow because two workflows run
 # them: the Gate on every pull request and every push to main, and the Nightly
-# once a night on main. A fix to the AppArmor line or to the pin assertion has
-# to reach both, and one copy is how it does.
+# once a night on main (.github/workflows/nightly.yml). A fix to the pin
+# assertion, to what the suite is run with or to the coverage arithmetic has to
+# reach both, and one copy is how it does. The AppArmor line is explained here
+# and repeated by the Nightly's other browser jobs, which run no Tier 1 matrix
+# and take nothing else from this file.
 #
 # Nothing here uses another action, on purpose. Dependabot's github-actions
 # updater reads .github/workflows and a root action.yml, and nothing else, so

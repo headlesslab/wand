@@ -64,9 +64,13 @@ func main() {
 	flag.Parse()
 
 	if err := report(gh, opts, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "nightly-report:", err)
-		os.Exit(1)
+		fail(err)
 	}
+}
+
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, "nightly-report:", err)
+	os.Exit(1)
 }
 
 func env(name, fallback string) string {
@@ -134,12 +138,12 @@ func (j job) failedSteps() []string {
 
 // report is the whole tool: the red jobs of the run, each turned into an issue
 // or a comment on the issue it already has.
-func report(run runner, opts options, out io.Writer) error {
+func report(cli runner, opts options, out io.Writer) error {
 	if opts.repo == "" || opts.run == "" {
 		return errors.New("both -repo and -run are needed")
 	}
 
-	jobs, err := runJobs(run, opts)
+	jobs, err := runJobs(cli, opts)
 	if err != nil {
 		return err
 	}
@@ -161,7 +165,7 @@ func report(run runner, opts options, out io.Writer) error {
 	// job is reported and the errors are answered with together.
 	var errs []error
 	for _, j := range red {
-		if err := raise(run, opts, j, out); err != nil {
+		if err := raise(cli, opts, j, out); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -171,10 +175,10 @@ func report(run runner, opts options, out io.Writer) error {
 
 // runJobs are the jobs of the run, in the order the Actions API lists them, read with the
 // run's own token: the App has no Actions permission (#58).
-func runJobs(run runner, opts options) ([]job, error) {
+func runJobs(cli runner, opts options) ([]job, error) {
 	// --jq gives one job object per line, across every page, so nothing here
 	// depends on how gh joins the pages of an object response.
-	out, err := run(opts.read, "api", "--paginate", "--jq", ".jobs[]",
+	out, err := cli(opts.read, "api", "--paginate", "--jq", ".jobs[]",
 		fmt.Sprintf("repos/%s/actions/runs/%s/jobs?per_page=100", opts.repo, opts.run))
 	if err != nil {
 		return nil, err
@@ -202,10 +206,10 @@ func runJobs(run runner, opts options) ([]job, error) {
 }
 
 // raise opens the issue of one red job, or comments on the one already open.
-func raise(run runner, opts options, j job, out io.Writer) error {
+func raise(cli runner, opts options, j job, out io.Writer) error {
 	title := issueTitle(j)
 
-	number, err := openIssue(run, opts, title)
+	number, err := openIssue(cli, opts, title)
 	if err != nil {
 		return err
 	}
@@ -223,7 +227,7 @@ func raise(run runner, opts options, j job, out io.Writer) error {
 	}
 
 	if number != "" {
-		if _, err := run(opts.write, "issue", "comment", number, "--repo", opts.repo, "--body", body); err != nil {
+		if _, err := cli(opts.write, "issue", "comment", number, "--repo", opts.repo, "--body", body); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(out, "commented on issue #%s: %s\n", number, title)
@@ -231,7 +235,7 @@ func raise(run runner, opts options, j job, out io.Writer) error {
 		return nil
 	}
 
-	if _, err := run(opts.write, "issue", "create", "--repo", opts.repo,
+	if _, err := cli(opts.write, "issue", "create", "--repo", opts.repo,
 		"--title", title, "--label", label, "--body", body); err != nil {
 		return err
 	}
@@ -246,11 +250,11 @@ func issueTitle(j job) string {
 	return fmt.Sprintf("Nightly: %s failed", j.Name)
 }
 
-// openIssue is the number of the open issue with that exact title, or the empty
+// openIssue is the number of the issue already open with that exact title, or the empty
 // string when there is none. The search is a filter GitHub applies loosely, so
 // the exact title is what decides, not what the search answered.
-func openIssue(run runner, opts options, title string) (string, error) {
-	out, err := run(opts.write, "issue", "list", "--repo", opts.repo, "--state", "open",
+func openIssue(cli runner, opts options, title string) (string, error) {
+	out, err := cli(opts.write, "issue", "list", "--repo", opts.repo, "--state", "open",
 		"--search", `in:title "`+title+`"`, "--json", "number,title")
 	if err != nil {
 		return "", err
@@ -277,7 +281,7 @@ func openIssue(run runner, opts options, title string) (string, error) {
 // is for, so that a maintainer reading it a week later needs nothing else to
 // start.
 func issueBody(opts options, j job) string {
-	run := fmt.Sprintf("%s/%s/actions/runs/%s", opts.server, opts.repo, opts.run)
+	runURL := fmt.Sprintf("%s/%s/actions/runs/%s", opts.server, opts.repo, opts.run)
 
 	steps := "the job went red before any step did"
 	if failed := j.failedSteps(); len(failed) > 0 {
@@ -286,12 +290,12 @@ func issueBody(opts options, j job) string {
 
 	where := j.URL
 	if where == "" {
-		where = run
+		where = runURL
 	}
 
 	return strings.Join([]string{
 		fmt.Sprintf("The Nightly job **%s** went red: %s", j.Name, where),
-		fmt.Sprintf("Run: %s", run),
+		fmt.Sprintf("Run: %s", runURL),
 		fmt.Sprintf("Red steps: %s", steps),
 		"A Nightly blocks no merge and no release (CONTEXT.md, Nightly), so this issue is the whole alarm. It is keyed by the job's name: the same job failing again comments here rather than opening a second issue, and a different job gets one of its own. Close it once the job is green again, and split anything it turns out to be into its own issue.",
 	}, "\n\n")
