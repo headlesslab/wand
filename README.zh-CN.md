@@ -41,9 +41,9 @@ browser := wand.New().Client(l.MustClient()).MustConnect()
 
 完整程序见 [`lib/examples/launch-managed`](lib/examples/launch-managed)。
 
-`docker run --rm ghcr.io/headlesslab/wand chrome --version` 会打印镜像内的 Chrome 版本；镜像里也带了 `xvfb-run`，可用于有界面模式。
+`docker run --rm ghcr.io/headlesslab/wand chrome --version` 会打印镜像内的 Chrome 版本；镜像里也带了 `xvfb-run`，可用于运行有界面的浏览器。
 
-`go run ./internal/tools/docker` 会构建该镜像，并在其之上构建附带 Go 与 Node 工具链的 `:dev` 镜像，然后按 CI 的方式检查两者；它不会推送任何东西。加上 `-suite` 可在 `:dev` 镜像内运行 wand 的完整测试套件，那里 `utils.InContainer` 成立，启动器会传入 `--no-sandbox`。
+`go run ./internal/tools/docker` 会构建该镜像，并在其之上构建附带 Go 与 Node 工具链的 `:dev` 镜像，然后按 image Gate 的方式检查两者；它不会推送任何东西。加上 `-suite` 可在 `:dev` 镜像内运行 wand 的完整测试套件，那里 `utils.InContainer` 成立，启动器会传入 `--no-sandbox`。
 
 在受限网络下，Go 模块代理与 Ubuntu 镜像源都是构建参数：
 

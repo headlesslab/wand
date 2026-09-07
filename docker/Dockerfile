@@ -45,9 +45,9 @@ RUN go build -trimpath -o /out/wand-manager ./cmd/wand-manager
 
 # The Target Chrome the pins package names, taken through Browser resolution's
 # own download path and verified against the pinned hash before extraction, so
-# the browser in the image is the archive CI tested. The version is a pin and
-# not a lookup, which is what makes the two architectures carry the same one.
-# The path the command prints becomes /usr/bin/chrome below.
+# the browser in the image is the archive the Tier 1 jobs ran on. The version
+# is a pin and not a lookup, which is what makes the two architectures carry
+# the same one. The path the command prints becomes /usr/bin/chrome below.
 RUN go run ./cmd/wand-fetch-browser > /out/browser-path
 
 FROM ubuntu:noble@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
@@ -88,7 +88,7 @@ RUN set -eux; \
     tzdata \
     # process reaper
     dumb-init \
-    # headful mode support, for example: $ xvfb-run wand-manager
+    # a visible browser needs a display: $ xvfb-run wand-manager
     xvfb \
     > /dev/null; \
     rm -rf /var/lib/apt/lists/*

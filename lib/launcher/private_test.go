@@ -352,8 +352,9 @@ func TestCleanup(t *testing.T) {
 // parent, which keeps it elsewhere. Root is exempt from both and removes the
 // directory at once, so there would be nothing to retry and nothing to prove;
 // the test skips where the suite runs as root, which is the in-container
-// image job and nothing else. That is an environment guard like the font and
-// binary-size ones, not a skip for flakiness (spec #33, section 12).
+// image job and nothing else. That is an environment guard of the same kind
+// as the font and binary-size ones, which the in-container run of #55 adds
+// to the three spec #33, section 12 lists, and not a skip for flakiness.
 func TestCleanupRetriesHeldDir(t *testing.T) {
 	g := setup(t)
 

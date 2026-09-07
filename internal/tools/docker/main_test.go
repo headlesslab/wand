@@ -11,39 +11,28 @@ import (
 
 var setup = got.Setup(nil)
 
-// native is a run on the machine's own platform, as every image job is.
-var native = options{image: "ghcr.io/headlesslab/wand", dir: "/src"}
-
 func TestBuildsNothingPushed(t *testing.T) {
 	g := setup(t)
 
-	g.Eq(native.buildRuntime(), []string{
+	g.Eq(buildRuntime(), []string{
 		"docker", "build", "--file", "docker/Dockerfile", "--tag", "ghcr.io/headlesslab/wand", ".",
 	})
 
 	// The development image is built on the runtime image just built, not on
 	// whatever the registry holds under that name.
-	g.Eq(native.buildDev(), []string{
+	g.Eq(buildDev(), []string{
 		"docker", "build", "--file", "docker/dev.Dockerfile", "--tag", "ghcr.io/headlesslab/wand:dev",
 		"--build-arg", "base=ghcr.io/headlesslab/wand", ".",
 	})
 
-	for _, args := range [][]string{native.buildRuntime(), native.buildDev(), native.runSuite()} {
+	// Nothing this script runs reaches a registry: the tags are the release
+	// workflow's.
+	for _, args := range [][]string{buildRuntime(), buildDev(), run(nil, image), runSuite("/src")} {
 		line := strings.Join(args, " ")
-		g.False(strings.Contains(line, "push"))
-		g.False(strings.Contains(line, "login"))
+		for _, word := range []string{"push", "login", "--load", "--output"} {
+			g.Desc("%s", line).False(strings.Contains(line, word))
+		}
 	}
-}
-
-func TestPlatformOnlyWhenAsked(t *testing.T) {
-	g := setup(t)
-
-	cross := native
-	cross.platform = "linux/arm64"
-
-	g.Has(strings.Join(cross.buildRuntime(), " "), "--platform linux/arm64")
-	g.Has(strings.Join(cross.run(cross.image, "chrome", "--version"), " "), "--platform linux/arm64")
-	g.False(strings.Contains(strings.Join(native.buildRuntime(), " "), "--platform"))
 }
 
 func TestRunSuiteMountsTheCheckout(t *testing.T) {
@@ -53,12 +42,10 @@ func TestRunSuiteMountsTheCheckout(t *testing.T) {
 	// separator docker takes, which is what filepath.ToSlash is for on a
 	// Windows working directory (there, and only there, it rewrites the one
 	// the operating system gave).
-	local := options{image: "wand", dir: filepath.FromSlash("/src/wand")}
-
-	g.Eq(local.runSuite(), []string{
+	g.Eq(runSuite(filepath.FromSlash("/src/wand")), []string{
 		"docker", "run", "--rm",
 		"--volume", "/src/wand:/wand", "--workdir", "/wand",
-		"wand:dev", "bash", "-c", suite,
+		"ghcr.io/headlesslab/wand:dev", "bash", "-c", suite,
 	})
 
 	// The Zero leftover check runs in the container the suite ran in, and
@@ -68,10 +55,11 @@ func TestRunSuiteMountsTheCheckout(t *testing.T) {
 	g.Has(suite, "exit $status")
 }
 
-func TestChromeVersion(t *testing.T) {
+func TestReportedVersion(t *testing.T) {
 	g := setup(t)
 
-	g.Eq(chromeVersion("Google Chrome for Testing "+pins.ChromeVersion+"\n"), pins.ChromeVersion)
-	g.Eq(chromeVersion("Chromium 153.0.0.0 snap\n"), "snap")
-	g.Eq(chromeVersion("   \n"), "")
+	g.Eq(reportedVersion("Google Chrome for Testing "+pins.ChromeVersion+"\n"), pins.ChromeVersion)
+	g.Eq(reportedVersion("Chromium 153.0.0.0 snap\n"), "153.0.0.0")
+	g.Eq(reportedVersion("Chromium 153.0\n"), "")
+	g.Eq(reportedVersion("   \n"), "")
 }

@@ -41,9 +41,9 @@ browser := wand.New().Client(l.MustClient()).MustConnect()
 
 See [`lib/examples/launch-managed`](lib/examples/launch-managed) for the whole program.
 
-`docker run --rm ghcr.io/headlesslab/wand chrome --version` prints the Chrome inside, and `xvfb-run` is there for a headful browser.
+`docker run --rm ghcr.io/headlesslab/wand chrome --version` prints the Chrome inside, and `xvfb-run` is there for a visible browser.
 
-`go run ./internal/tools/docker` builds that image and the `:dev` one on top of it, which adds the Go and Node toolchains, and checks both the way CI does; nothing is pushed. Add `-suite` to run wand's whole suite inside the `:dev` image, where `utils.InContainer` holds and the launcher passes `--no-sandbox`.
+`go run ./internal/tools/docker` builds that image and the `:dev` one on top of it, which adds the Go and Node toolchains, and checks both the way the image Gate does; nothing is pushed. Add `-suite` to run wand's whole suite inside the `:dev` image, where `utils.InContainer` holds and the launcher passes `--no-sandbox`.
 
 Behind a restricted network, a Go module proxy and an Ubuntu mirror are build arguments:
 

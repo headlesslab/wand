@@ -3,7 +3,9 @@
 # utils.InContainer holds and the launcher passes --no-sandbox (spec #33,
 # section 14; ticket #55).
 #
-#     docker build -t ghcr.io/headlesslab/wand:dev -f docker/dev.Dockerfile .
+#     docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile .
+#     docker build -t ghcr.io/headlesslab/wand:dev -f docker/dev.Dockerfile \
+#         --build-arg base=ghcr.io/headlesslab/wand .
 #     docker run --rm -v "$PWD:/wand" ghcr.io/headlesslab/wand:dev \
 #         go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
 #
@@ -11,8 +13,9 @@
 #
 #     go run ./internal/tools/docker -suite
 
-# The runtime image to build on. The image build script passes the one it has
-# just built, so the suite always runs on the Chrome of the image under test.
+# The runtime image to build on, which has to be built first: no tag of it is
+# published yet. The image build script passes the one it has just built, so
+# the suite always runs on the Chrome of the image under test.
 ARG base="ghcr.io/headlesslab/wand"
 
 # The toolchains come from the official images rather than from tarball URLs,
@@ -31,15 +34,10 @@ LABEL org.opencontainers.image.description="The wand container image with the Go
 LABEL org.opencontainers.image.source="https://github.com/headlesslab/wand"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# An Ubuntu mirror for a build behind a restricted network, as in the runtime
-# image.
-ARG apt_mirror=""
-
+# The Ubuntu sources come with the base image, so a runtime image built with
+# an apt_mirror hands its mirror down and this one needs no argument of its
+# own.
 RUN set -eux; \
-    if [ -n "$apt_mirror" ]; then \
-        sed -i "s|http://archive.ubuntu.com/ubuntu|$apt_mirror|g; s|http://ports.ubuntu.com/ubuntu-ports|$apt_mirror|g" \
-            /etc/apt/sources.list.d/ubuntu.sources; \
-    fi; \
     apt-get update > /dev/null; \
     apt-get install --no-install-recommends -y \
     # -race links against the C runtime, and the launcher's suite builds

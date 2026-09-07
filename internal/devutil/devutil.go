@@ -118,5 +118,46 @@ func DockerIgnore(root string) error {
 		return err
 	}
 
-	return utils.OutputFile(filepath.Join(root, ".dockerignore"), s)
+	return utils.OutputFile(filepath.Join(root, ".dockerignore"), dockerIgnore(s))
+}
+
+// dockerIgnore is a .gitignore's text as docker reads it. The two do not read
+// a pattern the same way: git matches one with no slash in it at every depth,
+// docker only at the root of the build context, so a bare node_modules would
+// leave internal/tools/node_modules, which the setup tool's npm ci makes, in
+// the context, where a symbolic link of it fails the build. Each such pattern
+// is therefore written a second time under **/, in place rather than
+// appended, so that a negation further down still wins over both.
+func dockerIgnore(gitignore string) string {
+	lines := strings.Split(gitignore, "\n")
+	out := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		out = append(out, line)
+
+		if deep, has := anyDepth(line); has {
+			out = append(out, deep)
+		}
+	}
+
+	return strings.Join(out, "\n")
+}
+
+// anyDepth is one .gitignore line rewritten to match at every depth, and
+// whether it is a pattern that needs it: a blank line, a comment and a
+// pattern with a slash of its own are already read the same way by both.
+func anyDepth(line string) (string, bool) {
+	pattern := strings.TrimSpace(line)
+
+	negation := ""
+	if strings.HasPrefix(pattern, "!") {
+		negation, pattern = "!", pattern[1:]
+	}
+
+	if pattern == "" || strings.HasPrefix(pattern, "#") ||
+		strings.Contains(strings.TrimSuffix(pattern, "/"), "/") {
+		return "", false
+	}
+
+	return negation + "**/" + pattern, true
 }
