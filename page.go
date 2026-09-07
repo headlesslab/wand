@@ -857,11 +857,16 @@ func (p *Page) WaitIdle(timeout time.Duration) (err error) {
 	return err
 }
 
-// WaitRepaint waits until the next repaint.
+// WaitRepaint waits until the next repaint. A hidden or frozen page paints no
+// frame, so the wait ends only with the page's context: use [Page.Timeout] or
+// [Page.Context] to bound it.
 // Doc: https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
 func (p *Page) WaitRepaint() error {
-	// we use root here because iframe doesn't trigger requestAnimationFrame
-	_, err := p.root.Eval(`() => new Promise(r => requestAnimationFrame(r))`)
+	// The root page evaluates it because an iframe does not trigger
+	// requestAnimationFrame, under this page's context because the root keeps
+	// its own: a clone made by Page.Context or Page.Timeout still points at
+	// the original root, whose context outlives the caller's (rod #1179).
+	_, err := p.root.Context(p.ctx).Eval(`() => new Promise(r => requestAnimationFrame(r))`)
 	return err
 }
 
