@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -19,7 +20,9 @@ import (
 
 var _ WebSocketable = &WebSocket{}
 
-// WebSocket client for chromium. It only implements a subset of WebSocket protocol.
+// WebSocket client for chromium. It only implements a subset of WebSocket protocol:
+// text frames in one piece each way, masked with a fixed key, the control frames
+// handled inside Read, no extensions, and the peer's framing taken on trust.
 // Both the Read and Write are thread-safe.
 // Limitation: https://bugs.chromium.org/p/chromium/issues/detail?id=1069431
 // Ref: https://tools.ietf.org/html/rfc6455
@@ -27,9 +30,10 @@ type WebSocket struct {
 	// Dialer is usually used for proxy
 	Dialer Dialer
 
-	lock sync.Mutex
-	conn net.Conn
-	r    *bufio.Reader
+	readLock  sync.Mutex
+	writeLock sync.Mutex
+	conn      net.Conn
+	r         *bufio.Reader
 }
 
 // Connect to browser.
@@ -75,20 +79,40 @@ func (ws *WebSocket) initDialer(u *url.URL) {
 	}
 }
 
+// Opcodes of RFC 6455 section 5.2 that the client sends or acts on.
+const (
+	opText  = 0x1
+	opClose = 0x8
+	opPing  = 0x9
+	opPong  = 0xA
+)
+
+// closeNoStatus is the code CloseError reports for a close frame without one
+// (RFC 6455 section 7.4.1).
+const closeNoStatus = 1005
+
 // Send a message to browser.
 // Because we use zero-copy design, it will modify the content of the msg.
 // It won't allocate new memory.
 func (ws *WebSocket) Send(msg []byte) error {
-	err := ws.send(msg)
+	err := ws.write(opText, msg)
 	if err != nil {
 		_ = ws.Close()
 	}
 	return err
 }
 
-func (ws *WebSocket) send(msg []byte) error {
-	// FIN is alway true, Opcode is always text frame.
-	header := [18]byte{0b1000_0001, 0b1000_0000}
+// write sends one frame with FIN set, masked as a client's frames must be
+// (RFC 6455 section 5.3; with the fixed key upstream chose, since the
+// unpredictable one the section asks for guards proxies against a hostile
+// page's payloads, not against a driver's own CDP messages), under the write
+// lock, so frames from Send and the replies Read sends never interleave.
+// The payload is masked in place.
+func (ws *WebSocket) write(op byte, msg []byte) error {
+	ws.writeLock.Lock()
+	defer ws.writeLock.Unlock()
+
+	header := [18]byte{0b1000_0000 | op, 0b1000_0000}
 	mask := []byte{0, 1, 2, 3}
 
 	size := len(msg)
@@ -124,28 +148,63 @@ func (ws *WebSocket) send(msg []byte) error {
 	return err
 }
 
-// Read a message from browser.
+// Read a message from browser. Control frames never come back as messages
+// (rod #1187): a ping is answered with a pong carrying its payload, a pong
+// is dropped, and a close frame is answered with a close frame and ends the
+// connection with a CloseError. Chrome sends none of them, other CDP servers
+// and proxies do.
 func (ws *WebSocket) Read() ([]byte, error) {
-	b, err := ws.read()
-	if err != nil {
-		_ = ws.Close()
-		return nil, err
+	for {
+		op, data, err := ws.read()
+		if err == nil {
+			switch op {
+			case opPing:
+				err = ws.write(opPong, data)
+			case opPong:
+				// Unsolicited pongs are allowed (RFC 6455 section 5.5.3).
+			case opClose:
+				err = ws.replyClose(data)
+			default:
+				return data, nil
+			}
+		}
+		if err != nil {
+			_ = ws.Close()
+			return nil, err
+		}
 	}
-	return b, nil
 }
 
-func (ws *WebSocket) read() ([]byte, error) {
-	ws.lock.Lock()
-	defer ws.lock.Unlock()
-
-	_, err := ws.r.ReadByte()
-	if err != nil {
-		return nil, err
+// replyClose answers a close frame with one echoing its status code, as
+// RFC 6455 section 5.5.1 has it, and reports the close. The reply is best
+// effort: the peer's close is the fact to report, whether or not the socket
+// still takes a write.
+func (ws *WebSocket) replyClose(data []byte) error {
+	e := &CloseError{Code: closeNoStatus}
+	var code []byte
+	if len(data) >= 2 {
+		code = data[:2]
+		e.Code = int(binary.BigEndian.Uint16(code))
+		e.Reason = string(data[2:])
 	}
+	_ = ws.write(opClose, code)
+	return e
+}
+
+// read one frame: its opcode and payload.
+func (ws *WebSocket) read() (byte, []byte, error) {
+	ws.readLock.Lock()
+	defer ws.readLock.Unlock()
 
 	b, err := ws.r.ReadByte()
 	if err != nil {
-		return nil, err
+		return 0, nil, err
+	}
+	op := b & 0x0f
+
+	b, err = ws.r.ReadByte()
+	if err != nil {
+		return 0, nil, err
 	}
 
 	size := 0
@@ -164,7 +223,7 @@ func (ws *WebSocket) read() ([]byte, error) {
 	for i := 0; i < fieldLen; i++ {
 		b, err := ws.r.ReadByte()
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
 
 		size = size<<8 + int(b)
@@ -172,7 +231,23 @@ func (ws *WebSocket) read() ([]byte, error) {
 
 	data := make([]byte, size)
 	_, err = io.ReadFull(ws.r, data)
-	return data, err
+	return op, data, err
+}
+
+// CloseError is the error Read returns once the peer has sent a close frame
+// (RFC 6455 section 5.5.1): the connection is over, and Code and Reason are
+// what the peer gave for it. Code is 1005 when the frame carried none.
+type CloseError struct {
+	Code   int
+	Reason string
+}
+
+func (e *CloseError) Error() string {
+	msg := fmt.Sprintf("websocket closed by the peer: %d", e.Code)
+	if e.Reason != "" {
+		msg += " " + e.Reason
+	}
+	return msg
 }
 
 // BadHandshakeError type.
