@@ -179,11 +179,12 @@ func New() *Launcher {
 // this launcher started exits, [Launcher.Cleanup] removes the profile like
 // any user data directory; [Launcher.Kill] leaves it. The browser comes from
 // the same Browser resolution as [New], so a System browser is preferred to a
-// Managed one.
+// Managed one, and in a container the sandbox is off for the same reason it
+// is in [New].
 func NewUserMode() *Launcher {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Launcher{
+	l := &Launcher{
 		ctx:       ctx,
 		ctxCancel: cancel,
 		Flags: map[flags.Flag][]string{
@@ -205,6 +206,14 @@ func NewUserMode() *Launcher {
 		parser:     NewURLParser(),
 		logger:     io.Discard,
 	}
+
+	// As in New: a container is usually root, and Chrome refuses to start as
+	// root with its sandbox on.
+	if inContainer {
+		l.Set(flags.NoSandbox)
+	}
+
+	return l
 }
 
 // NewAppMode is a preset to run the browser like a native application.
