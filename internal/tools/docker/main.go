@@ -1,169 +1,154 @@
-// Package main builds, tests and publishes the wand container image.
-// The image workflow runs it with the git ref that triggered the run:
+// Package main is wand's image build script: it builds the two container
+// images from the checkout it is run in, proves what the image Gate proves,
+// and pushes nothing. Publishing the tags is the release workflow's, so this
+// tool never logs in to a registry (spec #33, section 14; ticket #55).
 //
-//	GITHUB_TOKEN=$TOKEN go run ./internal/tools/docker $GITHUB_REF
+//	go run ./internal/tools/docker [-image name] [-platform p] [-suite]
+//
+// It writes the .dockerignore, builds the runtime image and then the :dev
+// image on top of the one it has just built, runs the manager and Chrome out
+// of the runtime image and holds the version Chrome reports to the Target
+// Chrome pin, and with -suite runs wand's whole suite and the Zero leftover
+// check inside the :dev image against this checkout. Run it from the module
+// root, as go generate runs the generators.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"os/exec"
-	"regexp"
+	"path/filepath"
 	"strings"
 
 	"github.com/headlesslab/wand/internal/devutil"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
 func main() {
-	event := os.Args[1]
+	opts := options{}
 
-	fmt.Println("Event:", event)
+	flag.StringVar(&opts.image, "image", "ghcr.io/headlesslab/wand",
+		"the name to build the runtime image under; the development image takes the same name at :dev")
+	flag.StringVar(&opts.platform, "platform", "",
+		"the platform to build for, such as linux/arm64; empty builds for the machine's own, as every image job does")
+	flag.BoolVar(&opts.suite, "suite", false,
+		"run wand's whole suite and the Zero leftover check inside the development image after the build")
+	flag.Parse()
 
-	isMain := regexp.MustCompile(`^refs/heads/main$`).MatchString(event)
-	m := regexp.MustCompile(`^refs/tags/(v[0-9]+\.[0-9]+\.[0-9]+)$`).FindStringSubmatch(event)
-	ver := ""
-	if len(m) > 1 {
-		ver = m[1]
-	}
-
-	at := getArchType()
-
-	switch {
-	case isMain:
-		releaseLatest(at)
-	case ver != "":
-		releaseWithVer(ver)
-	default:
-		test(at)
-	}
-}
-
-func releaseLatest(at archType) {
-	login()
-	test(at)
-
-	devutil.Exec("docker push", at.tagDev())
-	devutil.Exec("docker push", at.tag())
-}
-
-func releaseWithVer(ver string) {
-	login()
-
-	verImageDev := registry + ":" + ver + "-dev"
-	devutil.Exec("docker manifest create", verImageDev, archAmd.tagDev(), archArm.tagDev())
-	devutil.Exec("docker manifest push", verImageDev)
-
-	verImage := registry + ":" + ver
-	devutil.Exec("docker manifest create", verImage, archAmd.tag(), archArm.tag())
-	devutil.Exec("docker manifest push", verImage)
-
-	registryDev := registry + ":dev"
-	devutil.Exec("docker manifest create", registryDev, archAmd.tagDev(), archArm.tagDev())
-	devutil.Exec("docker manifest push", registryDev)
-
-	devutil.Exec("docker manifest create", registry, archAmd.tag(), archArm.tag())
-	devutil.Exec("docker manifest push", registry)
-}
-
-func test(at archType) {
-	devutil.Exec("docker build -f=docker/Dockerfile", "--platform", at.platform(), "-t", at.tag(), description(false), ".")
-	devutil.Exec("docker build -f=docker/dev.Dockerfile",
-		"--platform", at.platform(),
-		"--build-arg", "golang="+at.golang(),
-		"--build-arg", "nodejs="+at.nodejs(),
-		"-t", at.tagDev(),
-		description(true), ".",
-	)
-
-	devutil.Exec("docker run", at.tag(), "wand-manager", "-h")
-
-	// TODO: arm cross execution for chromium doesn't work well on github actions.
-	if at != archArm {
-		wd, err := os.Getwd()
-		utils.E(err)
-		devutil.Exec("docker run -w=/t -v", fmt.Sprintf("%s:/t", wd), at.tagDev(), "go", "run", "./internal/tools/ci-test")
-	}
-}
-
-func login() {
-	cmd := exec.Command("docker", "login", "-u=rod-robot", "-p", os.Getenv("GITHUB_TOKEN"), registry)
-	out, err := cmd.CombinedOutput()
+	wd, err := os.Getwd()
 	utils.E(err)
-	utils.E(os.Stdout.Write(out))
-}
+	opts.dir = wd
 
-var headSha = strings.TrimSpace(devutil.ExecLine(false, "git", "rev-parse", "HEAD"))
+	utils.E(devutil.DockerIgnore(opts.dir))
 
-func description(dev bool) string {
-	f := "Dockerfile"
-	if dev {
-		f = "dev." + f
+	devutil.ExecLine(true, "", opts.buildRuntime()...)
+	devutil.ExecLine(true, "", opts.buildDev()...)
+
+	// The manager is the image's entrypoint, so a manager that cannot start
+	// is an image that cannot serve; -h exits 0 and launches nothing.
+	devutil.ExecLine(true, "", opts.run(opts.image, "wand-manager", "-h")...)
+
+	// The Target Chrome is a pin and not a lookup, which is what makes the
+	// linux/amd64 and the linux/arm64 image carry the same version: each
+	// image job holds its own to the same pin.
+	out := devutil.ExecLine(true, "", opts.run(opts.image, "chrome", "--version")...)
+	if got := chromeVersion(out); got != pins.ChromeVersion {
+		utils.E(fmt.Errorf("the browser in %s is Chrome %q, not the Target Chrome pin %q",
+			opts.image, got, pins.ChromeVersion))
 	}
 
-	return `--label=org.opencontainers.image.description=https://github.com/headlesslab/wand/blob/` + headSha + "/docker/" + f
-}
-
-const registry = "ghcr.io/headlesslab/wand"
-
-type archType int
-
-const (
-	archAmd archType = iota
-	archArm
-)
-
-func getArchType() archType {
-	arch := os.Getenv("ARCH")
-	switch arch {
-	case "arm":
-		return archArm
-	default:
-		return archAmd
+	if opts.suite {
+		devutil.ExecLine(true, "", opts.runSuite()...)
 	}
 }
 
-func (at archType) platform() string {
-	switch at {
-	case archArm:
-		return "linux/arm64"
-	default:
-		return "linux/amd64"
-	}
+// options is one run of the script.
+type options struct {
+	image    string
+	platform string
+	suite    bool
+	dir      string
 }
 
-func (at archType) tag() string {
-	switch at {
-	case archArm:
-		return registry + ":arm"
-	default:
-		return registry + ":amd"
-	}
+// dev is the development image's name: the runtime image's at :dev, the tag
+// the release workflow publishes it under.
+func (o options) dev() string {
+	return o.image + ":dev"
 }
 
-func (at archType) tagDev() string {
-	switch at {
-	case archArm:
-		return registry + ":arm-dev"
-	default:
-		return registry + ":amd-dev"
-	}
+// buildRuntime builds the runtime image from docker/Dockerfile.
+func (o options) buildRuntime() []string {
+	return append(o.build("docker/Dockerfile", o.image), ".")
 }
 
-func (at archType) golang() string {
-	switch at {
-	case archArm:
-		return "https://go.dev/dl/go1.19.1.linux-arm64.tar.gz"
-	default:
-		return "https://go.dev/dl/go1.19.1.linux-amd64.tar.gz"
-	}
+// buildDev builds the development image on top of the runtime image just
+// built, rather than on whatever the registry holds under that name.
+func (o options) buildDev() []string {
+	return append(o.build("docker/dev.Dockerfile", o.dev()), "--build-arg", "base="+o.image, ".")
 }
 
-func (at archType) nodejs() string {
-	switch at {
-	case archArm:
-		return "https://nodejs.org/dist/v16.17.0/node-v16.17.0-linux-arm64.tar.xz"
-	default:
-		return "https://nodejs.org/dist/v16.17.0/node-v16.17.0-linux-x64.tar.xz"
+// build is the common head of the two builds. Nothing is pushed and nothing
+// is pulled that a digest does not name.
+func (o options) build(dockerfile, tag string) []string {
+	args := []string{"docker", "build", "--file", dockerfile, "--tag", tag}
+	if o.platform != "" {
+		args = append(args, "--platform", o.platform)
 	}
+
+	return args
+}
+
+// run is one command in a throw-away container of image.
+func (o options) run(image string, cmd ...string) []string {
+	return o.runWith(nil, image, cmd...)
+}
+
+// runWith is run with docker flags of its own between the platform and the
+// image name.
+func (o options) runWith(dockerArgs []string, image string, cmd ...string) []string {
+	args := []string{"docker", "run", "--rm"}
+	if o.platform != "" {
+		args = append(args, "--platform", o.platform)
+	}
+
+	args = append(args, dockerArgs...)
+
+	return append(append(args, image), cmd...)
+}
+
+// runSuite runs the suite over this checkout, mounted into the development
+// image, so that what the container tests is the tree the script was started
+// from and the CDP logs of a failed test land back on the host for the image
+// job to upload.
+func (o options) runSuite() []string {
+	mount := filepath.ToSlash(o.dir) + ":" + workdir
+
+	return o.runWith([]string{"--volume", mount, "--workdir", workdir}, o.dev(), "bash", "-c", suite)
+}
+
+// workdir is where runSuite mounts the checkout inside the container, the
+// working directory the development image sets.
+const workdir = "/wand"
+
+// suite is what the development image runs: wand's whole suite through the
+// ci-test wrapper, then the Zero leftover check in the same PID namespace,
+// so that a browser the suite left behind is found while it is still there.
+// Examples reach the public internet until #52 lands, hence -run=^Test, as
+// in every Tier 1 job.
+const suite = `go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+status=$?
+go run ./internal/tools/zero-leftover || status=1
+exit $status
+`
+
+// chromeVersion is the version a browser reports for --version, the last
+// field of a line such as "Google Chrome for Testing 153.0.8010.12".
+func chromeVersion(out string) string {
+	fields := strings.Fields(out)
+	if len(fields) == 0 {
+		return ""
+	}
+
+	return fields[len(fields)-1]
 }

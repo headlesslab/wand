@@ -70,6 +70,21 @@ func TestExecLineReturnsStdoutOnly(t *testing.T) {
 	g.Eq(devutil.ExecLine(false, "go build -n ."), "")
 }
 
+func TestDockerIgnore(t *testing.T) {
+	g := setup(t)
+
+	root := g.Testable.(*testing.T).TempDir()
+	g.Err(devutil.DockerIgnore(root))
+
+	ignore := "tmp/\n*.exe\n"
+	g.E(os.WriteFile(filepath.Join(root, ".gitignore"), []byte(ignore), 0o600))
+	g.E(devutil.DockerIgnore(root))
+
+	s, err := devutil.ReadString(filepath.Join(root, ".dockerignore"))
+	g.E(err)
+	g.Eq(s, ignore)
+}
+
 func TestEscapeGoString(t *testing.T) {
 	g := setup(t)
 

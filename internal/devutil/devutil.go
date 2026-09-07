@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -104,4 +105,18 @@ func ExecLine(std bool, line string, rest ...string) string {
 // make git diff every large for small change.
 func EscapeGoString(s string) string {
 	return "`" + strings.ReplaceAll(s, "`", "` + \"`\" + `") + "`"
+}
+
+// DockerIgnore writes the .dockerignore of the module at root from the
+// .gitignore beside it, so that an image build context holds what a clean
+// checkout holds and nothing more. The setup tool writes it as a step of go
+// generate; the image build script writes it so that a build from a fresh
+// clone needs no other step first.
+func DockerIgnore(root string) error {
+	s, err := ReadString(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		return err
+	}
+
+	return utils.OutputFile(filepath.Join(root, ".dockerignore"), s)
 }
