@@ -7,12 +7,14 @@
 //	go run ./internal/tools/zero-leftover [-wait 30s]
 //
 // The wait covers a browser still exiting when the suite's process has
-// ended: Launcher.Cleanup and the Orphan guard are bounded by ten seconds,
-// and a crash handler may outlive its browser by a moment. What is left
-// after the wait is listed, process by process and directory by directory,
-// so the log names the leftover rather than a bare failure. Nothing is
-// killed or removed: a leftover on a hosted runner is a bug in a test or in
-// the launcher, and the red step is what shows it.
+// ended: Launcher.Cleanup gives a browser ten seconds before killing it, and
+// a crash handler may outlive its browser by a moment. What is left after
+// the wait is listed on stderr, process by process and directory by
+// directory, so the log names the leftover rather than a bare failure.
+// Nothing is killed or removed: a leftover on a hosted runner is a bug in a
+// test or in the launcher, and the red step is what shows it. Any browser
+// on the machine counts, a developer's own included: the tool is written for
+// a runner that is the job's alone.
 package main
 
 import (
@@ -34,7 +36,7 @@ func main() {
 	wait := flag.Duration("wait", 30*time.Second, "how long to wait for the last browser to be gone")
 	flag.Parse()
 
-	os.Exit(run(context.Background(), os.Stdout, options{
+	os.Exit(run(context.Background(), os.Stdout, os.Stderr, options{
 		wait:   *wait,
 		poll:   time.Second,
 		list:   listProcesses,
@@ -62,15 +64,15 @@ func (p process) String() string {
 	return fmt.Sprintf("pid %d %s", p.pid, p.name)
 }
 
-// run polls until nothing is left or the wait is over. The exit status is 0
-// when the machine is clean and 1 when something is left or cannot be
-// looked at.
-func run(ctx context.Context, out io.Writer, opts options) int {
+// run polls until nothing is left or the wait is over, and says so on out;
+// what is wrong goes to errOut. The exit status is 0 when the machine is
+// clean and 1 when something is left or cannot be looked at.
+func run(ctx context.Context, out, errOut io.Writer, opts options) int {
 	deadline := time.Now().Add(opts.wait)
 	for {
 		processes, dirs, err := leftover(ctx, opts)
 		if err != nil {
-			_, _ = fmt.Fprintf(out, "zero-leftover: %v\n", err)
+			_, _ = fmt.Fprintf(errOut, "zero-leftover: %v\n", err)
 			return 1
 		}
 		if len(processes) == 0 && len(dirs) == 0 {
@@ -78,7 +80,7 @@ func run(ctx context.Context, out io.Writer, opts options) int {
 			return 0
 		}
 		if !time.Now().Before(deadline) {
-			report(out, opts, processes, dirs)
+			report(errOut, opts.wait, processes, dirs)
 			return 1
 		}
 		time.Sleep(opts.poll)
@@ -120,10 +122,10 @@ func browsers(processes []process) []process {
 }
 
 // report lists what is left after the wait, one per line.
-func report(out io.Writer, opts options, processes []process, dirs []string) {
+func report(out io.Writer, wait time.Duration, processes []process, dirs []string) {
 	_, _ = fmt.Fprintf(out, "zero-leftover: %s and %s left after %s:\n",
 		plural(len(processes), "browser process", "browser processes"),
-		plural(len(dirs), "directory", "directories"), opts.wait)
+		plural(len(dirs), "directory", "directories"), wait)
 	for _, p := range processes {
 		_, _ = fmt.Fprintf(out, "  %s\n", p)
 	}

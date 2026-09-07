@@ -144,24 +144,33 @@ jobs:
 
       # The root suite resolves the browser once in TestMain and prints the
       # path and the version the browser reports, before any test; a run of
-      # no test prints that one line. The version must be the Target Chrome
-      # pin, and the path the Companion Chromium pin, since a Chromium trunk
-      # build has a position, not a version. The pins come through the pins
-      # printer, never by parsing source.
+      # no test prints that one line. The version the browser reports must be
+      # the Target Chrome pin. A Chromium trunk build has a position, not a
+      # version, so the Companion Chromium is held to its pin by the path,
+      # chromium-<position> being the launcher's directory for it, and to the
+      # Target Chrome's major by the version it reports, since the Companion
+      # sits at or below the Target Chrome's branch position. The pins come
+      # through the pins printer, never by parsing source.
       - name: The browser is the pin
         env:
           SOURCE: ${{ matrix.source }}
         run: |
           go test -count=1 -run '^$' -v . | tee browser.log
           line="$(grep '^browser: ' browser.log)"
-          pin="$(go run ./internal/tools/print-pins -json | jq -r ".$SOURCE")"
-          echo "pin: $pin"
+          pins="$(go run ./internal/tools/print-pins -json)"
+          chrome="$(jq -r .chrome <<< "$pins")"
+          chromium="$(jq -r .chromium <<< "$pins")"
+          echo "pins: $pins"
           case "$SOURCE" in
             chrome)
-              [[ "$line" == "browser: $WAND_BROWSER_BIN ("*"/$pin), "* ]] ;;
+              want="browser: $WAND_BROWSER_BIN (<product>/$chrome), <n> pooled testers"
+              [[ "$line" == "browser: $WAND_BROWSER_BIN ("*"/$chrome), "* ]] ;;
             chromium)
-              [[ "$WAND_BROWSER_BIN" == *"/chromium-$pin/"* && "$line" == "browser: $WAND_BROWSER_BIN ("* ]] ;;
-          esac
+              want="browser: <path with /chromium-$chromium/> (<product>/${chrome%%.*}.<version>), <n> pooled testers"
+              [[ "$WAND_BROWSER_BIN" == *"/chromium-$chromium/"* && "$line" == "browser: $WAND_BROWSER_BIN ("*"/${chrome%%.*}."* ]] ;;
+            *)
+              want="a source of chrome or chromium, not \"$SOURCE\"" && false ;;
+          esac || { echo "::error::the browser is not the pin: got \"$line\", want $want"; exit 1; }
 
       # Everything runs from the workspace root. `./...` stops at the two
       # nested example modules, so they are named to be compiled against this
@@ -208,14 +217,8 @@ jobs:
             main-packages.txt coverage.out > coverage-lib.out
           go run github.com/ysmood/got/cmd/check-cov -cov-file=coverage-lib.out
 
-      # Zero leftover: whatever the outcome above, the job ends by waiting up
-      # to 30 s for the last browser to be gone and fails on any chrome or
-      # chromium process still running or any user data directory the
-      # launcher left under its temporary prefix; what is left is listed.
-      - name: Zero leftover
-        if: always()
-        run: go run ./internal/tools/zero-leftover
-
+      # The CDP logs of the failed tests (the root suite removes a passed
+      # test's), the coverage profile and the browser line.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -224,6 +227,14 @@ jobs:
             tmp/cdp-log
             coverage.out
             browser.log
+
+      # Zero leftover: whatever the outcome above, the job ends by waiting up
+      # to 30 s for the last browser to be gone and fails on any chrome or
+      # chromium process still running or any user data directory the
+      # launcher left under its temporary prefix; what is left is listed.
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
 
   # Tier 2: built and vetted, and every test binary compiled, on the Go floor
   # and then on Go stable, never run with a browser (CONTEXT.md, Support
@@ -261,8 +272,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # The Go floor: the version go.mod declares, at its latest patch.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      # The Go floor: the version go.mod declares, at its latest patch. The
+      # two example modules are named as in Tier 1; e2e-testing has only
+      # test files, so compiling the tests is the one step that builds it.
+      - name: Go floor
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: 1.21.x
           check-latest: true
@@ -276,11 +290,12 @@ jobs:
 
       - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
 
-      - name: Compile the tests
-        run: go test -c -o "$([[ "$RUNNER_OS" == Windows ]] && echo NUL || echo /dev/null)" ./...
+      - name: Compile the tests (Go floor)
+        run: go test -c -o "$([[ "$RUNNER_OS" == Windows ]] && echo NUL || echo /dev/null)" ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
 
-      # Go stable, the same three steps.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      # Go stable, the same steps.
+      - name: Go stable
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: stable
           check-latest: true
@@ -294,8 +309,8 @@ jobs:
 
       - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
 
-      - name: Compile the tests
-        run: go test -c -o "$([[ "$RUNNER_OS" == Windows ]] && echo NUL || echo /dev/null)" ./...
+      - name: Compile the tests (Go stable)
+        run: go test -c -o "$([[ "$RUNNER_OS" == Windows ]] && echo NUL || echo /dev/null)" ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
 
   # The generate Gate: every go:generate step of browser.go, in its order,
   # from the pinned inputs (the devtools-protocol tag the pins name, the
