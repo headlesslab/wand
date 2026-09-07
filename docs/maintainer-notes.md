@@ -12,17 +12,18 @@ go run ./internal/tools/repo-settings [-app <slug>] [-check <context>]... [-dry-
 
 It needs the GitHub CLI logged in as a user with admin access to every repository listed (`gh auth status`; a classic token needs the `repo` scope). The bundle, in the order the script applies it:
 
-| Setting                         | What the script sets                                                                                                                                                                                                                     | Where it shows in the repository settings |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Secret scanning                 | On                                                                                                                                                                                                                                       | Advanced Security → Secret Protection     |
-| Push protection                 | On (needs secret scanning first)                                                                                                                                                                                                         | Advanced Security → Secret Protection     |
-| Dependabot alerts               | On                                                                                                                                                                                                                                       | Advanced Security → Dependabot            |
-| Dependabot security updates     | On (needs the alerts first)                                                                                                                                                                                                              | Advanced Security → Dependabot            |
-| Private vulnerability reporting | On                                                                                                                                                                                                                                       | Advanced Security                         |
-| Immutable releases              | On: a published release's tag and assets are locked; title, notes and the pre-release and latest markers stay editable                                                                                                                   | General → Releases                        |
-| Actions SHA pinning             | Required: every action reference must be a full-length commit SHA; the other Actions permissions are left as they are                                                                                                                    | Actions → General                         |
-| Ruleset `main`                  | Targets the default branch. Rules: no deletion, no force push, every change through a pull request (no approvals required), and the `-check` contexts required green before a merge. With no `-check` the status-check rule is left out. | Rules → Rulesets                          |
-| Ruleset `v*`                    | Targets `refs/tags/v*`. Creating, moving and deleting such a tag is restricted to the bypass actors, so a published tag never changes (ADR-0008).                                                                                        | Rules → Rulesets                          |
+| Setting                         | What the script sets                                                                                                                                                                                                                                                                                                                                  | Where it shows in the repository settings |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Secret scanning                 | On                                                                                                                                                                                                                                                                                                                                                    | Advanced Security → Secret Protection     |
+| Push protection                 | On (needs secret scanning first)                                                                                                                                                                                                                                                                                                                      | Advanced Security → Secret Protection     |
+| Dependabot alerts               | On                                                                                                                                                                                                                                                                                                                                                    | Advanced Security → Dependabot            |
+| Dependabot security updates     | On (needs the alerts first)                                                                                                                                                                                                                                                                                                                           | Advanced Security → Dependabot            |
+| Private vulnerability reporting | On                                                                                                                                                                                                                                                                                                                                                    | Advanced Security                         |
+| CodeQL default setup            | Configured for Go, default query suite: GitHub runs the analysis from a workflow of its own, on every pull request, on a push to the default branch and weekly. A setup configured for another set of languages is drift and is rewritten.                                                                                                            | Advanced Security → Code scanning         |
+| Immutable releases              | On: a published release's tag and assets are locked; title, notes and the pre-release and latest markers stay editable                                                                                                                                                                                                                                | General → Releases                        |
+| Actions SHA pinning             | Required: every action reference must be a full-length commit SHA; the other Actions permissions are left as they are                                                                                                                                                                                                                                 | Actions → General                         |
+| Ruleset `main`                  | Targets the default branch. Rules: no deletion, no force push, every change through a pull request (no approvals required), CodeQL's verdict on the pull request (no new alert of high security severity or worse, none at error level), and the `-check` contexts required green before a merge. With no `-check` the status-check rule is left out. | Rules → Rulesets                          |
+| Ruleset `v*`                    | Targets `refs/tags/v*`. Creating, moving and deleting such a tag is restricted to the bypass actors, so a published tag never changes (ADR-0008).                                                                                                                                                                                                     | Rules → Rulesets                          |
 
 Both rulesets list the repository admin role as a bypass actor with mode "always", and the GitHub App from `-app` beside it once it exists. A bypass actor can still push to `main` directly and cut a `v*` tag by hand, which is how the satellites are released; the Gates bind everyone else, Dependabot included. Rulesets inherited from the organisation are ignored.
 
@@ -43,6 +44,7 @@ go run ./internal/tools/repo-settings \
   -check "Tier 2 windows/arm64" \
   -check "Tier 2 linux/loong64" \
   -check "Generate (zero diff)" \
+  -check "Dependency review" \
   headlesslab/wand
 
 go run ./internal/tools/repo-settings \
@@ -62,13 +64,14 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires the eleven jobs of `.github/workflows/gate.yml`: the linux/amd64 stable job, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the generate job (ticket #42), added to the line above by its pull request and applied by re-running the line once the job had reported; and the other six Tier 1 jobs and the three Tier 2 jobs (ticket #54), added the same way. The remaining Gates (spec #33, section 13: the in-container run of #55, the security Gates of #56) land with their tickets, and each adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`.
+wand's `main` ruleset requires the twelve jobs of `.github/workflows/gate.yml`: the linux/amd64 stable job, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the generate job (ticket #42), added to the line above by its pull request and applied by re-running the line once the job had reported; the other six Tier 1 jobs and the three Tier 2 jobs (ticket #54), added the same way; and the dependency review job (ticket #56). `govulncheck` needs no name of its own: it is a step of the linux/amd64 stable job, already required. The remaining Gate (spec #33, section 13: the in-container run of #55) lands with its ticket, and adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`. The same holds for the code scanning rule the bundle writes: it names CodeQL, and a tool name code scanning does not report would block every merge just as surely.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 
 ### What stays human
 
 - The GitHub App and organisation-wide two-factor authentication (#58). Once the App exists and is installed on the repositories, re-run every line above with `-app <slug>` so the App becomes a bypass actor of both rulesets; that is the only way the Roll and the release workflow can push to `main` and create tags. `-app` also takes the numeric App ID from the App's settings page, for a private App the apps endpoint does not show to the token.
+- The alerts CodeQL's first analysis finds. The ruleset holds a pull request to what it adds, so the Snapshot's own findings block nothing, but the rc ships with none open (#15): each is fixed, or dismissed in the Security tab with a reason, until the count is zero. Check there once the first analysis of `main` has finished, a few minutes after the setup is switched on.
 - Organisation-level settings and rulesets: the script touches repositories only.
 - Turning a setting off: the script only switches things on and creates or updates the two rulesets. Anything else is a hand change in the repository settings, which the next run reports as drift and reverts.
 
@@ -125,6 +128,40 @@ On Windows an editor's language server that holds the freshly written files can 
 Nothing in that chain resolves a version at run time: the Node tools (cspell, eslint with its html plugin, prettier, uglify-js) are named at exact versions in `internal/tools/package.json` and installed from `internal/tools/package-lock.json` with `npm ci`; golangci-lint is run through `go run` at the version `internal/devutil/tools.go` pins, and its formatters (gofmt, gofumpt, goimports, gci) run at the versions its own module pins, so that one line moves them all. Node must be on `PATH` locally; the Gate installs it with `actions/setup-node`. To move a tool, change the version in `package.json` and run `npm install --prefix internal/tools` for the lockfile, or change the line in `tools.go`, then run `go generate` and commit whatever it reformats.
 
 The repository's `.golangci.yml` is upstream's configuration migrated to the v2 schema, the way `headlesslab/.github` did for the Satellite modules, with the linters newer than upstream's set that would restyle the Snapshot disabled and each reason written beside the name; turning one on is a change of its own, once the upstream pull requests are harvested.
+
+## The security Gates, Dependabot and Scorecard
+
+What a pull request must survive besides the tests, what moves the pins nobody moves by hand, and what wand publishes about itself (spec #33, section 16; ticket #56, on the security posture decision #31).
+
+### On a pull request
+
+| Gate                | Where it runs                                                    | What reds it                                                                                                                                                                    |
+| ------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `govulncheck ./...` | a step of the `Tier 1 linux/amd64 (Go stable)` job               | a vulnerable function of a dependency or of the standard library that wand's own code can reach                                                                                 |
+| Dependency review   | the `Dependency review` job, on the pull request event alone     | in what the pull request adds to the dependency graph: an advisory of high severity or worse, or a licence outside MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC and MPL-2.0 |
+| CodeQL              | GitHub's own workflow, from the default setup the bundle applies | an alert the pull request adds, of high security severity or worse or at error level; the `main` ruleset's code scanning rule is what holds the merge                           |
+
+`go run ./internal/tools/govulncheck` is the same scan a developer runs, at the version `internal/devutil` pins; pass arguments to reach one package instead of `./...`. It reads the Go vulnerability database, so it needs the network, and x/vuln's Go floor is far above wand's, so with `GOTOOLCHAIN=local` only the stable job can build it: hence one scan, on that job. Source mode is what makes it quiet enough to gate on — a vulnerability in a package wand imports but never calls into is reported and passes. An advisory published against unchanged code reds the next run; the Nightly rerun on `main` (#61) is what surfaces one the same morning rather than at the next pull request.
+
+Widening the licence allowlist is a reviewed change to `gate.yml`. `gosec` stays disabled in `.golangci.yml`, as upstream had it: CodeQL is the source-analysis Gate.
+
+### Dependabot
+
+`.github/dependabot.yml`, all weekly: `github-actions` at the root (the SHA pins of every workflow), `docker` on `docker/` (the base image digests), and `npm` on `internal/tools/` as one group, so a week's linter updates arrive as one pull request with one resolved lockfile. Go modules get no version pull request at all — the limit of zero says so in the file — while Dependabot security updates, which the settings bundle turns on, are not subject to that limit and open one as soon as an advisory matches. Everything else in `go.mod` moves through a hand pull request, prompted by a satellite release or by the Nightly `go get -u ./...`.
+
+Every Dependabot pull request runs the full Gate and merges like any other; it gets no secrets, which nothing in the Gate needs.
+
+### Scorecard
+
+`.github/workflows/scorecard.yml` runs weekly and on every push to `main`. It publishes to the OpenSSF API, which is what the badge and the public dataset read, and uploads its SARIF to code scanning, where a failing check reads as an alert beside CodeQL's. It is neither a Gate nor a Nightly: it blocks no merge and opens no issue, and a check that scores badly is read, not fixed by reflex.
+
+The badge markdown, for both READMEs (#62):
+
+```markdown
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/headlesslab/wand/badge)](https://scorecard.dev/viewer/?uri=github.com/headlesslab/wand)
+```
+
+Scorecard cannot move into `gate.yml`: the API reads the workflow file at the analysed commit and refuses results from one with a workflow-level `env` or `defaults`, which the Gate has, or from a job that runs anything but the handful of actions it allows. Branch-Protection scores from the `main` ruleset, which the run's own token may read; classic branch protection would have wanted an admin token, and no personal access token exists.
 
 ## The test suite
 

@@ -1,0 +1,46 @@
+# Dependabot moves the pins nothing else moves: the action SHAs the Gate
+# runs on, the digests of the image's base images, and the lockfile of the
+# Node linters the generate Gate installs with npm ci. Go modules are the
+# exception, security updates aside: a satellite release or the Nightly
+# `go get -u ./...` is what prompts a hand pull request there (spec #33,
+# section 16; ticket #56, on the security posture decision #31).
+version: 2
+updates:
+  # The Gate's actions, each pinned to a full-length commit SHA with its
+  # version in a trailing comment, which the repository's Actions policy
+  # requires and only a Dependabot pull request rewrites.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # docker/Dockerfile and docker/dev.Dockerfile, both matched by name in that
+  # one directory. Their base images are pinned by digest, so an update here
+  # is a digest move (spec #33, section 14; ticket #55).
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+
+  # The Node linters of the generate Gate. One group, so a week's updates
+  # arrive as one pull request carrying one resolved lockfile rather than as
+  # four that each rewrite it and conflict with the other three.
+  - package-ecosystem: npm
+    directory: /internal/tools
+    schedule:
+      interval: weekly
+    groups:
+      lint-tools:
+        patterns:
+          - '*'
+
+  # Go modules: security updates only. A limit of zero opens no version pull
+  # request at all; a security update is not subject to the limit and arrives
+  # as soon as an advisory matches, from the repository's Dependabot security
+  # updates setting, which the repo-settings tool turns on. The entry itself
+  # is what makes that split a decision rather than an omission.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0

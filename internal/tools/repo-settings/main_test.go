@@ -98,26 +98,27 @@ func TestRunAppliesThenIdle(t *testing.T) {
 	c := &client{api: f}
 	checks := []string{"go / lint", "go / govulncheck"}
 	settings := bundle(checks, 7)
-	g.Len(settings, 9)
+	g.Len(settings, 10)
 
 	out := &bytes.Buffer{}
 	changes, err := run(c, []string{"headlesslab/wand", "headlesslab/fetch"}, settings, false, out)
 	g.E(err)
-	g.Eq(changes, 17)
+	g.Eq(changes, 19)
 	g.Has(out.String(), "headlesslab/wand\n")
 	g.Has(out.String(), "secret scanning                  disabled -> enabled")
 	g.Has(out.String(), "push protection                  disabled -> enabled")
 	g.Has(out.String(), "Dependabot alerts                disabled -> enabled")
 	g.Has(out.String(), "Dependabot security updates      disabled -> enabled")
 	g.Has(out.String(), "private vulnerability reporting  disabled -> enabled")
+	g.Has(out.String(), "CodeQL default setup             not-configured -> configured (go)")
 	g.Has(out.String(), "immutable releases               disabled -> enabled")
 	g.Has(out.String(), "immutable releases               enabled\n")
 	g.Has(out.String(), "Actions SHA pinning              optional -> required")
 	g.Has(out.String(), "ruleset main                     missing -> up to date")
 	g.Has(out.String(), "ruleset v*                       missing -> up to date")
-	g.Has(out.String(), "headlesslab/wand: 9 changes\n")
-	g.Has(out.String(), "headlesslab/fetch: 8 changes\n")
-	g.Has(out.String(), "2 repositories, 17 changes\n")
+	g.Has(out.String(), "headlesslab/wand: 10 changes\n")
+	g.Has(out.String(), "headlesslab/fetch: 9 changes\n")
+	g.Has(out.String(), "2 repositories, 19 changes\n")
 
 	// The fake mirrors GitHub: every write landed.
 	for _, name := range []string{"headlesslab/wand", "headlesslab/fetch"} {
@@ -127,6 +128,7 @@ func TestRunAppliesThenIdle(t *testing.T) {
 		g.Desc("%s", name).True(r.alerts)
 		g.Desc("%s", name).True(r.securityUpdates)
 		g.Desc("%s", name).True(r.reporting)
+		g.Desc("%s", name).Eq(r.codeScanning, []string{"go"})
 		g.Desc("%s", name).True(r.immutable)
 		g.Desc("%s", name).True(r.shaPinning)
 		g.Desc("%s", name).Eq(r.allowedActions, "all")
@@ -166,12 +168,12 @@ func TestRunDryRun(t *testing.T) {
 	out := &bytes.Buffer{}
 	changes, err := run(c, []string{"headlesslab/wand"}, bundle(nil, 0), true, out)
 	g.E(err)
-	g.Eq(changes, 9)
+	g.Eq(changes, 10)
 	g.Eq(f.writes, 0)
 	g.Has(out.String(), "secret scanning                  disabled -> enabled (dry run)")
 	g.Has(out.String(), "ruleset main                     missing -> up to date (dry run)")
-	g.Has(out.String(), "headlesslab/wand: 9 changes pending\n")
-	g.Has(out.String(), "1 repository, 9 changes pending (dry run)\n")
+	g.Has(out.String(), "headlesslab/wand: 10 changes pending\n")
+	g.Has(out.String(), "1 repository, 10 changes pending (dry run)\n")
 	g.Eq(f.repos["headlesslab/wand"].secretScanning, "disabled")
 }
 
@@ -237,6 +239,7 @@ type fakeRepo struct {
 	securityUpdates bool
 	reporting       bool
 	immutable       bool
+	codeScanning    []string // the languages of the default setup; nil while it is off
 	allowedActions  string
 	shaPinning      bool
 	rulesets        []map[string]any
@@ -333,6 +336,24 @@ func (r *fakeRepo) toggle(method, rest string, in any) (int, []byte, error) {
 		return onSwitch(&r.securityUpdates, put, map[string]any{"paused": false})
 	case "private-vulnerability-reporting":
 		return onSwitch(&r.reporting, put, nil)
+	case "code-scanning/default-setup":
+		if method == "PATCH" {
+			m := in.(map[string]any)
+			r.codeScanning = nil
+			for _, l := range m["languages"].([]any) {
+				r.codeScanning = append(r.codeScanning, l.(string))
+			}
+			return jsonResponse(202, map[string]any{"run_id": 1})
+		}
+		// A setup that is off answers with the languages it could scan.
+		if r.codeScanning == nil {
+			return jsonResponse(200, map[string]any{
+				"state": "not-configured", "languages": []string{"actions", "go", "javascript"},
+			})
+		}
+		return jsonResponse(200, map[string]any{
+			"state": "configured", "languages": r.codeScanning, "query_suite": "default",
+		})
 	case "immutable-releases":
 		return onSwitch(&r.immutable, put, map[string]any{"enforced_by_owner": false})
 	case "actions/permissions":

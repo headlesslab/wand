@@ -4,11 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 const (
 	enabled  = "enabled"
 	disabled = "disabled"
+	// The state a code scanning default setup reports when it is on, and the
+	// one language the bundle configures it for.
+	configured = "configured"
+	goLanguage = "go"
 )
 
 // setting is one item of the bundle: how to read a repository's current value,
@@ -23,9 +28,11 @@ type setting struct {
 }
 
 // bundle is the settings every headlesslab repository carries, in an order
-// GitHub accepts: push protection needs secret scanning first, and Dependabot
-// security updates need the alerts first. appID is the GitHub App made a
-// bypass actor of both rulesets, 0 while the App does not exist yet.
+// GitHub accepts: push protection needs secret scanning first, Dependabot
+// security updates need the alerts first, and CodeQL's default setup comes
+// before the main ruleset, whose code scanning rule blocks every merge until
+// the analysis it names has run once. appID is the GitHub App made a bypass
+// actor of both rulesets, 0 while the App does not exist yet.
 func bundle(checks []string, appID int) []setting {
 	actors := bypassActors(appID)
 	return []setting{
@@ -34,6 +41,7 @@ func bundle(checks []string, appID int) []setting {
 		dependabotAlerts(),
 		enabledFlag("Dependabot security updates", "automated-security-fixes"),
 		enabledFlag("private vulnerability reporting", "private-vulnerability-reporting"),
+		codeScanning(),
 		enabledFlag("immutable releases", "immutable-releases"),
 		shaPinning(),
 		ruleset(mainRuleset(checks, actors)),
@@ -107,6 +115,55 @@ func enabledFlag(name, endpoint string) setting {
 			return c.do(http.MethodPut, path(repo), nil, nil)
 		},
 	}
+}
+
+// codeScanning is CodeQL's default setup: the analysis GitHub runs from a
+// workflow of its own, on every pull request, on a push to the default branch
+// and weekly, with no file in the repository. Go is the language it is
+// configured for, the language of every headlesslab repository; a setup that
+// scans another set is drift and is rewritten. What a pull request may add to
+// the alerts is held by the main ruleset's code scanning rule rather than by
+// a status check (spec #33, section 16).
+func codeScanning() setting {
+	path := func(repo string) string { return "repos/" + repo + "/code-scanning/default-setup" }
+	want := setupState(configured, []string{goLanguage})
+	return setting{
+		name: "CodeQL default setup",
+		want: want,
+		read: func(c *client, repo string) (string, bool, error) {
+			var r struct {
+				State     string   `json:"state"`
+				Languages []string `json:"languages"`
+			}
+			if err := c.do(http.MethodGet, path(repo), nil, &r); err != nil {
+				return "", false, err
+			}
+			current := setupState(r.State, r.Languages)
+			return current, current == want, nil
+		},
+		// The analysis itself is queued, so the 202 this answers with says
+		// the setup is on, not that the first alerts are in.
+		write: func(c *client, repo string) error {
+			body := map[string]any{
+				"state":       configured,
+				"languages":   []string{goLanguage},
+				"query_suite": "default",
+			}
+			return c.do(http.MethodPatch, path(repo), body, nil)
+		},
+	}
+}
+
+// setupState names a code scanning default setup for the report. A setup that
+// is off lists the languages it could scan rather than the ones it scans, so
+// only a configured one names them. The wanted value and the repository's
+// current one are both rendered here, so comparing the two strings is the
+// whole test and the two cannot drift apart.
+func setupState(state string, languages []string) string {
+	if state != configured {
+		return state
+	}
+	return state + " (" + strings.Join(languages, ", ") + ")"
 }
 
 // shaPinning is the Actions policy that requires every action reference to be
@@ -225,9 +282,9 @@ func bypassActors(appID int) []actor {
 }
 
 // mainRuleset protects the default branch: no deletion, no force push, every
-// change through a pull request, and the given status checks green before a
-// merge. With no checks the status-check rule is left out, since GitHub
-// rejects an empty list.
+// change through a pull request, CodeQL's verdict on what the pull request
+// adds, and the given status checks green before a merge. With no checks the
+// status-check rule is left out, since GitHub rejects an empty list.
 func mainRuleset(checks []string, actors []actor) map[string]any {
 	rules := []any{
 		rule("deletion", nil),
@@ -238,6 +295,21 @@ func mainRuleset(checks []string, actors []actor) map[string]any {
 			"require_code_owner_review":         false,
 			"require_last_push_approval":        false,
 			"required_review_thread_resolution": false,
+		}),
+		// Code scanning merge protection: CodeQL must have analysed the pull
+		// request, and what the pull request adds must hold no security alert
+		// of high severity or worse and no error-level alert. Thresholds
+		// rather than a plain "no new alert", so that a warning or a note the
+		// Snapshot carries never blocks the harvest (the security posture
+		// decision, #31). The tool is
+		// named as code scanning reports it; a name nothing reports would
+		// block every merge.
+		rule("code_scanning", map[string]any{
+			"code_scanning_tools": []any{map[string]any{
+				"tool":                      "CodeQL",
+				"security_alerts_threshold": "high_or_higher",
+				"alerts_threshold":          "errors",
+			}},
 		}),
 	}
 	if len(checks) > 0 {
