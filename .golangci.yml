@@ -111,8 +111,11 @@ linters:
           - testableexamples
         path: _test.go$
       # Generated code; the comments are the protocol's own descriptions,
-      # misspellings included.
+      # misspellings included, and two enums of one shape are two enums
+      # (dupl saw NetworkDeviceBoundSessionFetchResult and
+      # PreloadPrerenderFinalStatus as one block at r1680125).
       - linters:
+          - dupl
           - dupword
           - forcetypeassert
           - gocritic
