@@ -10,4 +10,7 @@ Point `app` at your own build output, or at a server you start yourself, to test
 
 ## Debugging
 
-Same as go-rod's tutorial here: [See what's under the hood](https://go-rod.github.io/#/get-started/README?id=see-what39s-under-the-hood)
+Run the tests with the `-wand` flag to watch what they do: `go test -wand=show,trace,slow=1s` puts the browser
+on screen, draws every input wand sends and slows each action down to a second. `-wand=devtools` opens DevTools
+in each new tab, and `-wand=monitor` serves a page showing every tab. The options are documented with
+[`lib/defaults`](../../defaults).
