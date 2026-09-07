@@ -111,13 +111,17 @@ func (r *HijackRouter) initEvents() *HijackRouter { //nolint: gocognit
 }
 
 // Add a hijack handler to router, the doc of the pattern is the same as "proto.FetchRequestPattern.URLPattern".
+// A pattern the regexp package refuses, one that is not valid UTF-8, is an error and enables nothing.
 func (r *HijackRouter) Add(pattern string, resourceType proto.NetworkResourceType, handler func(*Hijack)) error {
+	reg, err := regexp.Compile(proto.PatternToReg(pattern))
+	if err != nil {
+		return err
+	}
+
 	r.enable.Patterns = append(r.enable.Patterns, &proto.FetchRequestPattern{
 		URLPattern:   pattern,
 		ResourceType: resourceType,
 	})
-
-	reg := regexp.MustCompile(proto.PatternToReg(pattern))
 
 	r.handlers = append(r.handlers, &hijackHandler{
 		pattern: pattern,

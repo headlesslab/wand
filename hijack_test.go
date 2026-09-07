@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -522,3 +523,35 @@ func (readThenFail) RoundTrip(req *http.Request) (*http.Response, error) {
 	return nil, errors.New("connection lost")
 }
 
+// TestHijackAddPattern: a pattern with wildcards in a row is the browser's
+// pattern and matches (rod #982); a "?" matches no character as well as one,
+// as the browser reads it, so a request the browser pauses for the pattern
+// reaches the handler instead of staying paused; and the one thing the regexp
+// package refuses, a pattern that is not valid UTF-8, is an error rather than
+// a panic (rod #983), after which the router works as before.
+func TestHijackAddPattern(t *testing.T) {
+	g := setup(t)
+
+	s := g.Serve().Route("/a", ".html", `<body>ok</body>`).Route("/b", ".html", `<body>ok</body>`)
+
+	router := g.page.HijackRequests()
+	defer router.MustStop()
+
+	var hits atomic.Int32
+	handler := func(ctx *wand.Hijack) {
+		hits.Add(1)
+		ctx.MustLoadResponse()
+	}
+	router.MustAdd("**"+s.URL("/a")+"**", handler)
+	router.MustAdd(s.URL("/b?"), handler)
+
+	g.Err(router.Add("\xff", "", func(*wand.Hijack) {}))
+
+	go router.Run()
+
+	g.page.MustNavigate(s.URL("/a"))
+	g.Eq(g.page.MustElement("body").MustText(), "ok")
+	g.page.Timeout(10 * time.Second).MustNavigate(s.URL("/b"))
+	g.Eq(g.page.MustElement("body").MustText(), "ok")
+	g.Eq(hits.Load(), int32(2))
+}
