@@ -72,7 +72,7 @@ CI 测试的是 Target Chrome，它之前的三个里程碑属于尽力而为。
 1. 代码里的 `Launcher.Bin()`
 2. `-wand=bin=<path>` 标志（见 [`lib/defaults`](lib/defaults)）
 3. `WAND_BROWSER_BIN`
-4. System browser：当前系统常见路径下的 Google Chrome、Chromium 或 Microsoft Edge
+4. System browser：`LookPath` 在当前系统上搜索的那些路径下的 Google Chrome、Chromium 或 Microsoft Edge
 5. 缓存中已有的 Managed browser
 6. 下载 Managed browser：按 [`lib/launcher/pins`](lib/launcher/pins) 中的哈希校验，从 Google 的存储桶和 npmmirror 中先响应的一方获取
 
@@ -93,11 +93,11 @@ CI 测试的是 Target Chrome，它之前的三个里程碑属于尽力而为。
 
 ## 平台
 
-| Support tier | wand 的承诺                                               | 平台                                                          |
-| ------------ | --------------------------------------------------------- | ------------------------------------------------------------- |
-| Tier 1       | 每次推送和 PR 都在 CI 上用真实浏览器带 `-race` 构建并测试 | `linux/amd64`、`linux/arm64`、`windows/amd64`、`darwin/arm64` |
-| Tier 2       | 在 CI 上构建并 vet，从不用浏览器测试；运行时尽力而为      | `darwin/amd64`、`windows/arm64`、`linux/loong64`              |
-| Tier 3       | 不作任何承诺                                              | 其余一切                                                      |
+| Support tier | wand 的承诺                                                                 | 平台                                                          |
+| ------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Tier 1       | 每个 PR、以及每次推送到 `main`，都在 CI 上用真实浏览器带 `-race` 构建并测试 | `linux/amd64`、`linux/arm64`、`windows/amd64`、`darwin/arm64` |
+| Tier 2       | 在 CI 上构建并 vet，从不用浏览器测试；运行时尽力而为                        | `darwin/amd64`、`windows/arm64`、`linux/loong64`              |
+| Tier 3       | 不作任何承诺                                                                | 其余一切                                                      |
 
 Go floor 是 **`go 1.21`**，不带 `toolchain` 指令，锚定在当前 openEuler LTS 在其支持的每种架构上原生提供的最新 Go 版本上（[ADR-0003](docs/adr/0003-go-floor-anchored-to-openeuler-lts.md)）。只有新的 LTS 抬高它时它才会动。
 
@@ -152,7 +152,7 @@ docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile \
 
 ## 发布
 
-每个 Chrome 稳定里程碑发一个版本，在移动 pins 的 [Roll](docs/maintainer-notes.md#the-roll) 合并之后切出，其间按需发补丁版本。[`versions.json`](versions.json) 记录了每个版本各自携带的 Target Chrome、Protocol roll 和 Companion Chromium，可以用它把浏览器版本和 wand 版本对上。
+每个 Chrome 稳定里程碑发一个版本，在移动 pins 的 [Roll](docs/maintainer-notes.md#the-roll) 合并之后切出，其间按需发补丁版本。[`versions.json`](versions.json) 每个版本一行，写下 wand 版本及它携带的 Target Chrome、Protocol roll 和 Companion Chromium，由发布工作流追加，可以用它把浏览器版本和 wand 版本对上。首个版本发出之前它是空的。
 
 1.0 之前的规则是：minor 版本可能破坏兼容，patch 版本从不破坏，因此 `go get -u=patch` 永远是安全的（[ADR-0008](docs/adr/0008-fresh-v0-series-one-milestone-release-per-chrome-stable.md)）。
 
@@ -160,6 +160,6 @@ docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile \
 
 - **Baseline release（基线版本）**：将 go-rod 快照改名为 `github.com/headlesslab/wand`，在当前 Chrome 上构建并通过测试，更新协议层、浏览器获取方式和依赖链。进行中。
 - **API modernization（API 现代化）**：计划中。它会在之后的某个 minor 版本里改变 API。
-- **Stealth**：计划中。wand 目前不含任何反检测代码。
+- **Stealth**：计划中。wand 目前不提供任何 Stealth 能力。
 
 没有时间表，也不承诺先后顺序。

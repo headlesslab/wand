@@ -1,6 +1,6 @@
 # Migrating from go-rod
 
-wand's code is a snapshot of [go-rod](https://github.com/go-rod/rod) at commit `393ac0d` (2024-12-07), renamed and brought current; see [`NOTICE`](../NOTICE) for attribution. The baseline release redesigns nothing (ADR-0002), so go-rod's method surface is wand's: `Browser`, `Page`, `Element`, the `Must*` family, `lib/proto`, `lib/launcher`, `lib/cdp` and the rest all keep their names, receivers and behaviour unless this page says otherwise.
+wand's code is a snapshot of [go-rod](https://github.com/go-rod/rod) at commit `393ac0d` (2024-12-07), renamed and brought current; see [`NOTICE`](../NOTICE) for attribution. The baseline release redesigns nothing, so in practice go-rod's method surface is wand's: `Browser`, `Page`, `Element`, the `Must*` family, `lib/proto`, `lib/launcher`, `lib/cdp` and the rest all keep their names, receivers and behaviour unless this page says otherwise. That is not a compatibility promise. ADR-0002 positions wand as a new project rather than a drop-in replacement for go-rod, and the surface survives only because the redesign is deferred to the API modernization.
 
 That makes the move an import swap plus a short list of behaviour changes. This page has all of both, and a [Known limitations](#known-limitations) section listing what wand does _not_ fix, so you can decide in one sitting.
 
@@ -11,18 +11,18 @@ Two things worth knowing before you start:
 
 ## At a glance
 
-| #                                                                | Change                                                                                                           | Kind                           |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [1](#1-the-import-prefix)                                        | `github.com/go-rod/rod` → `github.com/headlesslab/wand`, package `rod` → `wand`                                  | compile error until fixed      |
-| [2](#2-gson-becomes-lazyjson)                                    | `github.com/ysmood/gson` → `github.com/headlesslab/lazyjson`                                                     | compile error until fixed      |
-| [3](#3-symbols-that-left-the-public-api)                         | `lib/assets`, seven `lib/utils` helpers, `lib/utils/shell`, the revision and host constants, `defaults.LockPort` | compile error if you used them |
-| [4](#4-the-two-commands)                                         | `lib/launcher/rod-manager` → `cmd/wand-manager`; new `cmd/wand-fetch-browser`                                    | command path                   |
-| [5](#5-the-browser-cache-moved-and-a-system-browser-comes-first) | System browser first; cache under `os.UserCacheDir()/wand/browser`                                               | runtime behaviour              |
-| [6](#6-leakless-is-gone-the-orphan-guard-replaces-it)            | No guard binary, no guard process; `Leakless()` keeps its name                                                   | runtime behaviour              |
-| [7](#7-user-mode-has-a-profile-directory-of-its-own)             | `NewUserMode()` uses `os.UserConfigDir()/wand/user-mode`                                                         | runtime behaviour              |
-| [8](#8--rod-becomes--wand)                                       | `-rod=` → `-wand=`, `DISABLE_ROD_FLAG` → `DISABLE_WAND_FLAG`, plus `WAND_BROWSER_*`                              | flags and environment          |
-| [9](#9-cdperrctxdestroyed-matches-a-second-message)              | Chrome 152's "Inspected target navigated or closed" now matches                                                  | runtime behaviour              |
-| [10](#10-the-container-image)                                    | `ghcr.io/go-rod/rod` → `ghcr.io/headlesslab/wand`, one multi-arch manifest                                       | deployment                     |
+| #                                                                | Change                                                                                        | Kind                           |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------ |
+| [1](#1-the-import-prefix)                                        | `github.com/go-rod/rod` → `github.com/headlesslab/wand`, package `rod` → `wand`               | compile error until fixed      |
+| [2](#2-gson-becomes-lazyjson)                                    | `github.com/ysmood/gson` → `github.com/headlesslab/lazyjson`                                  | compile error until fixed      |
+| [3](#3-symbols-that-left-the-public-api)                         | `lib/assets`, seven `lib/utils` helpers, the revision and host constants, `defaults.LockPort` | compile error if you used them |
+| [4](#4-the-two-commands)                                         | `lib/launcher/rod-manager` → `cmd/wand-manager`; new `cmd/wand-fetch-browser`                 | command path                   |
+| [5](#5-the-browser-cache-moved-and-a-system-browser-comes-first) | System browser first; cache under `os.UserCacheDir()/wand/browser`                            | runtime behaviour              |
+| [6](#6-leakless-is-gone-the-orphan-guard-replaces-it)            | No guard binary, no guard process; `Leakless()` keeps its name                                | runtime behaviour              |
+| [7](#7-user-mode-has-a-profile-directory-of-its-own)             | `NewUserMode()` uses `os.UserConfigDir()/wand/user-mode`                                      | runtime behaviour              |
+| [8](#8--rod-becomes--wand)                                       | `-rod=` → `-wand=`, `DISABLE_ROD_FLAG` → `DISABLE_WAND_FLAG`, plus `WAND_BROWSER_*`           | flags and environment          |
+| [9](#9-cdperrctxdestroyed-matches-a-second-message)              | Chrome 152's "Inspected target navigated or closed" now matches                               | runtime behaviour              |
+| [10](#10-the-container-image)                                    | `ghcr.io/go-rod/rod` → `ghcr.io/headlesslab/wand`, one multi-arch manifest                    | deployment                     |
 
 ## 1. The import prefix
 
@@ -74,17 +74,16 @@ This is part of a wider change you do not otherwise see: **no `ysmood/*` module 
 
 Everything below is dev-only code that go-rod exported because its generators lived in the same module. wand moved it under `internal/`, so the compiler tells you at once if you used any of it.
 
-| Gone from         | What                                                                | Where it went                                                                              |
-| ----------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `lib/assets`      | the whole package: `Monitor`, `MonitorPage`, `MousePointer`         | `internal/assets`; copy the constant if you embedded one                                   |
-| `lib/utils`       | `Exec`, `ExecLine`, `S`, `EscapeGoString`, `ReadString`, `TestEnvs` | `internal/devutil`, unchanged                                                              |
-| `lib/utils`       | `UseNode`                                                           | gone; `internal/devutil` installs and runs the Node tools its own way                      |
-| `lib/utils/shell` | `Shell`                                                             | `internal/tools/shell`                                                                     |
-| `lib/launcher`    | `RevisionDefault`, `RevisionPlaywright`                             | `lib/launcher/pins`: `pins.ChromeVersion`, `pins.ChromiumPosition`, `pins.ProtocolRoll`    |
-| `lib/launcher`    | `Host`, `HostGoogle`, `HostNPM`, `HostPlaywright`                   | `launcher.DefaultHosts(source)`, which returns URL templates; Playwright's host is dropped |
-| `lib/defaults`    | `LockPort`                                                          | gone with leakless; the download lock is a file lock inside `fetch`                        |
+| Gone from      | What                                                                | Where it went                                                                              |
+| -------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `lib/assets`   | the whole package: `Monitor`, `MonitorPage`, `MousePointer`         | `internal/assets`; copy the constant if you embedded one                                   |
+| `lib/utils`    | `Exec`, `ExecLine`, `S`, `EscapeGoString`, `ReadString`, `TestEnvs` | `internal/devutil`, unchanged                                                              |
+| `lib/utils`    | `UseNode`                                                           | gone; `internal/devutil` installs and runs the Node tools its own way                      |
+| `lib/launcher` | `RevisionDefault`, `RevisionPlaywright`                             | `lib/launcher/pins`: `pins.ChromeVersion`, `pins.ChromiumPosition`, `pins.ProtocolRoll`    |
+| `lib/launcher` | `Host`, `HostGoogle`, `HostNPM`, `HostPlaywright`                   | `launcher.DefaultHosts(source)`, which returns URL templates; Playwright's host is dropped |
+| `lib/defaults` | `LockPort`                                                          | gone with leakless; the download lock is a file lock inside `fetch`                        |
 
-The rest of `lib/utils` — `Sleeper`, `Retry`, `BackoffSleeper`, `MustToJSON`, `Dump`, `OutputFile` and so on — is untouched.
+The rest of `lib/utils` — `Sleeper`, `Retry`, `BackoffSleeper`, `MustToJSON`, `Dump`, `OutputFile` and so on — is untouched. go-rod's `lib/utils/shell` moved to `internal/tools/shell`, but it was `package main` there too, so nothing could import it and nothing breaks.
 
 `lib/launcher/flags` keeps every identifier, but the wand-owned flags carry `wand-` values now: `flags.Bin` is `"wand-bin"`, `flags.Leakless` is `"wand-leakless"`, and so on for `WorkingDir`, `Env`, `XVFB`, `Preferences` and `KeepUserDataDir` (`flags.Download` is new). Code that uses the constants needs no change; code that passes the string literal to `Launcher.Set` does. A remote launch carries these names over the wire, so pair a wand client with a `wand-manager`, not with a `rod-manager`.
 
@@ -112,12 +111,12 @@ go install github.com/headlesslab/wand/cmd/wand-fetch-browser@latest
 
 Two changes here, and the second is the one you will notice.
 
-**A browser you already have is used.** go-rod's launcher went straight to its pinned Chromium download unless you named a binary. wand's Browser resolution takes the first of:
+**A browser you already have is used.** go-rod's `launcher.New()` went straight to its pinned Chromium download unless you named a binary; only `NewUserMode()` looked for an installed browser, through `LookPath()`. wand's Browser resolution takes the first of:
 
 1. `Launcher.Bin()` in code
 2. the `-wand=bin=<path>` flag
 3. `WAND_BROWSER_BIN`
-4. a System browser — Google Chrome, Chromium or Microsoft Edge on this OS's usual paths
+4. a System browser — Google Chrome, Chromium or Microsoft Edge at the paths `LookPath` searches on this OS
 5. the Managed browser already in the cache
 6. a download of the Managed browser
 
@@ -237,7 +236,7 @@ These are real, documented, and **not** fixed by the baseline release. Each is u
 
 | Limitation                                                                                          | Detail                                                                                                                                                                                                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Optional booleans in `lib/proto` (rod [#1196](https://github.com/go-rod/rod/issues/1196))           | Each generated struct uses `bool` with `omitempty`, so a `false` that differs from Chrome's default is never sent — `FetchRelatives: false` does not reach the browser. Changing the fields to `*bool` is an API change and belongs to the API modernization.                                                                                                                             |
+| Optional booleans in `lib/proto` (rod [#1196](https://github.com/go-rod/rod/issues/1196))           | Each generated struct uses `bool` with `omitempty`, so a `false` that differs from Chrome's default is never sent — `FetchRelatives: false` does not reach the browser. Changing the fields to `*bool` is an API change and belongs to the API modernization.                                                                                                                        |
 | OOPIF `Element.Frame()` and `ControlURL()` (rod [#1234](https://github.com/go-rod/rod/issues/1234)) | `Element.Frame()` reaches an out-of-process iframe only with site isolation disabled, and callers that connect through `ControlURL()` hit the same gap. Proper OOPIF support is API work.                                                                                                                                                                                            |
 | Ubuntu 24.04 needs `NoSandbox` (rod [#1070](https://github.com/go-rod/rod/issues/1070))             | Ubuntu 24.04 restricts unprivileged user namespaces, so a launch fails with "No usable sandbox!". `launcher.New().NoSandbox(true)` is the confirmed workaround.                                                                                                                                                                                                                      |
 | Alpine's Chromium hangs (rod [#1114](https://github.com/go-rod/rod/issues/1114))                    | Alpine 3.20's Chromium package hangs on `Target.createTarget` some of the time; `--disable-gpu` helps. It is the browser build, not wand. wand's own image is `ubuntu:noble`.                                                                                                                                                                                                        |

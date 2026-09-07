@@ -72,7 +72,7 @@ The Target Chrome is what CI tests; the three milestones before it are best-effo
 1. `Launcher.Bin()` in code
 2. the `-wand=bin=<path>` flag ([`lib/defaults`](lib/defaults))
 3. `WAND_BROWSER_BIN`
-4. a System browser: Google Chrome, Chromium or Microsoft Edge on this OS's usual paths
+4. a System browser: Google Chrome, Chromium or Microsoft Edge at the paths `LookPath` searches on this OS
 5. the Managed browser already in the cache
 6. a download of the Managed browser, hash-verified against [`lib/launcher/pins`](lib/launcher/pins), from Google's buckets or npmmirror, whichever answers first
 
@@ -93,11 +93,11 @@ Domestic browsers are not in the discovery list: none of lbrowser, 奇安信可�
 
 ## Platforms
 
-| Support tier | What wand promises                                                                       | Platforms                                                     |
-| ------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Tier 1       | built and tested with a real browser in CI, with `-race`, on every push and pull request | `linux/amd64`, `linux/arm64`, `windows/amd64`, `darwin/arm64` |
-| Tier 2       | built and vetted in CI, never tested with a browser; runtime best-effort                 | `darwin/amd64`, `windows/arm64`, `linux/loong64`              |
-| Tier 3       | no promise                                                                               | everything else                                               |
+| Support tier | What wand promises                                                                                       | Platforms                                                     |
+| ------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Tier 1       | built and tested with a real browser in CI, with `-race`, on every pull request and every push to `main` | `linux/amd64`, `linux/arm64`, `windows/amd64`, `darwin/arm64` |
+| Tier 2       | built and vetted in CI, never tested with a browser; runtime best-effort                                 | `darwin/amd64`, `windows/arm64`, `linux/loong64`              |
+| Tier 3       | no promise                                                                                               | everything else                                               |
 
 The Go floor is **`go 1.21`**, with no `toolchain` directive, and it is anchored to the newest Go the current openEuler LTS ships natively on every architecture it supports ([ADR-0003](docs/adr/0003-go-floor-anchored-to-openeuler-lts.md)). It moves only when a new LTS raises it.
 
@@ -152,7 +152,7 @@ docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile \
 
 ## Releases
 
-One release per Chrome stable milestone, cut after the [Roll](docs/maintainer-notes.md#the-roll) that moves the pins, with bug-fix patches in between. [`versions.json`](versions.json) maps every release to the Target Chrome, Protocol roll and Companion Chromium it carried, so you can match a browser fleet to a wand version.
+One release per Chrome stable milestone, cut after the [Roll](docs/maintainer-notes.md#the-roll) that moves the pins, with bug-fix patches in between. [`versions.json`](versions.json) takes one row per release — the wand version beside the Target Chrome, Protocol roll and Companion Chromium it carried — appended by the release workflow, so you can match a browser fleet to a wand version. It is empty until the first release.
 
 Until 1.0 a minor may break and a patch never does, so `go get -u=patch` is always safe ([ADR-0008](docs/adr/0008-fresh-v0-series-one-milestone-release-per-chrome-stable.md)).
 
