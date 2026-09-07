@@ -9,7 +9,7 @@ require (
 	github.com/headlesslab/leakcheck v0.1.0
 	github.com/headlesslab/seqdiff v0.1.0
 	github.com/ysmood/got v0.43.0
-	golang.org/x/sys v0.22.0
+	golang.org/x/sys v0.30.0
 )
 
 require (
