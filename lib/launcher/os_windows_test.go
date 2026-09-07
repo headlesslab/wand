@@ -33,9 +33,10 @@ func processAlive(pid int) bool {
 func TestGuardJobObject(t *testing.T) {
 	g := setup(t)
 
-	pid, driver := startDriver(t, "on")
+	pid, driver, dir := startDriver(t, "on")
 	g.True(processAlive(pid))
 
 	killDriver(t, driver)
 	g.True(waitGone(pid, guardBound))
+	g.True(waitReleased(dir, guardBound))
 }

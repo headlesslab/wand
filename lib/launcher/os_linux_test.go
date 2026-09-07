@@ -18,11 +18,12 @@ func configureDriver(mode string) {
 func TestGuardPdeathsig(t *testing.T) {
 	g := setup(t)
 
-	pid, driver := startDriver(t, "on")
+	pid, driver, dir := startDriver(t, "on")
 	g.True(processAlive(pid))
 
 	killDriver(t, driver)
 	g.True(waitGone(pid, guardBound))
+	g.True(waitReleased(dir, guardBound))
 }
 
 // TestGuardTether: with the parent-death signal disabled in the driver, the
@@ -31,9 +32,10 @@ func TestGuardPdeathsig(t *testing.T) {
 func TestGuardTether(t *testing.T) {
 	g := setup(t)
 
-	pid, driver := startDriver(t, "tether")
+	pid, driver, dir := startDriver(t, "tether")
 	g.True(processAlive(pid))
 
 	killDriver(t, driver)
 	g.True(waitGone(pid, guardBound))
+	g.True(waitReleased(dir, guardBound))
 }

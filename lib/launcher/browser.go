@@ -356,13 +356,16 @@ func (lc *Browser) resolveChrome(platform string) (archive, error) {
 }
 
 func (lc *Browser) resolveChromium(platform string) (archive, error) {
+	// The binary before the platform: a chrome-headless-shell from Chromium
+	// trunk builds is wrong on every platform, so that is the answer wherever
+	// it is asked, linux/arm64 included, which has no trunk build at all.
+	if lc.Binary != BinaryChrome {
+		return archive{}, fmt.Errorf("no %s in Chromium trunk builds, only %s", lc.Binary, BinaryChrome)
+	}
+
 	bucket, has := chromiumPlatforms[platform]
 	if !has {
 		return archive{}, fmt.Errorf("no Chromium trunk build exists for %s: %s", platform, wayOut)
-	}
-
-	if lc.Binary != BinaryChrome {
-		return archive{}, fmt.Errorf("no %s in Chromium trunk builds, only %s", lc.Binary, BinaryChrome)
 	}
 
 	a := archive{platform: bucket.prefix, version: strconv.Itoa(lc.Revision), name: bucket.archive}
