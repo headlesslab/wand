@@ -19,11 +19,5 @@ func main() {
 
 	devutil.InstallNodeTools()
 
-	genDockerIgnore()
-}
-
-func genDockerIgnore() {
-	s, err := devutil.ReadString(".gitignore")
-	utils.E(err)
-	utils.E(utils.OutputFile(".dockerignore", s))
+	utils.E(devutil.DockerIgnore("."))
 }

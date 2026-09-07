@@ -70,6 +70,26 @@ func TestExecLineReturnsStdoutOnly(t *testing.T) {
 	g.Eq(devutil.ExecLine(false, "go build -n ."), "")
 }
 
+func TestDockerIgnore(t *testing.T) {
+	g := setup(t)
+
+	root := g.Testable.(*testing.T).TempDir()
+	g.Err(devutil.DockerIgnore(root))
+
+	// A pattern with no slash of its own is written a second time under **/,
+	// which is how docker reads at every depth what git reads there anyway;
+	// a blank line, a comment, an anchored pattern and a negation of one are
+	// carried over as they stand, and the negation stays below the pattern
+	// it takes back.
+	ignore := "tmp/\n*.json\n\n# the lockfile\n!internal/tools/package.json\nlib/proto/tmp\n"
+	g.E(os.WriteFile(filepath.Join(root, ".gitignore"), []byte(ignore), 0o600))
+	g.E(devutil.DockerIgnore(root))
+
+	s, err := devutil.ReadString(filepath.Join(root, ".dockerignore"))
+	g.E(err)
+	g.Eq(s, "tmp/\n**/tmp/\n*.json\n**/*.json\n\n# the lockfile\n!internal/tools/package.json\nlib/proto/tmp\n")
+}
+
 func TestEscapeGoString(t *testing.T) {
 	g := setup(t)
 

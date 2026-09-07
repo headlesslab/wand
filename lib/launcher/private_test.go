@@ -63,6 +63,10 @@ func TestLaunchOptions(t *testing.T) {
 	g.True(l.Has(flags.NoSandbox))
 
 	g.True(l.Has("auto-open-devtools-for-tabs"))
+
+	// User mode drops the sandbox in a container too, so that the image can
+	// drive a browser on the persistent profile as the root it runs as.
+	g.True(NewUserMode().Has(flags.NoSandbox))
 }
 
 func TestManagedOptions(t *testing.T) {
@@ -339,11 +343,25 @@ func TestCleanup(t *testing.T) {
 	named := t.TempDir()
 	New().UserDataDir(named).Cleanup()
 	g.True(g.PathExists(named))
+}
 
-	// A directory that cannot be removed yet, as one a helper process of the
-	// browser still holds, is retried until it can be. Here a file of it is
-	// held open, which keeps it on Windows, and its parent is read-only for a
-	// moment, which keeps it elsewhere (not for root, who removes it at once).
+// TestCleanupRetriesHeldDir: a directory that cannot be removed yet, as one a
+// helper process of the browser still holds, is retried until it can be, and
+// one that never can within the bound is given up on and left. What holds it
+// is a file of it kept open, which keeps it on Windows, and a read-only
+// parent, which keeps it elsewhere. Root is exempt from both and removes the
+// directory at once, so there would be nothing to retry and nothing to prove;
+// the test skips where the suite runs as root, which is the in-container
+// image job and nothing else. That is an environment guard of the same kind
+// as the font and binary-size ones, which the in-container run of #55 adds
+// to the three spec #33, section 12 lists, and not a skip for flakiness.
+func TestCleanupRetriesHeldDir(t *testing.T) {
+	g := setup(t)
+
+	if os.Geteuid() == 0 {
+		g.Skip("root removes a held directory whatever its parent's permissions say")
+	}
+
 	hold := func(dir string) (release func()) {
 		g.E(os.MkdirAll(filepath.Join(dir, "Default"), 0o755))
 		f, err := os.Create(filepath.Join(dir, "Default", "held"))
@@ -359,7 +377,7 @@ func TestCleanup(t *testing.T) {
 	release := hold(dir)
 	time.AfterFunc(300*time.Millisecond, release)
 	removeDir(dir)
-	_, err = os.Stat(dir)
+	_, err := os.Stat(dir)
 	g.True(os.IsNotExist(err))
 
 	// One that never goes within the bound is given up on, and left.

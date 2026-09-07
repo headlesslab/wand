@@ -45,6 +45,8 @@ go run ./internal/tools/repo-settings \
   -check "Tier 2 linux/loong64" \
   -check "Generate (zero diff)" \
   -check "Dependency review" \
+  -check "Image linux/amd64" \
+  -check "Image linux/arm64" \
   headlesslab/wand
 
 go run ./internal/tools/repo-settings \
@@ -64,7 +66,7 @@ go run ./internal/tools/repo-settings \
   headlesslab/fetch
 ```
 
-wand's `main` ruleset requires the twelve jobs of `.github/workflows/gate.yml`: the linux/amd64 stable job, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the generate job (ticket #42), added to the line above by its pull request and applied by re-running the line once the job had reported; the other six Tier 1 jobs and the three Tier 2 jobs (ticket #54), added the same way; and the dependency review job (ticket #56). `govulncheck` needs no name of its own: it is a step of the linux/amd64 stable job, already required. The remaining Gate (spec #33, section 13: the in-container run of #55) lands with its ticket, and adds its check names to the wand line above and re-runs it. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`. The same holds for the code scanning rule the bundle writes: it names CodeQL, and a tool name code scanning does not report would block every merge just as surely.
+wand's `main` ruleset requires the fourteen jobs of `.github/workflows/gate.yml`: the linux/amd64 stable job, added while #71 (ticket #36) was open because that pull request was the only branch reporting the check; the generate job (ticket #42), added to the line above by its pull request and applied by re-running the line once the job had reported; the other six Tier 1 jobs and the three Tier 2 jobs (ticket #54), added the same way; the dependency review job (ticket #56); and the two image jobs (ticket #55). `govulncheck` needs no name of its own: it is a step of the linux/amd64 stable job, already required, as Trivy is of the image jobs. Every Gate spec #33, section 13 asks for is now named. A check named in `-check` that no workflow reports would block every merge, so add a Gate only once a branch reports it, and prefer one that has already run on `main`. The same holds for the code scanning rule the bundle writes: it names CodeQL, and a tool name code scanning does not report would block every merge just as surely.
 
 A second run reports `no changes` for every repository. `-dry-run` prints what a run would change, writes nothing, and exits 1 when anything differs; use it to check for drift after a settings change made by hand.
 

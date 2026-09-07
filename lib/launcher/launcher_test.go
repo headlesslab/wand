@@ -144,6 +144,13 @@ func TestLaunchUserMode(t *testing.T) {
 		"about:blank",
 	})
 
+	// The flag list above exercised NoSandbox in both directions and left it
+	// off, which no browser started by root accepts; a container is root, so
+	// the launch takes the flag back, after the list was asserted.
+	if utils.InContainer {
+		l.NoSandbox(true)
+	}
+
 	url := l.MustLaunch()
 	g.True(g.PathExists(dir))
 

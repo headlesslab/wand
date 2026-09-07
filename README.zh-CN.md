@@ -23,6 +23,36 @@ wand 一次只对齐一个 Chrome 稳定版，即 Target Chrome：协议层为�
 
 <!-- pins:end -->
 
+## 容器镜像
+
+`ghcr.io/headlesslab/wand` 以 `ubuntu:noble` 为基础，内含 Target Chrome，入口点是远程启动服务 `wand-manager`，提供 `linux/amd64` 与 `linux/arm64` 两种架构。镜像中的浏览器就是上表固定的那一个，在构建时下载并校验哈希，因此容器里跑的正是 wand 测试所用的浏览器。它的标签由发布流程推送，目前尚未发布；在此之前请从检出的代码构建：
+
+```sh
+docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile .
+docker run --rm -p 7317:7317 ghcr.io/headlesslab/wand
+```
+
+之后任何地方的 wand 程序都可以把浏览器启动在该容器里：
+
+```go
+l := launcher.MustNewManaged("ws://127.0.0.1:7317")
+browser := wand.New().Client(l.MustClient()).MustConnect()
+```
+
+完整程序见 [`lib/examples/launch-managed`](lib/examples/launch-managed)。
+
+`docker run --rm ghcr.io/headlesslab/wand chrome --version` 会打印镜像内的 Chrome 版本；镜像里也带了 `xvfb-run`，可用于运行有界面的浏览器。
+
+`go run ./internal/tools/docker` 会构建该镜像，并在其之上构建附带 Go 与 Node 工具链的 `:dev` 镜像，然后按 image Gate 的方式检查两者；它不会推送任何东西。加上 `-suite` 可在 `:dev` 镜像内运行 wand 的完整测试套件，那里 `utils.InContainer` 成立，启动器会传入 `--no-sandbox`。
+
+在受限网络下，Go 模块代理与 Ubuntu 镜像源都是构建参数：
+
+```sh
+docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile \
+  --build-arg goproxy=https://goproxy.cn,direct \
+  --build-arg apt_mirror=https://your-mirror.example/ubuntu .
+```
+
 ## 路线图
 
 - **Baseline release（基线版本）**：将 go-rod 快照改名为 `github.com/headlesslab/wand`，在当前 Chrome 上构建并通过测试，更新协议层、浏览器获取方式和依赖链。进行中。
