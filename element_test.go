@@ -888,6 +888,42 @@ func TestElementScreenshot(t *testing.T) {
 		g.mc.stubErr(3, proto.DOMGetContentQuads{})
 		el.MustScreenshot()
 	})
+	g.Panic(func() {
+		g.mc.stubErr(1, proto.RuntimeCallFunctionOn{}) // the device pixel ratio
+		el.MustScreenshot()
+	})
+}
+
+// TestElementScreenshotDevicePixelRatio is the regression test of
+// go-rod/rod#1200 (rod #1198 and #1034, ticket #49): under device emulation
+// at a pixel ratio of 2 the capture has twice the pixels of the layout in
+// each direction, and the crop box, in CSS pixels, has to scale with it.
+// Every pixel of the result is the element's own colour, so the crop is the
+// element and not the quarter of the capture at its CSS coordinates.
+func TestElementScreenshotDevicePixelRatio(t *testing.T) {
+	g := setup(t)
+
+	page := g.newPage(g.html(`<html><body style="margin: 0; background: #fff">
+		<div id="box" style="position: absolute; left: 37px; top: 23px; width: 120px; height: 80px; background: #f00"></div>
+	</body></html>`))
+	page.MustEmulate(devices.LaptopWithHiDPIScreen.Landscape())
+	g.Eq(page.MustEval(`() => window.devicePixelRatio`).Int(), 2)
+
+	img, err := png.Decode(bytes.NewBuffer(page.MustElement("#box").MustScreenshot()))
+	g.E(err)
+	g.Eq(img.Bounds().Dx(), 240)
+	g.Eq(img.Bounds().Dy(), 160)
+
+	red := color.RGBA{R: 255, A: 255}
+	others := 0
+	for y := 0; y < img.Bounds().Dy(); y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			if color.RGBAModel.Convert(img.At(x, y)) != red {
+				others++
+			}
+		}
+	}
+	g.Eq(others, 0)
 }
 
 func TestUseReleasedElement(t *testing.T) {
