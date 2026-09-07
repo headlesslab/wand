@@ -3,6 +3,7 @@ package cdp
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
@@ -10,7 +11,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
+
+	"github.com/headlesslab/wand/lib/utils"
 )
 
 var _ WebSocketable = &WebSocket{}
@@ -194,28 +198,39 @@ func verifyWebSocketAccept(responseHeaders http.Header, websocketKey string) boo
 }
 
 func (ws *WebSocket) handshake(ctx context.Context, u *url.URL, header http.Header) error {
-	defaultSecKey := "nil"
+	// A fresh nonce per handshake, as RFC 6455 section 4.1 has it. Chrome
+	// never looks at the key, but Browserless, Lightpanda and every
+	// gorilla/websocket server refuse the literal upstream sent (rod #1092,
+	// harvested from rod #1228). A system whose random source fails is not
+	// one to go on with, and a constant key is what going on would mean;
+	// Go 1.24 and later crash the program on that themselves.
+	nonce := make([]byte, 16)
+	_, err := rand.Read(nonce)
+	utils.E(err)
+	secKey := base64.StdEncoding.EncodeToString(nonce)
+
 	req := (&http.Request{Method: http.MethodGet, URL: u, Header: http.Header{
 		"Upgrade":               {"websocket"},
 		"Connection":            {"Upgrade"},
-		"Sec-WebSocket-Key":     {defaultSecKey},
 		"Sec-WebSocket-Version": {"13"},
 	}}).WithContext(ctx)
 
-	secKey := defaultSecKey
+	// Names match case-insensitively: http.Header.Set spells the key
+	// Sec-Websocket-Key, and a caller's key must replace the generated one,
+	// not travel beside it as a second header.
 	for k, vs := range header {
 		switch {
-		case k == "Host" && len(vs) > 0:
+		case strings.EqualFold(k, "Host") && len(vs) > 0:
 			req.Host = vs[0]
-		case k == "Sec-WebSocket-Key" && len(vs) > 0:
+		case strings.EqualFold(k, "Sec-WebSocket-Key") && len(vs) > 0:
 			secKey = vs[0]
-			req.Header[k] = vs
 		default:
 			req.Header[k] = vs
 		}
 	}
+	req.Header["Sec-WebSocket-Key"] = []string{secKey}
 
-	err := req.Write(ws.conn)
+	err = req.Write(ws.conn)
 	if err != nil {
 		return err
 	}
