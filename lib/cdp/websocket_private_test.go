@@ -83,6 +83,15 @@ func TestWebSocketErr(t *testing.T) {
 	g.Err(tls.DialContext(context.Background(), "", ""))
 }
 
+func TestWebSocketControlFrameErr(t *testing.T) {
+	g := setup(t)
+
+	// The pong answering a ping cannot be written: the read fails.
+	mc := &MockConn{errOnCount: 1, frame: []byte{0x89, 0}}
+	ws := WebSocket{conn: mc, r: bufio.NewReader(mc)}
+	g.Err(ws.Read())
+}
+
 type MockConn struct {
 	sync.Mutex
 
