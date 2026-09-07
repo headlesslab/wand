@@ -1,0 +1,645 @@
+# The Nightly: once a night, and on demand, main is proven again on everything
+# a Gate cannot ask of a pull request — the same Tier 1 matrix with nothing
+# changed under it, the browser the runner images ship rather than the one the
+# pins name, the examples, the dependency graph at its newest, the oldest Chrome
+# the Support window claims, the vulnerability database, and the images already
+# published (spec #33, section 13; ADR-0008; tickets #20, #31, #61).
+#
+# Nothing here is a required check and nothing here blocks a merge or a release
+# (CONTEXT.md, Nightly). A red job is reported instead: the last job of the run
+# opens one issue keyed by that job's name, or comments on the one already open,
+# through the automation App (#58). So four nights of the same red job is one
+# issue with four comments, and a second job going red is an issue of its own.
+#
+# What the Gate cannot do, job by job:
+#
+#   Tier 1 rerun         the same seven jobs with no commit under them, which is
+#                        what tells a flake apart from a break, and what #64
+#                        counts three green runs of before the release candidate
+#   System browser       Browser resolution's discovery path on the browser the
+#                        runner image ships, which every Gate job bypasses with
+#                        WAND_BROWSER_BIN; on windows/arm64 it is the only way
+#                        the suite runs at all, since no Managed browser is
+#                        built for it
+#   Examples             every Example function and the e2e-testing module, each
+#                        launching a browser of its own outside the tester pool,
+#                        which is why the Gate runs -run=^Test instead
+#   Updated graph        the whole dependency graph as far forward as the Go
+#                        floor allows, then the suite on it, which is what
+#                        prompts the hand pull request that moves go.mod
+#                        (.github/dependabot.yml)
+#   Support window       the oldest Chrome wand claims to work with, which moves
+#                        whenever Chrome for Testing publishes a patch of that
+#                        milestone and so belongs to no pin
+#   govulncheck          an advisory published against code that has not changed,
+#                        surfaced the same morning rather than at the next pull
+#                        request
+#   Trivy                the manifests already published, which no Gate sees:
+#                        the Gate scans the image it just built and pushes none
+#
+# Every action is pinned to a full-length commit SHA with its version in a
+# trailing comment; Dependabot moves the pins weekly (.github/dependabot.yml).
+name: Nightly
+
+on:
+  schedule:
+    # Daily, 02:41 UTC, off the hour where the scheduler is busiest, and three
+    # hours before the Roll, so that a Roll opening a pull request never races
+    # a Nightly reading main.
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One Nightly at a time, and never cancel one: a run that is cancelled halfway
+# reports on the jobs that finished and says nothing about the rest, which
+# reads as a green night.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  # Never download a newer toolchain: a dependency raising its Go floor above
+  # ours must fail the run, not silently pull a toolchain.
+  GOTOOLCHAIN: local
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # The Gate's Tier 1 matrix, rerun on main with nothing changed under it. The
+  # table below is the Gate's, entry for entry, and the steps are the Gate's
+  # too (.github/actions/tier1): what this job adds is the second run, on which
+  # a red that the Gate did not have is either a flake or something outside the
+  # repository that moved.
+  #
+  # Every name here says "rerun", and no job in this workflow may ever be named
+  # as one of the Gate's. A job's name is its check run's name, this workflow
+  # runs on the very commit the Gate ran on, and the release workflow reads the
+  # required checks of that commit back through check-runs?filter=latest, which
+  # keeps the newest check run per name: a Nightly job sharing a Gate job's name
+  # would replace the Gate's answer with its own, and a red one would hold a
+  # release that nothing here is allowed to hold (ADR-0008; release.yml, "The
+  # Gates are green on this commit").
+  #
+  # govulncheck is the one column left out, because it is a job of its own here
+  # and its issue should say govulncheck rather than name a platform.
+  tier1:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Tier 1 rerun linux/amd64 (Go stable)
+            runner: ubuntu-latest
+            go: stable
+            source: chrome
+            branded: true
+            coverage: true
+            artifact: linux-amd64-stable
+          - name: Tier 1 rerun linux/amd64 (Go 1.21)
+            runner: ubuntu-latest
+            go: 1.21.x
+            source: chrome
+            artifact: linux-amd64-go1.21
+          - name: Tier 1 rerun linux/arm64 (Go stable)
+            runner: ubuntu-24.04-arm
+            go: stable
+            source: chrome
+            artifact: linux-arm64-stable
+          - name: Tier 1 rerun linux/arm64 (Go 1.21)
+            runner: ubuntu-24.04-arm
+            go: 1.21.x
+            source: chrome
+            artifact: linux-arm64-go1.21
+          - name: Tier 1 rerun windows/amd64 (Go stable)
+            runner: windows-latest
+            go: stable
+            source: chrome
+            branded: true
+            artifact: windows-amd64-stable
+          - name: Tier 1 rerun darwin/arm64 (Go stable)
+            runner: macos-latest
+            go: stable
+            source: chrome
+            branded: true
+            artifact: darwin-arm64-stable
+          - name: Tier 1 rerun linux/amd64 (Companion Chromium)
+            runner: ubuntu-latest
+            go: stable
+            source: chromium
+            artifact: linux-amd64-chromium
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - uses: ./.github/actions/tier1
+        with:
+          source: ${{ matrix.source }}
+          branded: ${{ matrix.branded }}
+          coverage: ${{ matrix.coverage }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-${{ matrix.artifact }}
+          path: |
+            tmp/cdp-log
+            coverage.out
+            browser.log
+
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
+
+  # The System browser: the whole suite on the Chrome the runner image ships,
+  # found by Browser resolution's discovery the way a developer's machine finds
+  # one, with nothing pointing at a Managed browser and downloading one turned
+  # off. Every Gate job sets WAND_BROWSER_BIN to hold itself to the pin, so
+  # discovery is proven here or nowhere (spec #33, section 12).
+  #
+  # linux/amd64 and windows/arm64: the second because no Managed browser is
+  # built for windows/arm64 at all (a known limitation, section 11), which
+  # leaves the browser the runner ships as the only way the suite ever runs
+  # there — Tier 2 compiles it and stops.
+  system-browser:
+    name: System browser ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            branded: true
+          # No branded entry: whether this image ships a branded Google Chrome
+          # is not something the runner images promise, and requiring a test
+          # that needs one would fail this job for the wrong reason. The suite
+          # below still runs it, and still skips it with a reason where there
+          # is none.
+          - runner: windows-11-arm
+    env:
+      # Discovery, and nothing else, may answer here: the browser cache points
+      # at a directory that does not exist and downloading is off, so Browser
+      # resolution either finds the browser this runner ships or fails saying
+      # it found none. Neither variable is what a Gate job sets: those name a
+      # Managed browser in WAND_BROWSER_BIN and never reach discovery at all.
+      WAND_BROWSER_CACHE: ${{ github.workspace }}/tmp/no-managed-browser
+      WAND_BROWSER_DOWNLOAD: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      # The sandbox, as .github/actions/tier1 explains it.
+      - if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # A run of no test prints the one line TestMain writes, which says what
+      # Browser resolution found. There is nothing to assert it against: the
+      # two variables above leave discovery as the only answer, so a browser
+      # line at all is the proof, and its absence is resolution having failed.
+      - name: What discovery found
+        run: |
+          go test -count=1 -run '^$' -v . | tee browser.log
+          grep '^browser: ' browser.log
+
+      - run: go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+
+      # The Confirmed fix for rod #1189 is claimed on the branded Google Chrome
+      # a runner ships, and the spec asks for that launch test to be repeated
+      # here (spec #33, section 11). It skips where it finds no branded Chrome,
+      # and a skip would leave the fix unproven and this job green, so on the
+      # runner that ships one its PASS line is required, exactly as in the Gate.
+      - name: The User mode Confirmed fix ran
+        if: matrix.branded
+        run: |
+          go test -count=1 -run '^TestUserModeBrandedChrome$' -v ./lib/launcher | tee user-mode.log
+          grep -q -- '--- PASS: TestUserModeBrandedChrome' user-mode.log
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-system-browser-${{ matrix.runner }}
+          path: |
+            tmp/cdp-log
+            browser.log
+
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
+
+  # The examples: every Example function of the workspace root and the whole
+  # e2e-testing module, which is an example written as a suite. The Gate runs
+  # -run=^Test and leaves them out, because each launches a browser of its own
+  # outside the tester pool; here they are the point. They reach no public host
+  # since #52, so a green run is also the proof that they still do not.
+  examples:
+    name: Examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      # The sandbox, as .github/actions/tier1 explains it.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Fetch the Managed browser
+        run: |
+          bin="$(go run ./cmd/wand-fetch-browser)"
+          echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
+          echo "browser: $bin"
+
+      # The pattern is anchored because -run matches a test name anywhere in
+      # it, and an unanchored Example would take TestExamplesOffline with it.
+      # The root suite's own default timeout is five minutes (got.DefaultFlags),
+      # which is the tester pool's budget rather than twenty browsers started
+      # one after another, so this run names a timeout of its own.
+      - run: go run ./internal/tools/ci-test -race -count=1 -timeout=40m -run='^Example' ./...
+
+      - run: go run ./internal/tools/ci-test -race -count=1 ./lib/examples/e2e-testing
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-examples
+          path: tmp/cdp-log
+
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
+
+  # The dependency graph at its newest, on the Go floor: what a user who runs
+  # `go get -u` gets. ADR-0006 made the frozen upstream modules satellites so
+  # that this is green rather than a build break (rod #1203, #1195, #1202,
+  # #1237), and this job is what keeps saying so.
+  #
+  # The update stops at the floor rather than at the first module that has
+  # outrun it, because the two are different questions and only one of them is
+  # about wand: whether wand's own code survives its dependencies moving, and
+  # whether a dependency still declares a Go version this floor can build. With
+  # GOTOOLCHAIN=local the literal `go get -u ./...` answers only the second,
+  # with "no", and stops there — so it would never reach the suite, which is the
+  # answer ADR-0006 wants. The modules that could not come are said out loud
+  # instead, in the run summary and as notices.
+  #
+  # Nothing is committed; the pull request that moves go.mod is written by hand
+  # (.github/dependabot.yml).
+  updated-graph:
+    name: Updated graph (go get -u)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Outside the workspace: go get rewrites this module's go.mod and go.sum
+      # and leaves go.work.sum as it was, so a workspace build would then stop
+      # on a sum it has no entry for. The two example modules keep their own
+      # graphs and are not what this job is about.
+      GOWORK: off
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: 1.21.x
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      # The sandbox, as .github/actions/tier1 explains it.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # go get -u takes the newest version there is, and with GOTOOLCHAIN=local
+      # one module that has raised its own Go floor above wand's then fails the
+      # whole command, before a single test has run. That is why this is a tool
+      # rather than the one line: it moves every module as far as the floor
+      # allows and says which ones could not come the whole way, so the suite
+      # below runs on the updated graph, which is what ADR-0006 asks of this
+      # job. A module held back is a notice and a row in the run summary, not a
+      # red: what to do about it is a decision, not a bump.
+      - name: Everything at its newest the Go floor allows
+        run: |
+          go run ./internal/tools/updated-graph
+          git --no-pager diff -- go.mod go.sum
+
+      - name: Fetch the Managed browser
+        run: |
+          bin="$(go run ./cmd/wand-fetch-browser)"
+          echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
+          echo "browser: $bin"
+
+      - run: go build ./...
+
+      - run: go vet ./...
+
+      - run: go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-updated-graph
+          path: tmp/cdp-log
+
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
+
+  # The Support window: the whole suite against the oldest Chrome wand claims
+  # to work with, which is the Target Chrome's milestone less three, at Chrome
+  # for Testing's last known good build of it (CONTEXT.md, Support window;
+  # ADR-0008). That build moves whenever Chrome for Testing publishes a patch
+  # of that milestone, so it is read at run time and belongs to no pin.
+  #
+  # The window below the Target Chrome is best-effort, not tested support: a
+  # red here is something to know about and to write down, not something that
+  # holds a release.
+  support-window:
+    name: Support window
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # The pins hold a hash for the Target Chrome and for nothing else, so
+      # this browser is downloaded unverified. Google's own bucket is then the
+      # only host it may come from, never a mirror (ADR-0005).
+      WAND_BROWSER_HOSTS: https://storage.googleapis.com/chrome-for-testing-public/{version}/{platform}/{archive}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      # The sandbox, as .github/actions/tier1 explains it.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: The oldest Chrome in the Support window
+        run: |
+          version="$(go run ./internal/tools/support-window)"
+          bin="$(go run ./cmd/wand-fetch-browser -version "$version")"
+          echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
+          echo "SUPPORT_WINDOW_CHROME=$version" >> "$GITHUB_ENV"
+          echo "browser: $bin"
+
+      # The same assertion the Tier 1 jobs make, against the version this job
+      # asked for rather than against the pin: a suite that ran on the Target
+      # Chrome would be a Tier 1 rerun wearing this job's name.
+      - name: The browser is that Chrome
+        run: |
+          go test -count=1 -run '^$' -v . | tee browser.log
+          line="$(grep '^browser: ' browser.log)"
+          [[ "$line" == "browser: $WAND_BROWSER_BIN ("*"/$SUPPORT_WINDOW_CHROME), "* ]] || {
+            echo "::error::the browser is not the oldest Chrome in the Support window: got \"$line\", want \"browser: $WAND_BROWSER_BIN (<product>/$SUPPORT_WINDOW_CHROME), <n> pooled testers\""
+            exit 1
+          }
+
+      - run: go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-support-window
+          path: |
+            tmp/cdp-log
+            browser.log
+
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover
+
+  # govulncheck on main: the same scan the Gate runs on a pull request, against
+  # code nobody has changed. An advisory is published against a version, not
+  # against a commit, so the day one lands that reaches wand's own code this is
+  # what says so — a Gate would only find out at the next pull request
+  # (docs/maintainer-notes.md, "The security Gates").
+  govulncheck:
+    name: govulncheck on main
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version
+
+      - run: go run ./internal/tools/govulncheck
+
+  # Trivy over the manifests already published: :latest, the newest release
+  # that is not a candidate, and :dev beside it. The Gate scans the images it
+  # has just built and pushes none, so a base image that grew a vulnerability
+  # after a release was cut is seen here and nowhere else; the answer to a red
+  # is a Dependabot digest bump and a patch release (ADR-0008).
+  #
+  # Before the first release neither tag exists, and this job says so and stops
+  # rather than failing on an image that was never pushed.
+  trivy:
+    name: Trivy on the published images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Reading the tags of the container package, and pulling what they name.
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The package does not exist at all before the first release, which the
+      # API answers with a 404, and that alone is the clean skip: any other
+      # refusal — a token not allowed to read the organisation's packages, an
+      # outage — leaves this job unable to tell an unpublished image from an
+      # unscanned one, and a job that cannot tell says so rather than going
+      # green on nothing.
+      - name: Which tags are published?
+        id: published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          owner=${GITHUB_REPOSITORY%%/*}
+          package=${GITHUB_REPOSITORY#*/}
+          if tags=$(gh api "/orgs/$owner/packages/container/$package/versions?per_page=100" --paginate \
+            --jq '.[].metadata.container.tags[]' 2> "$RUNNER_TEMP/packages.err"); then
+            echo "published tags: $(tr '\n' ' ' <<< "$tags")"
+          elif grep -q 'HTTP 404' "$RUNNER_TEMP/packages.err"; then
+            echo "::notice::no container package exists yet, so there is nothing published to scan"
+            tags=''
+          else
+            cat "$RUNNER_TEMP/packages.err"
+            echo "::error::the container package of $GITHUB_REPOSITORY could not be read, so this job cannot tell an unpublished image from an unscanned one"
+            exit 1
+          fi
+
+          for tag in latest dev; do
+            if grep -qx -- "$tag" <<< "$tags"; then
+              echo "$tag=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::notice::ghcr.io/$GITHUB_REPOSITORY:$tag is not published yet, so it is not scanned"
+            fi
+          done
+
+      - name: Sign in to the registry
+        if: steps.published.outputs.latest == 'true' || steps.published.outputs.dev == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      # --ignore-unfixed leaves what no upgrade would fix, so a red step is
+      # always something a base image digest or a dependency bump can move,
+      # which is the same threshold the Gate holds a freshly built image to.
+      - name: Trivy on the release image
+        if: steps.published.outputs.latest == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:latest
+          scanners: vuln
+          vuln-type: os,library
+          ignore-unfixed: true
+          severity: CRITICAL
+          exit-code: '1'
+
+      - name: Trivy on the development image
+        if: steps.published.outputs.dev == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:dev
+          scanners: vuln
+          vuln-type: os,library
+          ignore-unfixed: true
+          severity: CRITICAL
+          exit-code: '1'
+
+  # The report: one issue per red job, keyed by the job's name, or a comment on
+  # the one already open. It runs whatever the jobs above did, which is what
+  # lets it see them, and it is green when it has reported — the red belongs to
+  # the jobs it reports on.
+  #
+  # Two tokens: the run's own reads the jobs of this run, an Actions permission
+  # the automation App does not have, and the App's opens the issues, so that
+  # they come from the automation identity rather than from github-actions[bot]
+  # (#58).
+  report:
+    name: Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always()
+    needs:
+      - tier1
+      - system-browser
+      - examples
+      - updated-graph
+      - support-window
+      - govulncheck
+      - trivy
+    permissions:
+      contents: read
+      # The jobs of this run, for the reporter.
+      actions: read
+      # Only what the notice below needs; the issues themselves are the App's.
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: token
+        with:
+          client-id: ${{ secrets.AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+
+      - name: One issue per red job
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ steps.token.outputs.token }}
+        run: go run ./internal/tools/nightly-report
+
+      # The reporter is the whole alarm, so a reporter that cannot report is
+      # the one failure nothing else would say out loud. It gets the same
+      # notice the Roll gives itself, opened with GITHUB_TOKEN because the App
+      # token is one of the things that may have failed (roll.yml).
+      - name: Say so when the report fails
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: 'Nightly: the report failed'
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # gh's own --jq takes no jq flags, so the title reaches the filter
+          # as data through a real jq rather than as a spliced-in string.
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title \
+            | jq -r --arg t "$TITLE" '[.[] | select(.title == $t) | .number] | first // empty')
+
+          body=$(printf '%s\n\n%s\n' \
+            "$TITLE: $RUN" \
+            "The jobs of that run may well have gone red without an issue of their own, so read the run itself. The usual cause is the App token: the client id or the private key of #58 was rejected, and with it every issue this run would have opened.")
+
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh issue create --title "$TITLE" --label needs-triage --body "$body"
+          fi

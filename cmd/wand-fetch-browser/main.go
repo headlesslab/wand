@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	source = flag.String("source", "", `the Browser source: "chrome" for Chrome for Testing (the default) or "chromium" for a Chromium trunk build`)
-	binary = flag.String("binary", "", `the Chrome for Testing binary: "chrome" (the default) or "chrome-headless-shell"`)
+	source  = flag.String("source", "", `the Browser source: "chrome" for Chrome for Testing (the default) or "chromium" for a Chromium trunk build`)
+	binary  = flag.String("binary", "", `the Chrome for Testing binary: "chrome" (the default) or "chrome-headless-shell"`)
+	version = flag.String("version", "", "the Chrome for Testing version, the Target Chrome by default; any other version has no pinned archive hash, so it is verified by nothing but the transport")
 )
 
 func main() {
@@ -34,6 +35,14 @@ func main() {
 
 	if *binary != "" {
 		b.Binary = launcher.Binary(*binary)
+	}
+
+	// The pins hold one Chrome for Testing version, the Target Chrome, so a
+	// version given here downloads without a hash to check it against; the
+	// Support-window Nightly (#61) is what asks for one, and its browser is
+	// read from Chrome for Testing over TLS rather than approved by a Roll.
+	if *version != "" {
+		b.Version = *version
 	}
 
 	p, err := b.Get()

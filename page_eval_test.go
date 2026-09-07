@@ -156,11 +156,27 @@ func TestPromiseLeak(t *testing.T) {
 
 	p := g.page.MustNavigate(g.blank())
 
+	// Two orderings have to hold for the error below to be the one this test
+	// is named after, and upstream left both of them to the clock: the
+	// evaluation had to be running before the navigation, which a 300 ms sleep
+	// stood for, and the promise had to still be pending when the context
+	// died, which a 1 s timer left 700 ms of room for. The Gate saw the second
+	// one lose on darwin/arm64 — the promise resolved first and the evaluation
+	// answered nil (#99).
+	//
+	// Neither is a clock now. The navigation waits until the page says the
+	// evaluation is running, and the timer is longer than the harness lets any
+	// run last (a minute per test, five for the binary), so it can only be
+	// pending. The timer is still there, and still leaks, because that is what
+	// the test is about.
 	utils.All(func() {
-		_, err := p.Eval(`() => new Promise(r => setTimeout(() => r(location.href), 1000))`)
+		_, err := p.Eval(`() => {
+			window.pending = true
+			return new Promise(r => setTimeout(() => r(location.href), 10 * 60 * 1000))
+		}`)
 		g.Is(err, cdp.ErrCtxDestroyed)
 	}, func() {
-		utils.Sleep(0.3)
+		p.MustWait(`() => window.pending === true`)
 		p.MustNavigate(g.blank())
 	})()
 }

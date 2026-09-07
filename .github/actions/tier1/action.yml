@@ -1,0 +1,181 @@
+# The body of one Tier 1 job: the Managed browser the pins name, the assertion
+# that the browser is that pin, and the whole suite with -race (spec #33,
+# sections 12 and 13; tickets #54 and #61).
+#
+# These steps live here rather than in a workflow because two workflows run
+# them: the Gate on every pull request and every push to main, and the Nightly
+# once a night on main (.github/workflows/nightly.yml). A fix to the pin
+# assertion, to what the suite is run with or to the coverage arithmetic has to
+# reach both, and one copy is how it does. The AppArmor line is explained here
+# and repeated by the Nightly's other browser jobs, which run no Tier 1 matrix
+# and take nothing else from this file.
+#
+# Nothing here uses another action, on purpose. Dependabot's github-actions
+# updater reads .github/workflows and a root action.yml, and nothing else, so
+# a SHA pinned in this file would be a pin nothing moves. The three steps that
+# do use one — the checkout, the toolchain and the artifact upload — stay in
+# each workflow, where Dependabot sees them, and the zero-leftover check goes
+# with them because it has to run after the upload.
+name: Tier 1
+description: Build, vet and run the whole suite with -race on the browser the pins name.
+
+inputs:
+  source:
+    description: 'The Browser source to download and run on: chrome or chromium.'
+    required: false
+    default: chrome
+  branded:
+    description: '"true" on a runner that ships the branded Google Chrome, whose User mode Confirmed fix is then required to pass.'
+    required: false
+    default: ''
+  coverage:
+    description: '"true" on the one job that holds the suite to 100 %.'
+    required: false
+    default: ''
+  govulncheck:
+    description: '"true" on the one job whose Go is new enough to build x/vuln.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # GOTOOLCHAIN is a workflow-level environment variable of both callers, and
+    # a composite action reaching one is the runner's to arrange, so it is
+    # asserted here rather than assumed: with it anything but local, a
+    # dependency raising its Go floor would be answered by downloading a
+    # toolchain instead of by failing, and the Go floor job would quietly stop
+    # being one (spec #33, section 13).
+    - name: The toolchain is this runner's
+      run: |
+        go version
+        [[ "$(go env GOTOOLCHAIN)" == local ]] || {
+          echo "::error::GOTOOLCHAIN is \"$(go env GOTOOLCHAIN)\", not local: this job could pull a toolchain nothing pinned"
+          exit 1
+        }
+      shell: bash
+
+    # The one Gate that needs no browser runs before the browser is even
+    # fetched, so a dependency whose advisory reaches wand's own code fails
+    # the job in a minute rather than after the suite. Only this job, since
+    # GOTOOLCHAIN=local leaves the Go 1.21 jobs nothing to build x/vuln
+    # with; the tool's doc comment carries the rest (ticket #56).
+    - name: govulncheck
+      if: inputs.govulncheck == 'true'
+      run: go run ./internal/tools/govulncheck
+      shell: bash
+
+    # Ubuntu 24.04 confines unprivileged user namespaces through AppArmor,
+    # which leaves Chromium's sandbox nothing to run in ("No usable
+    # sandbox!"). Lifting that restriction for the job keeps the sandbox on,
+    # as on a developer machine, rather than spreading --no-sandbox over the
+    # tests; rod #1070 stays a documented limitation for users. Windows and
+    # macOS have no equivalent.
+    - if: runner.os == 'Linux'
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      shell: bash
+
+    # The Managed browser arrives through Browser resolution's own download
+    # on every run, never through an Actions cache; the pre-fetch command
+    # runs that download before any test does. Concurrent downloads of one
+    # browser serialize behind fetch's file lock, so a package suite that
+    # started while another package was still downloading would spend its
+    # timing budgets waiting behind that lock.
+    #
+    # Browser resolution takes a System browser before a Managed one, and
+    # the runner images ship Google Chrome, so WAND_BROWSER_BIN points every
+    # suite at the Managed browser just downloaded, whose path the command
+    # prints: Tier 1 runs on the Target Chrome pin, or on the Companion
+    # Chromium pin, never on whatever the runner installed (spec #33,
+    # section 12).
+    - name: Fetch the Managed browser
+      env:
+        SOURCE: ${{ inputs.source }}
+      run: |
+        bin="$(go run ./cmd/wand-fetch-browser -source "$SOURCE")"
+        echo "WAND_BROWSER_BIN=$bin" >> "$GITHUB_ENV"
+        echo "browser: $bin"
+      shell: bash
+
+    # The root suite resolves the browser once in TestMain and prints the
+    # path and the version the browser reports, before any test; a run of
+    # no test prints that one line. The version the browser reports must be
+    # the Target Chrome pin. A Chromium trunk build has a position, not a
+    # version, so the Companion Chromium is held to its pin by the path,
+    # chromium-<position> being the launcher's directory for it, and to the
+    # Target Chrome's major by the version it reports, since the Companion
+    # sits at or below the Target Chrome's branch position. The pins come
+    # through the pins printer, never by parsing source.
+    - name: The browser is the pin
+      env:
+        SOURCE: ${{ inputs.source }}
+      run: |
+        go test -count=1 -run '^$' -v . | tee browser.log
+        line="$(grep '^browser: ' browser.log)"
+        pins="$(go run ./internal/tools/print-pins -json)"
+        chrome="$(jq -r .chrome <<< "$pins")"
+        chromium="$(jq -r .chromium <<< "$pins")"
+        echo "pins: $pins"
+        case "$SOURCE" in
+          chrome)
+            want="browser: $WAND_BROWSER_BIN (<product>/$chrome), <n> pooled testers"
+            [[ "$line" == "browser: $WAND_BROWSER_BIN ("*"/$chrome), "* ]] ;;
+          chromium)
+            want="browser: <path with /chromium-$chromium/> (<product>/${chrome%%.*}.<version>), <n> pooled testers"
+            [[ "$WAND_BROWSER_BIN" == *"/chromium-$chromium/"* && "$line" == "browser: $WAND_BROWSER_BIN ("*"/${chrome%%.*}."* ]] ;;
+          *)
+            want="a source of chrome or chromium, not \"$SOURCE\"" && false ;;
+        esac || { echo "::error::the browser is not the pin: got \"$line\", want $want"; exit 1; }
+      shell: bash
+
+    # Everything runs from the workspace root. `./...` stops at the two
+    # nested example modules, so they are named to be compiled against this
+    # checkout; e2e-testing has only test files, hence vet but no build.
+    - run: go build ./... ./lib/examples/custom-websocket
+      shell: bash
+
+    - run: go vet ./... ./lib/examples/custom-websocket ./lib/examples/e2e-testing
+      shell: bash
+
+    # The ci-test wrapper sets GODEBUG=tracebackancestors=100 for the leak
+    # checker. -count=1 keeps go test from replaying results the restored
+    # build cache holds for a package whose inputs did not change. The
+    # examples run offline against the fixtures since #52, but each one
+    # launches a browser of its own outside the tester pool, so they belong
+    # to the examples Nightly (#61) rather than to every Gate, hence
+    # -run=^Test.
+    - run: go run ./internal/tools/ci-test -race -count=1 -coverprofile=coverage.out -run=^Test ./...
+      shell: bash
+
+    # The Confirmed fix for rod #1189 (#47) proves itself only when it
+    # runs: TestUserModeBrandedChrome launches the branded Google Chrome
+    # the runner ships, under xvfb-run on Linux, on the User mode profile,
+    # and skips where it finds no branded Chrome. A skip here would leave
+    # the fix unproven and the run green, so on the three runners that ship
+    # one the test runs once more, verbosely, and its PASS line is required.
+    - name: The User mode Confirmed fix ran
+      if: inputs.branded == 'true'
+      run: |
+        go test -count=1 -run '^TestUserModeBrandedChrome$' -v ./lib/launcher | tee user-mode.log
+        grep -q -- '--- PASS: TestUserModeBrandedChrome' user-mode.log
+      shell: bash
+
+    # 100 % per file, checked by got's check-cov at the version go.mod pins
+    # (go run resolves it from the build list, never @latest). Since Go 1.20
+    # the profile of ./... also lists packages without tests, at 0 %, which
+    # upstream avoided with a hand-written package list. This check instead
+    # drops entry points, package main (the commands, the tools, the
+    # generators, the fixture binaries and the examples), which are run
+    # rather than unit-tested and which upstream never held to 100 % either;
+    # every other package must be at 100 %. The awk matches a file's package
+    # exactly, so a package nested under an entry point stays in.
+    - name: Coverage at 100 %
+      if: inputs.coverage == 'true'
+      run: |
+        go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... > main-packages.txt
+        awk 'NR == FNR { main[$0] = 1; next }
+             /^mode:/ { print; next }
+             { dir = $1; sub(/:.*/, "", dir); sub(/\/[^\/]*$/, "", dir); if (!(dir in main)) print }' \
+          main-packages.txt coverage.out > coverage-lib.out
+        go run github.com/ysmood/got/cmd/check-cov -cov-file=coverage-lib.out
+      shell: bash
