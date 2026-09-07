@@ -171,6 +171,7 @@
     "rulesets",
     "sarif",
     "sattributes",
+    "scancode",
     "schildren",
     "seqdiff",
     "Sessionable",
