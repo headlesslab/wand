@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -320,6 +321,54 @@ func TestGetWebSocketDebuggerURLErr(t *testing.T) {
 	g.Err(err)
 }
 
+// TestResolveURL is the regression test of rod #1176: an answer that is not a
+// browser's is an error, not a URL with "<nil>" for a path, whatever the
+// status: a proxy's 502 in the way of the port, a web server that happens to
+// listen on it and answers 200 with HTML, a null for the field, a URL that
+// does not parse, or a body cut short. A browser's answer gives the
+// WebSocket URL on the host that was asked. Each answer comes from an
+// ephemeral server of its own; the error is printed rather than called, so
+// that a nil one reads as nil on the Snapshot.
+func TestResolveURL(t *testing.T) {
+	g := setup(t)
+
+	serve := func(status int, body string, cut bool) *got.Router {
+		s := g.Serve()
+		s.Mux.HandleFunc("/json/version", func(w http.ResponseWriter, _ *http.Request) {
+			if cut {
+				w.Header().Set("Content-Length", "100")
+			}
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(body))
+		})
+		return s
+	}
+
+	notBrowsers := []struct {
+		name   string
+		status int
+		body   string
+		cut    bool
+		err    string
+	}{
+		{"a proxy in the way", http.StatusBadGateway, "<html><body>502 Bad Gateway</body></html>", false, "502 Bad Gateway"},
+		{"a web server on the port", http.StatusOK, "<html><body>hello</body></html>", false, "webSocketDebuggerUrl"},
+		{"a null field", http.StatusOK, `{"webSocketDebuggerUrl": null}`, false, "webSocketDebuggerUrl"},
+		{"a URL that does not parse", http.StatusOK, `{"webSocketDebuggerUrl": "ws://[::1"}`, false, "missing ']'"},
+		{"a body cut short", http.StatusOK, `{"webSocketDebuggerUrl":`, true, "unexpected EOF"},
+	}
+	for _, c := range notBrowsers {
+		_, err := launcher.ResolveURL(serve(c.status, c.body, c.cut).URL())
+		g.Desc(c.name).Err(err)
+		g.Desc(c.name).Has(fmt.Sprint(err), c.err)
+	}
+
+	browser := serve(http.StatusOK, `{"webSocketDebuggerUrl": "ws://localhost:1/devtools/browser/abc"}`, false)
+	u, err := launcher.ResolveURL(browser.URL())
+	g.E(err)
+	g.Eq(u, "ws://"+browser.HostURL.Host+"/devtools/browser/abc")
+}
+
 func TestLaunchErr(t *testing.T) {
 	g := setup(t)
 
@@ -467,4 +516,46 @@ func TestLaunchMultiTimes(t *testing.T) {
 	// second time launch, failed with ErrAlreadyLaunched.
 	_, e = l.Launch()
 	g.Eq(e, launcher.ErrAlreadyLaunched)
+}
+
+// TestLaunchAttach is the regression test of rod #1221: a launcher with the
+// guard off attaches to a browser already listening on its port, and its Kill
+// and Cleanup then have nothing to do: nothing waited for, nothing killed,
+// nothing removed, since the browser and its profile are not the launcher's
+// own. The Snapshot's Cleanup waited forever on the exit of a process it
+// never started. The browser comes from a guarded launcher of this test on an
+// ephemeral port, so that it goes with the test binary whatever happens. The
+// bound is half of what Cleanup gives a browser of the launcher's own before
+// killing it (cleanupBound), so a wait of any kind fails the test.
+func TestLaunchAttach(t *testing.T) {
+	g := setup(t)
+
+	port := freePort(g)
+	l := launcher.New().RemoteDebuggingPort(port)
+	defer stop(l)
+	u := l.MustLaunch()
+	dir := l.Get(flags.UserDataDir)
+
+	attached := launcher.New().Leakless(false).RemoteDebuggingPort(port).UserDataDir(dir)
+	u2, err := attached.Launch()
+	g.E(err)
+	g.Eq(u2, u)
+	g.Eq(attached.PID(), 0)
+
+	done := make(chan struct{})
+	go func() {
+		attached.Kill()
+		attached.Cleanup()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Kill and Cleanup of an attached launcher did not return")
+	}
+
+	u3, err := launcher.ResolveURL(fmt.Sprint(port))
+	g.E(err)
+	g.Eq(u3, u)
+	g.True(g.PathExists(dir))
 }

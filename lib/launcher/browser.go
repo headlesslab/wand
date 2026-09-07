@@ -159,16 +159,20 @@ var chromiumPlatforms = map[string]struct{ prefix, archive string }{
 }
 
 // binaries is the path of the executable inside an extracted archive, by
-// source, binary and GOOS.
+// source, binary and GOOS. FreeBSD (Tier 3) has the Linux layout although
+// no source builds for it: nothing downloads there, but a binary placed by
+// hand in the cache is found (rod #1233).
 var binaries = map[Source]map[Binary]map[string]string{
 	SourceChrome: {
 		BinaryChrome: {
 			"darwin":  "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+			"freebsd": "chrome",
 			"linux":   "chrome",
 			"windows": "chrome.exe",
 		},
 		BinaryHeadlessShell: {
 			"darwin":  "chrome-headless-shell",
+			"freebsd": "chrome-headless-shell",
 			"linux":   "chrome-headless-shell",
 			"windows": "chrome-headless-shell.exe",
 		},
@@ -176,6 +180,7 @@ var binaries = map[Source]map[Binary]map[string]string{
 	SourceChromium: {
 		BinaryChrome: {
 			"darwin":  "Chromium.app/Contents/MacOS/Chromium",
+			"freebsd": "chrome",
 			"linux":   "chrome",
 			"windows": "chrome.exe",
 		},
@@ -500,9 +505,12 @@ func lookPath(candidates []string) (string, bool) {
 // systemBrowsers is where a System browser is looked for on goos, in the
 // order LookPath tries them: Google Chrome, Chromium and Microsoft Edge, on
 // PATH and where their packages install them. It is upstream's list plus
-// the Chrome for Testing app bundle and the Homebrew prefixes on macOS, and
-// Google's and Microsoft's install directories on Linux. No Domestic
-// platform browser is listed, since none is verified to accept
+// the Chrome for Testing app bundle and the Homebrew prefixes on macOS,
+// Google's and Microsoft's install directories on Linux, and FreeBSD (Tier
+// 3), where the Snapshot looked nowhere (rod #828, #1233): chrome is what
+// the www/chromium port installs, ungoogled-chromium what its own port
+// does, and chromium is upstream's second name there, as on OpenBSD. No
+// Domestic platform browser is listed, since none is verified to accept
 // --remote-debugging-port (ADR-0005); EnvBrowserBin names one.
 func systemBrowsers(goos string) []string {
 	return map[string][]string{
@@ -541,6 +549,11 @@ func systemBrowsers(goos string) []string {
 		"openbsd": {
 			"chrome",
 			"chromium",
+		},
+		"freebsd": {
+			"chrome",
+			"chromium",
+			"ungoogled-chromium",
 		},
 		"windows": append([]string{"chrome", "edge"}, expandWindowsExePaths(
 			`Google\Chrome\Application\chrome.exe`,
