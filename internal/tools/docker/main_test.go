@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,14 +26,71 @@ func TestBuildsNothingPushed(t *testing.T) {
 		"--build-arg", "base=ghcr.io/headlesslab/wand", ".",
 	})
 
-	// Nothing this script runs reaches a registry: the tags are the release
-	// workflow's.
+	// Nothing a build without -push runs reaches a registry: the tags are the
+	// release workflow's.
 	for _, args := range [][]string{buildRuntime(), buildDev(), run(nil, image), runSuite("/src")} {
 		line := strings.Join(args, " ")
 		for _, word := range []string{"push", "login", "--load", "--output"} {
 			g.Desc("%s", line).False(strings.Contains(line, word))
 		}
 	}
+}
+
+func TestPushCreatesNoTag(t *testing.T) {
+	g := setup(t)
+
+	// Both images are pushed under no tag at all: the registry holds each by
+	// its digest, and a tag of the release is the manifest of both
+	// architectures that the release workflow makes from them.
+	g.Eq(pushRuntime("tmp/metadata-runtime.json"), []string{
+		"docker", "buildx", "build", "--file", "docker/Dockerfile",
+		"--output", "type=image,name=ghcr.io/headlesslab/wand,push-by-digest=true,name-canonical=true,push=true",
+		"--metadata-file", "tmp/metadata-runtime.json", ".",
+	})
+
+	// The development image is built on the runtime image just pushed, by the
+	// digest that push gave: a builder exporting to a registry holds no image
+	// of its own for a tag to name.
+	g.Eq(pushDev("ghcr.io/headlesslab/wand@sha256:a", "tmp/metadata-dev.json"), []string{
+		"docker", "buildx", "build", "--file", "docker/dev.Dockerfile",
+		"--build-arg", "base=ghcr.io/headlesslab/wand@sha256:a",
+		"--output", "type=image,name=ghcr.io/headlesslab/wand,push-by-digest=true,name-canonical=true,push=true",
+		"--metadata-file", "tmp/metadata-dev.json", ".",
+	})
+
+	for _, args := range [][]string{pushRuntime("m.json"), pushDev("base", "m.json")} {
+		g.Desc("%s", strings.Join(args, " ")).False(strings.Contains(strings.Join(args, " "), "--tag"))
+	}
+}
+
+func TestTheDigestBuildxPushed(t *testing.T) {
+	g := setup(t)
+
+	dir := g.Testable.(*testing.T).TempDir()
+	metadata := filepath.Join(dir, "metadata.json")
+
+	g.E(os.WriteFile(metadata, []byte(`{
+		"containerimage.digest": "sha256:1a2b3c4d",
+		"image.name": "ghcr.io/headlesslab/wand"
+	}`), 0o600))
+
+	got, err := digest(metadata)
+	g.E(err)
+	g.Eq(got, "sha256:1a2b3c4d")
+
+	_, err = digest(filepath.Join(dir, "missing.json"))
+	g.Err(err)
+
+	// A build that pushed nothing leaves a file with no digest in it, which is
+	// a release that must not go on to make a manifest of it.
+	g.E(os.WriteFile(metadata, []byte(`{"image.name": "ghcr.io/headlesslab/wand"}`), 0o600))
+	_, err = digest(metadata)
+	g.Err(err)
+	g.Has(err.Error(), "names no image digest")
+
+	g.E(os.WriteFile(metadata, []byte("not json"), 0o600))
+	_, err = digest(metadata)
+	g.Err(err)
 }
 
 func TestRunSuiteMountsTheCheckout(t *testing.T) {

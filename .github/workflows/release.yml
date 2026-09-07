@@ -1,0 +1,603 @@
+# The release: one workflow_dispatch turns main's head into a release. It
+# validates the version and the commit, builds and pushes the image, appends
+# the release's row to versions.json, commits that on main, and creates the
+# GitHub Release, which is what creates the tag (spec #33, sections 14 and 15;
+# ADR-0008; tickets #19, #31, #32 and #60).
+#
+# Nothing else in this repository creates a tag: merging a Roll opens no
+# release, and no version constant exists in the code, so what a release is
+# named is what the maintainer types here (ADR-0008).
+#
+# The order of the steps is the order of what cannot be undone. Everything
+# read-only comes first (the version against the tags published, the Gates
+# green on this very commit, the pins and the protocol re-derived); then the
+# two architectures build and push their image under no tag, which nobody can
+# see; then the manifests, their attestations and the row on main; and last
+# the Release, whose creation is what makes the tag. A tag is never deleted or
+# moved (ADR-0008), so it is made when everything else has already worked.
+#
+# The dry-run input runs all of it and writes nothing that stays: the two
+# manifests are published under throwaway tags, verified, and deleted at the
+# end, and no commit, tag or Release is created.
+#
+# The commit, the tag and the Release are the automation identity's, not
+# GITHUB_TOKEN's: the main and v* rulesets bind everyone but their bypass
+# actors, and the App is one of them (#58).
+#
+# Every action is pinned to a full-length commit SHA with its version in a
+# trailing comment; Dependabot keeps the pins moving.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The release to cut: vX.Y.Z, or vX.Y.Z-rc.N for a release candidate.'
+        required: true
+        type: string
+      dry-run:
+        description: 'Validate, build and publish throwaway image tags; create no commit, tag or Release.'
+        required: false
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One release at a time, and never cancel one: a cancelled run can leave a
+# manifest pushed and no Release explaining it.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # Never download a newer toolchain: a dependency raising its Go floor above
+  # ours must fail the run, not silently pull a toolchain.
+  GOTOOLCHAIN: local
+
+  # The one image name wand publishes under, the same one the build script
+  # holds (internal/tools/docker).
+  IMAGE: ghcr.io/headlesslab/wand
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Everything that decides whether this release may be cut at all, and
+  # nothing that writes: a bad version, a red Gate or a protocol that no
+  # longer re-derives fails here, before the image jobs spend an hour.
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      # A release is main's head, whatever branch this dispatch was started
+      # from; every job below checks out this run's commit by SHA, so a main
+      # that moves during the run cannot slip into the release.
+      - name: A release is cut from main
+        run: |
+          if [ "$GITHUB_REF" != 'refs/heads/main' ]; then
+            echo "::error::a release is cut from main, not from $GITHUB_REF"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Every tag: the version is validated against the releases already
+          # published.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: internal/tools/package-lock.json
+
+      # go mod download, npm ci for the Node tools, .dockerignore.
+      - run: go run ./internal/tools/setup
+
+      # The Protocol roll re-derives from the branch position and every pins
+      # output re-renders to the committed bytes, and the protocol package is
+      # byte for byte what that roll gives. The generate Gate proved both on
+      # this commit already; a release is where a stale protocol would be
+      # published under a pin that does not describe it, so it is proved once
+      # more here.
+      - run: go run ./lib/launcher/pins/generate -check
+
+      - run: go run ./lib/proto/generate
+
+      - name: The protocol is the pin
+        run: git diff --exit-code
+
+      # Every status check the main ruleset requires must have finished green
+      # on this commit. A skipped check counts as green, which is what the
+      # dependency review Gate is on a push to main: it compares a pull
+      # request's two commits and has nothing to do here. The ruleset's code
+      # scanning rule is not read: it holds a pull request to the alerts it
+      # adds, CodeQL's analysis is no required context of its own, and the
+      # alerts open on main are a human's to clear before a release (#15).
+      - name: The Gates are green on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/rules/branches/main" \
+            --jq '.[] | select(.type == "required_status_checks")
+                      | .parameters.required_status_checks[].context' \
+            | sort -u > "$RUNNER_TEMP/required.txt"
+
+          if [ ! -s "$RUNNER_TEMP/required.txt" ]; then
+            echo '::error::the main ruleset requires no status check, so a green run here proves nothing'
+            exit 1
+          fi
+
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?filter=latest&per_page=100" --paginate \
+            --jq '.check_runs[]
+                  | select(.conclusion == "success" or .conclusion == "skipped" or .conclusion == "neutral")
+                  | .name' \
+            | sort -u > "$RUNNER_TEMP/green.txt"
+
+          missing=$(comm -23 "$RUNNER_TEMP/required.txt" "$RUNNER_TEMP/green.txt" | tr '\n' ',' | sed 's/,$//')
+          if [ -n "$missing" ]; then
+            echo "::error::$GITHUB_SHA is not green: $missing"
+            exit 1
+          fi
+
+          echo "green on $GITHUB_SHA:"
+          cat "$RUNNER_TEMP/required.txt"
+
+      # The version itself: its shape, that it is above every release already
+      # published, and that its Release preamble, when it has one, holds no
+      # placeholder this workflow cannot fill in. Everything this writes stays
+      # in this job's checkout; the publish job does it again for real.
+      - name: The release this would cut
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          go run ./internal/tools/print-pins -json > "$RUNNER_TEMP/pins.json"
+          go run ./internal/tools/release -version "$VERSION" -pins "$RUNNER_TEMP/pins.json" \
+            -body "$RUNNER_TEMP/body.md"
+
+          echo
+          git --no-pager diff -- versions.json
+          echo
+          cat "$RUNNER_TEMP/body.md"
+
+  # The image, built natively on each Linux architecture (no QEMU, no cross
+  # build) from this run's commit and pushed under no tag at all: the registry
+  # holds each by its digest, which the publish job gathers into one manifest
+  # per tag once both jobs are done. Building before anything is committed
+  # keeps the writes that cannot be undone behind the hour this takes; the
+  # commit the release tags differs from what is built here by the versions.json
+  # row alone, which no image carries (spec #33, section 14).
+  image:
+    name: ${{ matrix.name }}
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Never the image Gate's names ("Image linux/amd64"): the step
+          # below reads the check runs of this commit by name, and a second
+          # dispatch would then find this job where it looks for the Gate's.
+          - name: Push linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+          - name: Push linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # Go on the runner is the build script's, not the image's: the image
+      # builds with the Go its own base image pins by digest.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      # The build script pushes but never logs in, so that a checkout of wand
+      # cannot reach a registry by itself.
+      - name: Log in to the registry
+        env:
+          TOKEN: ${{ github.token }}
+        run: echo "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      # Pushing an image under no tag needs a builder that exports images,
+      # which the default docker driver does not do.
+      - name: A builder that exports to a registry
+        run: docker buildx create --name wand --driver docker-container --use
+
+      # Both images for this architecture, pushed by digest, with the browser
+      # inside the runtime one held to the Target Chrome pin as the image Gate
+      # holds it.
+      - name: Build and push by digest
+        run: go run ./internal/tools/docker -push "tmp/${{ matrix.arch }}.json"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: digests-${{ matrix.arch }}
+          path: tmp/${{ matrix.arch }}.json
+          if-no-files-found: error
+
+  # The publication: one manifest per tag out of the two architectures, an
+  # attestation of each, the row on main, and the Release that creates the tag.
+  publish:
+    name: Publish
+    needs: [validate, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The commit, the tag and the Release go through the App token, which
+      # the rulesets let past; this one only reads the checkout.
+      contents: read
+      # The manifests and the attestations pushed beside them.
+      packages: write
+      # What signs an attestation and what records it.
+      id-token: write
+      attestations: write
+    steps:
+      # First, so that a rejected token fails before a tag is published.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: token
+        with:
+          client-id: ${{ secrets.AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: digests-*
+          merge-multiple: true
+          path: digests
+
+      - name: Log in to the registry
+        env:
+          TOKEN: ${{ github.token }}
+        run: echo "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: The tags this run publishes
+        id: tags
+        env:
+          VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          prefix=''
+          if [ "$DRY_RUN" = 'true' ]; then
+            # A dry run publishes the same manifests under throwaway tags and
+            # deletes them at the end: what it proves is the push and the
+            # attestations, and it leaves no tag of any kind behind.
+            prefix="dry-run-$GITHUB_RUN_ID-"
+          fi
+
+          {
+            echo "release=$prefix$VERSION"
+            echo "dev=${prefix}dev"
+            # latest is the newest release that is not a candidate (ADR-0008).
+            case "$VERSION" in
+              *-rc.*) echo 'latest=' ;;
+              *) echo "latest=${prefix}latest" ;;
+            esac
+          } >> "$GITHUB_OUTPUT"
+
+      # The two architectures meet here: one manifest carries both, under the
+      # release's tag (and latest with it, when the release is not a
+      # candidate), and a second one under dev. The digest of each is what the
+      # attestations below are made about, and what `gh attestation verify`
+      # resolves a tag to.
+      - name: One manifest per tag
+        id: manifest
+        env:
+          RELEASE: ${{ steps.tags.outputs.release }}
+          DEV: ${{ steps.tags.outputs.dev }}
+          LATEST: ${{ steps.tags.outputs.latest }}
+        run: |
+          # The digest of a manifest is the hash of its bytes, so it is
+          # computed here rather than asked for: buildx answers
+          # --format "{{.Manifest.Digest}}" with its whole default block
+          # instead of the field (v0.29.1), while --raw gives the bytes the
+          # registry stores, which hash to the digest it serves them under.
+          digest_of() {
+            local digest
+            digest=$(docker buildx imagetools inspect --raw "$1" | sha256sum | cut -d ' ' -f 1)
+            if [ ${#digest} -ne 64 ]; then
+              echo "::error::the manifest of $1 hashed to $digest, which is no digest" >&2
+              return 1
+            fi
+
+            echo "sha256:$digest"
+          }
+
+          # Each digest is read into a variable of its own, so that a digest
+          # file an image job did not write fails here rather than becoming an
+          # empty reference docker is asked about.
+          amd64_runtime=$(jq -er .runtime digests/amd64.json)
+          arm64_runtime=$(jq -er .runtime digests/arm64.json)
+          amd64_dev=$(jq -er .dev digests/amd64.json)
+          arm64_dev=$(jq -er .dev digests/arm64.json)
+
+          tags=(--tag "$IMAGE:$RELEASE")
+          if [ -n "$LATEST" ]; then
+            tags+=(--tag "$IMAGE:$LATEST")
+          fi
+
+          docker buildx imagetools create "${tags[@]}" "$IMAGE@$amd64_runtime" "$IMAGE@$arm64_runtime"
+
+          docker buildx imagetools create --tag "$IMAGE:$DEV" "$IMAGE@$amd64_dev" "$IMAGE@$arm64_dev"
+
+          release_digest=$(digest_of "$IMAGE:$RELEASE")
+          dev_digest=$(digest_of "$IMAGE:$DEV")
+
+          {
+            echo "release=$release_digest"
+            echo "dev=$dev_digest"
+          } >> "$GITHUB_OUTPUT"
+
+          docker buildx imagetools inspect "$IMAGE:$RELEASE"
+
+      - name: The build provenance of the release manifest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.manifest.outputs.release }}
+          push-to-registry: true
+
+      - name: The build provenance of the development manifest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.manifest.outputs.dev }}
+          push-to-registry: true
+
+      # The SPDX bill of materials of each manifest, read off the registry by
+      # the same scanner the image Gate runs. Trivy resolves a manifest of
+      # several architectures to the runner's own, so what it lists is the
+      # linux/amd64 image; both architectures are built from one Dockerfile
+      # and one base image digest, so the package set is the same and the
+      # architecture is not.
+      - name: The SBOM of the release manifest
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ github.token }}
+          # Which manifest of the index is listed, said rather than left to
+          # the runner it happens to run on.
+          TRIVY_PLATFORM: linux/amd64
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.manifest.outputs.release }}
+          scan-type: image
+          format: spdx-json
+          output: sbom-release.spdx.json
+
+      - name: The SBOM attestation of the release manifest
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.manifest.outputs.release }}
+          sbom-path: sbom-release.spdx.json
+          push-to-registry: true
+
+      - name: The SBOM of the development manifest
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ github.token }}
+          # Which manifest of the index is listed, said rather than left to
+          # the runner it happens to run on.
+          TRIVY_PLATFORM: linux/amd64
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.manifest.outputs.dev }}
+          scan-type: image
+          format: spdx-json
+          output: sbom-dev.spdx.json
+
+      - name: The SBOM attestation of the development manifest
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.manifest.outputs.dev }}
+          sbom-path: sbom-dev.spdx.json
+          push-to-registry: true
+
+      # What a user of the image runs, run here: every tag this release
+      # publishes resolves to a manifest whose provenance and bill of
+      # materials are in Sigstore's public log. The first is the command a
+      # user of the image runs; the second asks for the other attestation of
+      # the same subject, since verify looks for the provenance predicate by
+      # default.
+      - name: The attestations verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.tags.outputs.release }}
+          DEV: ${{ steps.tags.outputs.dev }}
+          LATEST: ${{ steps.tags.outputs.latest }}
+        run: |
+          # An attestation is recorded and then read back through GitHub's
+          # own API, which takes a moment to serve one just made; a verify
+          # that fails is therefore tried again before it fails the release.
+          verify() {
+            for attempt in 1 2 3; do
+              if [ "$attempt" -gt 1 ]; then
+                echo "attestation not there yet, attempt $attempt"
+                sleep 15
+              fi
+
+              if gh attestation verify "$1" -R "$GITHUB_REPOSITORY" "${@:2}"; then
+                return 0
+              fi
+            done
+
+            echo "::error::no attestation of $1 verifies"
+            return 1
+          }
+
+          tags=("$RELEASE" "$DEV")
+          if [ -n "$LATEST" ]; then
+            tags+=("$LATEST")
+          fi
+
+          for tag in "${tags[@]}"; do
+            verify "oci://$IMAGE:$tag"
+            verify "oci://$IMAGE:$tag" --predicate-type https://spdx.dev/Document
+          done
+
+      # The row and the body: the version against the tags published, the row
+      # appended to versions.json, and the head of the Release body, which is
+      # the three pins and the Release preamble of docs/releases/<tag>.md when
+      # this release has one. A dry run stops after printing them.
+      - name: The row in versions.json and the body of the Release
+        id: release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          go run ./internal/tools/print-pins -json > "$RUNNER_TEMP/pins.json"
+          go run ./internal/tools/release -version "$VERSION" -pins "$RUNNER_TEMP/pins.json" \
+            -body "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/release.json"
+
+          cat "$RUNNER_TEMP/release.json"
+          echo
+          git --no-pager diff -- versions.json
+          echo
+          cat "$RUNNER_TEMP/body.md"
+
+          # Not jq -e, which exits 1 on a false value, and a release that is
+          # not a candidate is exactly that.
+          prerelease=$(jq -r '.prerelease | tostring' "$RUNNER_TEMP/release.json")
+          previous=$(jq -r .previous "$RUNNER_TEMP/release.json")
+
+          case "$prerelease" in
+            true | false) ;;
+            *)
+              echo "::error::the release tool did not say whether $VERSION is a pre-release: $prerelease"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "prerelease=$prerelease"
+            echo "previous=$previous"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit the row, tag the commit and publish the Release
+        if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+          PREVIOUS: ${{ steps.release.outputs.previous }}
+        run: |
+          # The commit is the App's. GitHub links a bot commit to its account
+          # only through the "<numeric id>+<login>@users.noreply" form, and
+          # the id is one more API call for an avatar; the author name and the
+          # Release already say who did this.
+          git config user.name 'headlesslab-automation[bot]'
+          git config user.email 'headlesslab-automation[bot]@users.noreply.github.com'
+
+          git add versions.json
+          git commit --message "release $VERSION"
+
+          # main has to be exactly where the Gates were green: a push that is
+          # not a fast-forward means main moved under this run, and the
+          # release is dispatched again from the new head.
+          git push origin HEAD:main
+
+          notes=(--notes-file "$RUNNER_TEMP/body.md" --generate-notes)
+          if [ "$PRERELEASE" = 'true' ]; then
+            notes+=(--prerelease)
+          fi
+
+          # The pull-request list starts at the release this one follows,
+          # candidates included. Left to itself GitHub starts it at the
+          # release it calls latest, which is never a candidate, so an rc.2
+          # would repeat every pull request rc.1 had already listed.
+          if [ -n "$PREVIOUS" ]; then
+            notes+=(--notes-start-tag "$PREVIOUS")
+          fi
+
+          # The Release creates the tag, at the commit just pushed, so there
+          # is no window in which a tag stands without the release that
+          # explains it. GitHub appends the label-grouped pull-request list of
+          # .github/release.yml to the body given here.
+          gh release create "$VERSION" --target "$(git rev-parse HEAD)" --title "$VERSION" "${notes[@]}"
+
+      - name: A dry run creates no commit, no tag and no Release
+        if: ${{ inputs.dry-run }}
+        env:
+          RELEASE: ${{ steps.tags.outputs.release }}
+        run: |
+          echo "dry run: $IMAGE:$RELEASE was pushed, attested and verified, and is deleted below."
+          echo 'No commit, no tag and no Release were created.'
+
+      # A dry run's tags are throwaway and go, however the run ended. The
+      # untagged manifests each architecture pushed stay, as every image's do
+      # until a tag names them; they are what the registry cleans up on its
+      # own. GITHUB_TOKEN may not be allowed to delete a package version, in
+      # which case this says which tags to delete by hand rather than failing
+      # a run whose release is already published.
+      - name: Delete the throwaway tags
+        if: ${{ always() && inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.tags.outputs.release }}
+          DEV: ${{ steps.tags.outputs.dev }}
+          LATEST: ${{ steps.tags.outputs.latest }}
+        run: |
+          owner=${GITHUB_REPOSITORY%%/*}
+          package=${IMAGE##*/}
+
+          tags=("$RELEASE" "$DEV")
+          if [ -n "$LATEST" ]; then
+            tags+=("$LATEST")
+          fi
+
+          for tag in "${tags[@]}"; do
+            # --jq runs once per page, so the whole listing's first line is
+            # what head takes, rather than one line for every page that holds
+            # a match.
+            id=$(gh api "/orgs/$owner/packages/container/$package/versions?per_page=100" --paginate \
+              --jq "[.[] | select(.metadata.container.tags[]? == \"$tag\") | .id] | first // empty" \
+              | head -n 1) || true
+
+            if [ -z "$id" ]; then
+              echo "no version of $package is tagged $tag"
+            elif gh api --method DELETE "/orgs/$owner/packages/container/$package/versions/$id"; then
+              echo "deleted $IMAGE:$tag"
+            else
+              echo "::warning::$IMAGE:$tag is still there; delete it in the package's settings"
+            fi
+          done
