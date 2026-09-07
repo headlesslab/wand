@@ -468,3 +468,45 @@ func TestLaunchMultiTimes(t *testing.T) {
 	_, e = l.Launch()
 	g.Eq(e, launcher.ErrAlreadyLaunched)
 }
+
+// TestLaunchAttach is the regression test of rod #1221: a launcher with the
+// guard off attaches to a browser already listening on its port, and its Kill
+// and Cleanup then have nothing to do: nothing waited for, nothing killed,
+// nothing removed, since the browser and its profile are not the launcher's
+// own. The Snapshot's Cleanup waited forever on the exit of a process it
+// never started. The browser comes from a guarded launcher of this test on an
+// ephemeral port, so that it goes with the test binary whatever happens. The
+// bound is half of what Cleanup gives a browser of the launcher's own before
+// killing it (cleanupBound), so a wait of any kind fails the test.
+func TestLaunchAttach(t *testing.T) {
+	g := setup(t)
+
+	port := freePort(g)
+	l := launcher.New().RemoteDebuggingPort(port)
+	defer stop(l)
+	u := l.MustLaunch()
+	dir := l.Get(flags.UserDataDir)
+
+	attached := launcher.New().Leakless(false).RemoteDebuggingPort(port).UserDataDir(dir)
+	u2, err := attached.Launch()
+	g.E(err)
+	g.Eq(u2, u)
+	g.Eq(attached.PID(), 0)
+
+	done := make(chan struct{})
+	go func() {
+		attached.Kill()
+		attached.Cleanup()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Kill and Cleanup of an attached launcher did not return")
+	}
+
+	u3, err := launcher.ResolveURL(fmt.Sprint(port))
+	g.E(err)
+	g.Eq(u3, u)
+	g.True(g.PathExists(dir))
+}

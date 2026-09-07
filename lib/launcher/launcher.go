@@ -53,9 +53,20 @@ type Launcher struct {
 
 	browser *Browser
 	parser  *URLParser
-	pid     int
-	exit    chan struct{}
-	guard   guard
+
+	// pid of the browser this launcher started; zero before a launch and
+	// for a launcher that attached to a browser already listening, which
+	// is not its own.
+	pid int
+
+	// exit is closed once the browser this launcher started has exited.
+	// A launcher with no browser of its own, one that attached or never
+	// launched, never closes it, and Kill and Cleanup look at pid first;
+	// the Snapshot's Cleanup waited on it forever after an attach (rod
+	// #1221).
+	exit chan struct{}
+
+	guard guard
 
 	// findSystem is Browser resolution's search for a System browser,
 	// LookPath outside the tests.
@@ -531,6 +542,13 @@ func (l *Launcher) MustLaunch() string {
 // Launch a standalone temp browser instance and returns the debug url.
 // bin and profileDir are optional, set them to empty to use the default values.
 // If you want to reuse sessions, such as cookies, set the [Launcher.UserDataDir] to the same location.
+//
+// With the Orphan guard off ([Launcher.Leakless]) and a browser already
+// listening on [Launcher.RemoteDebuggingPort], Launch attaches to it and
+// returns its URL without starting anything. Such a browser is not the
+// launcher's own: [Launcher.PID] is zero, and [Launcher.Kill] and
+// [Launcher.Cleanup] have nothing to do, waiting for nothing and leaving it
+// and its user data directory alone.
 //
 // Please note launcher can only be used once.
 func (l *Launcher) Launch() (string, error) {
