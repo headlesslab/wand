@@ -96,16 +96,20 @@ func TestCodeScanningDefaultSetup(t *testing.T) {
 	g.Eq(s.name, "CodeQL default setup")
 	g.Eq(s.want, "configured (go)")
 
-	// A setup that is off lists the languages it could scan, so only a
-	// configured one names them, and only Go alone is what the bundle wants.
+	// A setup that is off lists the languages it could scan, and one just
+	// configured lists none, which is GitHub's own answer to the write this
+	// setting makes: neither names anything, and both count as scanning Go
+	// where the state says configured. A list that names languages must name
+	// Go; another beside it is the maintainer's and is left alone.
 	for _, c := range []struct {
 		body    string
 		current string
 		ok      bool
 	}{
 		{`{"state":"not-configured","languages":["actions","go","javascript"]}`, "not-configured", false},
+		{`{"state":"configured","languages":[]}`, "configured", true},
 		{`{"state":"configured","languages":["go"]}`, "configured (go)", true},
-		{`{"state":"configured","languages":["go","javascript"]}`, "configured (go, javascript)", false},
+		{`{"state":"configured","languages":["go","javascript"]}`, "configured (go, javascript)", true},
 		{`{"state":"configured","languages":["javascript"]}`, "configured (javascript)", false},
 	} {
 		current, ok, err := s.read(&client{api: stubAPI{status: 200, body: c.body}}, "o/r")

@@ -119,17 +119,17 @@ func enabledFlag(name, endpoint string) setting {
 
 // codeScanning is CodeQL's default setup: the analysis GitHub runs from a
 // workflow of its own, on every pull request, on a push to the default branch
-// and weekly, with no file in the repository. Go is the language it is
-// configured for, the language of every headlesslab repository; a setup that
-// scans another set is drift and is rewritten. What a pull request may add to
-// the alerts is held by the main ruleset's code scanning rule rather than by
-// a status check (spec #33, section 16).
+// and weekly, with no file in the repository. Go is what the bundle asks it to
+// scan, the language of every headlesslab repository; a setup that does not
+// scan Go is drift and is rewritten, while one that scans more beside it is
+// the maintainer's own choice and is left alone. What a pull request may add
+// to the alerts is held by the main ruleset's code scanning rule rather than
+// by a status check (spec #33, section 16).
 func codeScanning() setting {
 	path := func(repo string) string { return "repos/" + repo + "/code-scanning/default-setup" }
-	want := setupState(configured, []string{goLanguage})
 	return setting{
 		name: "CodeQL default setup",
-		want: want,
+		want: setupState(configured, []string{goLanguage}),
 		read: func(c *client, repo string) (string, bool, error) {
 			var r struct {
 				State     string   `json:"state"`
@@ -138,8 +138,7 @@ func codeScanning() setting {
 			if err := c.do(http.MethodGet, path(repo), nil, &r); err != nil {
 				return "", false, err
 			}
-			current := setupState(r.State, r.Languages)
-			return current, current == want, nil
+			return setupState(r.State, r.Languages), r.State == configured && scansGo(r.Languages), nil
 		},
 		// The analysis itself is queued, so the 202 this answers with says
 		// the setup is on, not that the first alerts are in.
@@ -154,16 +153,30 @@ func codeScanning() setting {
 	}
 }
 
-// setupState names a code scanning default setup for the report. A setup that
-// is off lists the languages it could scan rather than the ones it scans, so
-// only a configured one names them. The wanted value and the repository's
-// current one are both rendered here, so comparing the two strings is the
-// whole test and the two cannot drift apart.
+// setupState names a code scanning default setup for the report: the state,
+// and the languages when a configured setup names any. A setup that is off
+// lists the languages it could scan rather than the ones it scans, and one
+// just configured lists none at all, so neither names anything here.
 func setupState(state string, languages []string) string {
-	if state != configured {
+	if state != configured || len(languages) == 0 {
 		return state
 	}
 	return state + " (" + strings.Join(languages, ", ") + ")"
+}
+
+// scansGo reports whether a configured default setup covers Go. GitHub
+// answers a setup it has just configured with an empty language list, and
+// fills it in when the first analysis has run, so an empty list is the
+// setup's own word for "what was asked for" and counts; a list that names
+// languages must name Go, and a maintainer who added another beside it keeps
+// it.
+func scansGo(languages []string) bool {
+	for _, language := range languages {
+		if language == goLanguage {
+			return true
+		}
+	}
+	return len(languages) == 0
 }
 
 // shaPinning is the Actions policy that requires every action reference to be

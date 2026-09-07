@@ -110,7 +110,9 @@ func TestRunAppliesThenIdle(t *testing.T) {
 	g.Has(out.String(), "Dependabot alerts                disabled -> enabled")
 	g.Has(out.String(), "Dependabot security updates      disabled -> enabled")
 	g.Has(out.String(), "private vulnerability reporting  disabled -> enabled")
-	g.Has(out.String(), "CodeQL default setup             not-configured -> configured (go)")
+	// The setup GitHub has just configured names no language yet, so the
+	// line reads "configured" where the bundle asked for "configured (go)".
+	g.Has(out.String(), "CodeQL default setup             not-configured -> configured\n")
 	g.Has(out.String(), "immutable releases               disabled -> enabled")
 	g.Has(out.String(), "immutable releases               enabled\n")
 	g.Has(out.String(), "Actions SHA pinning              optional -> required")
@@ -345,14 +347,16 @@ func (r *fakeRepo) toggle(method, rest string, in any) (int, []byte, error) {
 			}
 			return jsonResponse(202, map[string]any{"run_id": 1})
 		}
-		// A setup that is off answers with the languages it could scan.
+		// A setup that is off answers with the languages it could scan; one
+		// just configured answers with none at all, as GitHub does until its
+		// first analysis has run, whatever the PATCH asked for.
 		if r.codeScanning == nil {
 			return jsonResponse(200, map[string]any{
 				"state": "not-configured", "languages": []string{"actions", "go", "javascript"},
 			})
 		}
 		return jsonResponse(200, map[string]any{
-			"state": "configured", "languages": r.codeScanning, "query_suite": "default",
+			"state": "configured", "languages": []string{}, "query_suite": "default",
 		})
 	case "immutable-releases":
 		return onSwitch(&r.immutable, put, map[string]any{"enforced_by_owner": false})
