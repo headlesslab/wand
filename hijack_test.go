@@ -143,8 +143,12 @@ func TestHijackMockWholeResponseEmptyBody(t *testing.T) {
 
 	go router.Run()
 
-	// needs to timeout or will hang when "omitempty" does not get removed from body in fulfillRequest
-	timed := g.page.Timeout(time.Second)
+	// A fulfilment with a null body hung the navigation (rod #1128, fixed in
+	// HijackResponse.SetBody), which upstream bounded with a one-second
+	// timeout. The bound stays as a failure that names this test, but wide:
+	// on a hosted runner under -race with four browsers, one second was not
+	// always enough for the browser to reach the request.
+	timed := g.page.Timeout(15 * time.Second)
 	timed.MustNavigate(g.Serve().Route("/", ".txt", "OK").URL())
 
 	g.Eq("", g.page.MustElement("body").MustText())

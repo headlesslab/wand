@@ -176,11 +176,14 @@ func TestIdleCounter(t *testing.T) {
 
 		ctx := g.Context()
 
+		// The lower bound is the counter's own idle time after the last
+		// Done; the upper bounds below are wide, a hosted runner under -race
+		// has taken 10 ms to wake a goroutine.
 		start := time.Now()
 		ct.Wait(ctx)
 		d := time.Since(start)
 		g.Gt(d, 400*time.Millisecond)
-		g.Lt(d, 450*time.Millisecond)
+		g.Lt(d, 700*time.Millisecond)
 
 		g.Panic(func() {
 			ct.Done()
@@ -192,12 +195,12 @@ func TestIdleCounter(t *testing.T) {
 		ct := utils.NewIdleCounter(100 * time.Millisecond)
 		start := time.Now()
 		ct.Wait(g.Context())
-		g.Lt(time.Since(start), 150*time.Millisecond)
+		g.Lt(time.Since(start), 400*time.Millisecond)
 	}, func() {
 		ct := utils.NewIdleCounter(0)
 		start := time.Now()
 		ct.Wait(g.Context())
-		g.Lt(time.Since(start), 10*time.Millisecond)
+		g.Lt(time.Since(start), 100*time.Millisecond)
 	})()
 }
 
