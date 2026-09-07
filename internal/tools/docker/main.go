@@ -1,169 +1,126 @@
-// Package main builds, tests and publishes the wand container image.
-// The image workflow runs it with the git ref that triggered the run:
+// Package main is wand's image build script: it builds the two container
+// images from the checkout it is run in, proves what the image Gate proves,
+// and pushes nothing. Publishing the tags, which is where the two
+// architectures meet in one manifest and take their attestations, is the
+// release workflow's (ticket #60), so this tool never logs in to a registry
+// (spec #33, section 14; ticket #55).
 //
-//	GITHUB_TOKEN=$TOKEN go run ./internal/tools/docker $GITHUB_REF
+//	go run ./internal/tools/docker [-suite]
+//
+// It writes the .dockerignore, builds the runtime image and then the :dev
+// image on top of the one it has just built, runs the manager and Chrome out
+// of the runtime image and holds the version Chrome reports to the Target
+// Chrome pin, and with -suite runs wand's whole suite and the Zero leftover
+// check inside the :dev image against this checkout. Each image is built for
+// the machine's own platform, as the image jobs build theirs. Run it from
+// the module root, as go generate runs the generators.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"regexp"
-	"strings"
 
 	"github.com/headlesslab/wand/internal/devutil"
+	"github.com/headlesslab/wand/lib/launcher/pins"
 	"github.com/headlesslab/wand/lib/utils"
 )
 
-func main() {
-	event := os.Args[1]
-
-	fmt.Println("Event:", event)
-
-	isMain := regexp.MustCompile(`^refs/heads/main$`).MatchString(event)
-	m := regexp.MustCompile(`^refs/tags/(v[0-9]+\.[0-9]+\.[0-9]+)$`).FindStringSubmatch(event)
-	ver := ""
-	if len(m) > 1 {
-		ver = m[1]
-	}
-
-	at := getArchType()
-
-	switch {
-	case isMain:
-		releaseLatest(at)
-	case ver != "":
-		releaseWithVer(ver)
-	default:
-		test(at)
-	}
-}
-
-func releaseLatest(at archType) {
-	login()
-	test(at)
-
-	devutil.Exec("docker push", at.tagDev())
-	devutil.Exec("docker push", at.tag())
-}
-
-func releaseWithVer(ver string) {
-	login()
-
-	verImageDev := registry + ":" + ver + "-dev"
-	devutil.Exec("docker manifest create", verImageDev, archAmd.tagDev(), archArm.tagDev())
-	devutil.Exec("docker manifest push", verImageDev)
-
-	verImage := registry + ":" + ver
-	devutil.Exec("docker manifest create", verImage, archAmd.tag(), archArm.tag())
-	devutil.Exec("docker manifest push", verImage)
-
-	registryDev := registry + ":dev"
-	devutil.Exec("docker manifest create", registryDev, archAmd.tagDev(), archArm.tagDev())
-	devutil.Exec("docker manifest push", registryDev)
-
-	devutil.Exec("docker manifest create", registry, archAmd.tag(), archArm.tag())
-	devutil.Exec("docker manifest push", registry)
-}
-
-func test(at archType) {
-	devutil.Exec("docker build -f=docker/Dockerfile", "--platform", at.platform(), "-t", at.tag(), description(false), ".")
-	devutil.Exec("docker build -f=docker/dev.Dockerfile",
-		"--platform", at.platform(),
-		"--build-arg", "golang="+at.golang(),
-		"--build-arg", "nodejs="+at.nodejs(),
-		"-t", at.tagDev(),
-		description(true), ".",
-	)
-
-	devutil.Exec("docker run", at.tag(), "wand-manager", "-h")
-
-	// TODO: arm cross execution for chromium doesn't work well on github actions.
-	if at != archArm {
-		wd, err := os.Getwd()
-		utils.E(err)
-		devutil.Exec("docker run -w=/t -v", fmt.Sprintf("%s:/t", wd), at.tagDev(), "go", "run", "./internal/tools/ci-test")
-	}
-}
-
-func login() {
-	cmd := exec.Command("docker", "login", "-u=rod-robot", "-p", os.Getenv("GITHUB_TOKEN"), registry)
-	out, err := cmd.CombinedOutput()
-	utils.E(err)
-	utils.E(os.Stdout.Write(out))
-}
-
-var headSha = strings.TrimSpace(devutil.ExecLine(false, "git", "rev-parse", "HEAD"))
-
-func description(dev bool) string {
-	f := "Dockerfile"
-	if dev {
-		f = "dev." + f
-	}
-
-	return `--label=org.opencontainers.image.description=https://github.com/headlesslab/wand/blob/` + headSha + "/docker/" + f
-}
-
-const registry = "ghcr.io/headlesslab/wand"
-
-type archType int
-
 const (
-	archAmd archType = iota
-	archArm
+	// image is the runtime image's name and dev the development image's, the
+	// two names the release workflow publishes under.
+	image = "ghcr.io/headlesslab/wand"
+	dev   = image + ":dev"
+
+	// workdir is where runSuite mounts the checkout inside the container,
+	// which is also the working directory the development image sets.
+	workdir = "/wand"
 )
 
-func getArchType() archType {
-	arch := os.Getenv("ARCH")
-	switch arch {
-	case "arm":
-		return archArm
-	default:
-		return archAmd
+func main() {
+	suite := flag.Bool("suite", false,
+		"run wand's whole suite and the Zero leftover check inside the development image after the build")
+	flag.Parse()
+
+	dir, err := os.Getwd()
+	utils.E(err)
+
+	utils.E(devutil.DockerIgnore(dir))
+
+	devutil.ExecLine(true, "", buildRuntime()...)
+	devutil.ExecLine(true, "", buildDev()...)
+
+	// The manager is the image's entrypoint, so a manager that cannot start
+	// is an image that cannot serve; -h exits 0 and launches nothing.
+	devutil.ExecLine(true, "", run(nil, image, "wand-manager", "-h")...)
+
+	// The Target Chrome is a pin and not a lookup, which is what makes the
+	// linux/amd64 and the linux/arm64 image carry the same version: each
+	// image job holds its own to the same pin.
+	out := devutil.ExecLine(true, "", run(nil, image, "chrome", "--version")...)
+	if got := reportedVersion(out); got != pins.ChromeVersion {
+		utils.E(fmt.Errorf("the browser in %s is Chrome %q, not the Target Chrome pin %q",
+			image, got, pins.ChromeVersion))
+	}
+
+	if *suite {
+		devutil.ExecLine(true, "", runSuite(dir)...)
 	}
 }
 
-func (at archType) platform() string {
-	switch at {
-	case archArm:
-		return "linux/arm64"
-	default:
-		return "linux/amd64"
+// buildRuntime builds the runtime image from docker/Dockerfile.
+func buildRuntime() []string {
+	return []string{"docker", "build", "--file", "docker/Dockerfile", "--tag", image, "."}
+}
+
+// buildDev builds the development image on top of the runtime image just
+// built, rather than on whatever the registry holds under that name.
+func buildDev() []string {
+	return []string{
+		"docker", "build", "--file", "docker/dev.Dockerfile", "--tag", dev,
+		"--build-arg", "base=" + image, ".",
 	}
 }
 
-func (at archType) tag() string {
-	switch at {
-	case archArm:
-		return registry + ":arm"
-	default:
-		return registry + ":amd"
-	}
+// run is one command in a throw-away container of image, with docker flags
+// of its own before the image name.
+func run(dockerArgs []string, image string, cmd ...string) []string {
+	args := append([]string{"docker", "run", "--rm"}, dockerArgs...)
+
+	return append(append(args, image), cmd...)
 }
 
-func (at archType) tagDev() string {
-	switch at {
-	case archArm:
-		return registry + ":arm-dev"
-	default:
-		return registry + ":amd-dev"
-	}
+// runSuite runs the suite over the checkout at dir, mounted into the
+// development image, so that what the container tests is the tree the script
+// was started from and the CDP logs of a failed test land back on the host
+// for the image job to upload. A Windows path reaches docker under the
+// separator it takes.
+func runSuite(dir string) []string {
+	mount := filepath.ToSlash(dir) + ":" + workdir
+
+	return run([]string{"--volume", mount, "--workdir", workdir}, dev, "bash", "-c", suite)
 }
 
-func (at archType) golang() string {
-	switch at {
-	case archArm:
-		return "https://go.dev/dl/go1.19.1.linux-arm64.tar.gz"
-	default:
-		return "https://go.dev/dl/go1.19.1.linux-amd64.tar.gz"
-	}
-}
+// suite is what the development image runs: wand's whole suite through the
+// ci-test wrapper, then the Zero leftover check in the same PID namespace,
+// so that a browser the suite left behind is found while it is still there.
+// The examples stay out with -run=^Test, as in every Tier 1 job: each
+// launches a browser of its own outside the tester pool, and they belong to
+// the examples Nightly (#61).
+const suite = `go run ./internal/tools/ci-test -race -count=1 -run=^Test ./...
+status=$?
+go run ./internal/tools/zero-leftover || status=1
+exit $status
+`
 
-func (at archType) nodejs() string {
-	switch at {
-	case archArm:
-		return "https://nodejs.org/dist/v16.17.0/node-v16.17.0-linux-arm64.tar.xz"
-	default:
-		return "https://nodejs.org/dist/v16.17.0/node-v16.17.0-linux-x64.tar.xz"
-	}
+// dottedVersion is a browser version as --version reports it, four numbers
+// deep, as in "Google Chrome for Testing 153.0.8010.12".
+var dottedVersion = regexp.MustCompile(`\b\d+(?:\.\d+){3}\b`)
+
+// reportedVersion is the version in the answer a browser gives --version,
+// and the empty string when the answer holds none.
+func reportedVersion(out string) string {
+	return dottedVersion.FindString(out)
 }

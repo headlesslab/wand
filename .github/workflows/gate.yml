@@ -4,16 +4,26 @@
 # and darwin/arm64 on stable, and linux/amd64 once more on the Companion
 # Chromium), builds, vets and compiles the tests for the three Tier 2 targets
 # on both Go versions (the three Tier 2 jobs), keeps statement coverage at
-# 100 % on the linux/amd64 stable job, and regenerates everything from the
+# 100 % on the linux/amd64 stable job, regenerates everything from the
 # pinned inputs and lints, which must leave the tree unchanged (the generate
-# job). Every Tier 1 job asserts that the browser it ran on is the pin and
-# ends by proving that no browser process or user data directory was left
-# behind. Two more Gates read what the code depends on rather than what it
-# does: govulncheck on the linux/amd64 stable job, and the dependency review
-# job on what a pull request adds to the graph. The main ruleset requires
-# every job as a status check, so a red run blocks the merge and nothing else
-# (spec #33, sections 12, 13 and 16; tickets #36, #42, #54 and #56). The
-# in-container run comes with #55.
+# The Gate: every pull request, and every push to main, proves wand on the
+# four Tier 1 platforms with a real browser and -race (the seven Tier 1 jobs:
+# linux/amd64 and linux/arm64 on Go stable and on the Go floor, windows/amd64
+# and darwin/arm64 on stable, and linux/amd64 once more on the Companion
+# Chromium), builds, vets and compiles the tests for the three Tier 2 targets
+# on both Go versions (the three Tier 2 jobs), keeps statement coverage at
+# 100 % on the linux/amd64 stable job, regenerates everything from the
+# pinned inputs and lints, which must leave the tree unchanged (the generate
+# job), and builds the two container images natively on each Linux
+# architecture, runs the whole suite inside the development one and scans
+# both with Trivy (the two image jobs). Every Tier 1 job asserts that the
+# browser it ran on is the pin, and every job that launches one ends by
+# proving that no browser process or user data directory was left behind.
+# Two more Gates read what the code depends on rather than what it does:
+# govulncheck on the linux/amd64 stable job, and the dependency review job on
+# what a pull request adds to the graph. The main ruleset requires every job
+# as a status check, so a red run blocks the merge and nothing else (spec
+# #33, sections 12, 13, 14 and 16; tickets #36, #42, #54, #55 and #56).
 #
 # CodeQL is not here: its default setup runs a workflow GitHub keeps, and the
 # main ruleset's code scanning rule is what holds a pull request to it (the
@@ -427,3 +437,107 @@ jobs:
         with:
           fail-on-severity: high
           allow-licenses: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, MPL-2.0
+
+  # The image Gate: the runtime image and the :dev image on top of it, built
+  # natively on each Linux architecture (no QEMU, no cross build), the whole
+  # suite run inside the :dev one, and Trivy over both. Nothing is pushed:
+  # the tags are the release workflow's, and this job only proves that the
+  # image a release would publish builds and works (spec #33, section 14;
+  # ADR-0005; ticket #55). One job per architecture, each a required check
+  # under its name.
+  #
+  # The image carries the Target Chrome the pins name, pre-fetched at build
+  # time through Browser resolution's own download path, so the browser here
+  # is the one the Tier 1 jobs ran on; the build script holds the version it
+  # reports to the pin, which is what makes the two architectures carry the
+  # same Chrome. In the container utils.InContainer holds, so the launcher
+  # passes --no-sandbox and the AppArmor sysctl the Tier 1 Linux jobs need
+  # has nothing to do here.
+  image:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Image linux/amd64
+            runner: ubuntu-latest
+            artifact: image-linux-amd64
+          - name: Image linux/arm64
+            runner: ubuntu-24.04-arm
+            artifact: image-linux-arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Go on the runner is the build script's, not the image's: the image
+      # builds with the Go its own base image pins by digest.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - run: go version && docker version
+
+      # Builds both images, runs the manager out of the runtime one and holds
+      # the Chrome inside it to the Target Chrome pin.
+      - name: Build the images
+        run: go run ./internal/tools/docker
+
+      # Trivy over the operating system packages and the Go and Node
+      # dependencies of each image. --ignore-unfixed leaves what no upgrade
+      # would fix, so a red step is always something a base image digest or a
+      # dependency bump can move; Dependabot's docker ecosystem keeps the
+      # digests coming. The published tags are scanned again by the Nightly.
+      - name: Trivy on the runtime image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/headlesslab/wand:latest
+          scanners: vuln
+          vuln-type: os,library
+          ignore-unfixed: true
+          severity: CRITICAL
+          exit-code: '1'
+
+      - name: Trivy on the development image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/headlesslab/wand:dev
+          scanners: vuln
+          vuln-type: os,library
+          ignore-unfixed: true
+          severity: CRITICAL
+          exit-code: '1'
+
+      # The whole suite in the container, on this checkout mounted into it,
+      # which is what covers InContainer mapping to --no-sandbox and the
+      # container-only font test. The build the script repeats here is a
+      # cache hit of the step above; splitting the two keeps Trivy's answer
+      # ahead of the long run and the two logs apart. The Zero leftover check
+      # runs inside the container as well, in the PID namespace the suite's
+      # browsers ran in.
+      - name: The suite in the container
+        run: go run ./internal/tools/docker -suite
+
+      # The CDP logs of the failed tests and the PDF of the font test, which
+      # runs only in a container and is looked at rather than asserted; both
+      # were written into the mounted checkout.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cdp-log-${{ matrix.artifact }}
+          path: |
+            tmp/cdp-log
+            tmp/fonts.pdf
+
+      # Zero leftover once more from the host, where a container's processes
+      # are visible however its own namespace numbers them, so a browser that
+      # outlived its container is found here.
+      - name: Zero leftover
+        if: always()
+        run: go run ./internal/tools/zero-leftover

@@ -23,6 +23,36 @@ Protocol: [devtools-protocol r1680125](https://github.com/ChromeDevTools/devtool
 
 <!-- pins:end -->
 
+## Container image
+
+`ghcr.io/headlesslab/wand` is `ubuntu:noble` with the Target Chrome inside it and `wand-manager`, the remote-launch server, as its entrypoint, for `linux/amd64` and `linux/arm64`. The browser it carries is the pinned one above, downloaded and hash-verified at build time, so a container runs the browser wand is tested on. Its tags are published by a release and are not there yet; until then, build it from a checkout:
+
+```sh
+docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile .
+docker run --rm -p 7317:7317 ghcr.io/headlesslab/wand
+```
+
+A wand program anywhere then launches its browsers in that container:
+
+```go
+l := launcher.MustNewManaged("ws://127.0.0.1:7317")
+browser := wand.New().Client(l.MustClient()).MustConnect()
+```
+
+See [`lib/examples/launch-managed`](lib/examples/launch-managed) for the whole program.
+
+`docker run --rm ghcr.io/headlesslab/wand chrome --version` prints the Chrome inside, and `xvfb-run` is there for a visible browser.
+
+`go run ./internal/tools/docker` builds that image and the `:dev` one on top of it, which adds the Go and Node toolchains, and checks both the way the image Gate does; nothing is pushed. Add `-suite` to run wand's whole suite inside the `:dev` image, where `utils.InContainer` holds and the launcher passes `--no-sandbox`.
+
+Behind a restricted network, a Go module proxy and an Ubuntu mirror are build arguments:
+
+```sh
+docker build -t ghcr.io/headlesslab/wand -f docker/Dockerfile \
+  --build-arg goproxy=https://goproxy.cn,direct \
+  --build-arg apt_mirror=https://your-mirror.example/ubuntu .
+```
+
 ## Roadmap
 
 - **Baseline release**: the go-rod snapshot renamed to `github.com/headlesslab/wand`, built and tested against current Chrome, with the protocol layer, browser acquisition and dependency chain brought current. In progress.
