@@ -387,6 +387,66 @@ Nothing is published over the bad release's image tags either; the fixed patch p
 - **The package's visibility.** GHCR creates a package private on its first push and exposes no REST endpoint for the setting, so the first release is followed by making `ghcr.io/headlesslab/wand` public and linking it to the repository, in the package's settings.
 - **A dry run's throwaway tags**, when `GITHUB_TOKEN` was not allowed to delete a package version: the run says which tags are still there, and they go in the package's settings.
 
+## The Nightly
+
+Once a night at 02:41 UTC, and on demand, `.github/workflows/nightly.yml` proves `main` again on everything a Gate cannot ask of a pull request. Nothing in it is a required check: a red job blocks no merge and no release, and reaches a maintainer as an issue instead (spec #33, section 13; ADR-0008; ticket #61).
+
+| Job                                                             | Where                      | What it proves                                                                                                                                         | What a red usually is                                                                                                         |
+| --------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| the seven `Tier 1 …` jobs                                       | the Gate's four platforms  | the Gate's own matrix, rerun with no commit under it, from the same steps (`.github/actions/tier1`)                                                    | a flake, or a runner image that moved under a suite nobody changed                                                            |
+| `System browser ubuntu-latest`, `System browser windows-11-arm` | those two runners          | Browser resolution's discovery, on the browser the runner image ships, which every Gate job bypasses with `WAND_BROWSER_BIN`                           | the runner image dropped its Chrome, or discovery stopped finding one; on windows/arm64 this is the only place the suite runs |
+| `Examples`                                                      | `ubuntu-latest`            | every `Example` function of the root suite and the whole `lib/examples/e2e-testing` module, each on a browser of its own                               | an example that drifted from its `// Output:` comment, or one that started reaching for a public host                         |
+| `Updated graph (go get -u)`                                     | `ubuntu-latest`, Go 1.21.x | the whole dependency graph at its newest still resolves, builds and passes on the Go floor (ADR-0006)                                                  | a dependency whose newest version wants a newer Go than `go.mod` declares, or one that changed under a call wand makes        |
+| `Support window`                                                | `ubuntu-latest`            | the suite on the oldest Chrome wand claims to work with: the Target Chrome's milestone less three, at Chrome for Testing's last known good build of it | something Chrome changed in the three milestones since; best-effort support, so this is news rather than a fault              |
+| `govulncheck on main`                                           | `ubuntu-latest`            | the vulnerability database against code nobody has changed                                                                                             | an advisory published since the last pull request that reaches wand's own code                                                |
+| `Trivy on the published images`                                 | `ubuntu-latest`            | `ghcr.io/headlesslab/wand:latest` and `:dev` as the registry holds them, which no Gate ever sees                                                       | a base image that grew a fixable CRITICAL after the release was cut; the answer is a Dependabot digest bump and a patch       |
+| `Report`                                                        | `ubuntu-latest`            | —                                                                                                                                                      | the App token: with it rejected every issue the run would have opened is gone, so this job opens one about itself             |
+
+The Tier 1 matrix appears twice, once here and once in `gate.yml`, but its steps do not: they are a composite action under `.github/actions/tier1`, so the AppArmor line, the browser pin assertion and the suite invocation have one place to be fixed. That action uses no other action on purpose — Dependabot's `github-actions` updater reads `.github/workflows` and a root `action.yml` and nothing else, so a SHA pinned there would be a pin nothing moves; the checkout, the toolchain, the artifact upload and the zero-leftover step stay in each workflow, where Dependabot sees them.
+
+### The issue a red job opens
+
+`internal/tools/nightly-report` runs as the last job, whatever the jobs above it did. For every job that ended in `failure` or `timed_out` it opens one issue titled `Nightly: <job name> failed`, labelled `needs-triage`, or comments on the open issue with exactly that title. So the same job failing on four nights is one issue with four comments, a second job going red is an issue of its own, and a job that was cancelled or skipped — the image scan before the first release exists — is not red at all.
+
+Two tokens, because they can do different things: the run's own `GITHUB_TOKEN` reads the jobs of the run, an Actions permission the automation App does not have, and the App's token opens the issues, so they come from the automation identity rather than from `github-actions[bot]` (section [The automation identity](#the-automation-identity)). The reporter is green once it has reported — the red belongs to the jobs it reports on — and a reporter that cannot report gets the notice the Roll gives itself, opened with `GITHUB_TOKEN` because the App token is one of the things that may have failed.
+
+Closing the issue is a human's to do, once the job is green again: nothing here closes one, and a Nightly that goes green says so by opening nothing.
+
+### Running one by hand
+
+```sh
+gh workflow run nightly.yml --repo headlesslab/wand
+```
+
+The reporter alone, against any run of any workflow, writing nothing:
+
+```sh
+GH_TOKEN=$(gh auth token) go run ./internal/tools/nightly-report -repo headlesslab/wand -run <run id> -dry-run
+```
+
+Locally, one job at a time, from the module root:
+
+```sh
+# The Support window: the Chrome, then the suite on it.
+version=$(go run ./internal/tools/support-window)
+WAND_BROWSER_BIN=$(go run ./cmd/wand-fetch-browser -version "$version") go test -run '^Test' .
+
+# The examples, which the Gate's -run=^Test leaves out.
+go run ./internal/tools/ci-test -count=1 -timeout=40m -run '^Example' ./...
+go run ./internal/tools/ci-test -count=1 ./lib/examples/e2e-testing
+
+# The graph at its newest, on a checkout you do not mind rewriting.
+GOWORK=off go get -u ./... && GOWORK=off go test -run '^Test' ./...
+```
+
+A version other than the Target Chrome has no pinned archive hash, so `wand-fetch-browser -version` says the download is unverified and takes it over TLS anyway; the Nightly narrows that to Google's own bucket with `WAND_BROWSER_HOSTS`, never a mirror (ADR-0005).
+
+### What stays human
+
+- **Closing a Nightly issue**, and splitting whatever it turns out to be into an issue of its own.
+- **The pull request a red `Updated graph` prompts.** `go get -u` is run to find out, never to commit: `go.mod` moves through a reviewed pull request (section [Dependabot](#dependabot)). With `GOTOOLCHAIN=local` on the Go floor, a dependency whose newest version raises its own Go floor above wand's fails this job rather than pulling a toolchain, and the choice — take the newest versions that do resolve, or move the floor (ADR-0003) — is a decision, not a bump.
+- **Reading a red `Support window`.** The three milestones below the Target Chrome are best-effort, not tested support: what breaks there is written down, among the migration guide's known limitations when it affects users, and holds no release.
+
 ## The protocol layer
 
 `lib/proto` is generated from `ChromeDevTools/devtools-protocol` at the Protocol roll the pins name, with no browser involved (ADR-0004). After a Roll, or when the generator itself changes, run it from the module root:
@@ -424,7 +484,7 @@ What a pull request must survive besides the tests, what moves the pins nobody m
 | Dependency review   | the `Dependency review` job, on the pull request event alone     | in what the pull request adds to the dependency graph: an advisory of high severity or worse, or a licence outside MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC and MPL-2.0 |
 | CodeQL              | GitHub's own workflow, from the default setup the bundle applies | an alert the pull request adds, of high security severity or worse or at error level; the `main` ruleset's code scanning rule is what holds the merge                           |
 
-`go run ./internal/tools/govulncheck` is the same scan a developer runs, at the version `internal/devutil` pins; pass arguments to reach one package instead of `./...`. It reads the Go vulnerability database, so it needs the network, and x/vuln's Go floor is far above wand's, so with `GOTOOLCHAIN=local` only the stable job can build it: hence one scan, on that job. Source mode is what makes it quiet enough to gate on — a vulnerability in a package wand imports but never calls into is reported and passes. An advisory published against unchanged code reds the next run; the Nightly rerun on `main` (#61) is what surfaces one the same morning rather than at the next pull request.
+`go run ./internal/tools/govulncheck` is the same scan a developer runs, at the version `internal/devutil` pins; pass arguments to reach one package instead of `./...`. It reads the Go vulnerability database, so it needs the network, and x/vuln's Go floor is far above wand's, so with `GOTOOLCHAIN=local` only the stable job can build it: hence one scan, on that job. Source mode is what makes it quiet enough to gate on — a vulnerability in a package wand imports but never calls into is reported and passes. An advisory published against unchanged code reds the next run; the Nightly rerun on `main` (section [The Nightly](#the-nightly)) is what surfaces one the same morning rather than at the next pull request.
 
 Dependency review reads GitHub's dependency graph, which is a repository setting with no REST endpoint and so is not in the bundle: with the graph off the job reds in five seconds with "Dependency review is not supported on this repository", whatever the pull request contains. See "What stays human" above.
 
@@ -432,7 +492,7 @@ Widening the licence allowlist is a reviewed change to `gate.yml`. `gosec` stays
 
 ### Dependabot
 
-`.github/dependabot.yml`, all weekly: `github-actions` at the root (the SHA pins of every workflow), `docker` on `docker/` (the base image digests), and `npm` on `internal/tools/` as one group, so a week's linter updates arrive as one pull request with one resolved lockfile. Go modules get no version pull request at all — the limit of zero says so in the file — while Dependabot security updates, which the settings bundle turns on, are not subject to that limit and open one as soon as an advisory matches. Everything else in `go.mod` moves through a hand pull request, prompted by a satellite release or by the Nightly `go get -u ./...`.
+`.github/dependabot.yml`, all weekly: `github-actions` at the root (the SHA pins of every workflow), `docker` on `docker/` (the base image digests), and `npm` on `internal/tools/` as one group, so a week's linter updates arrive as one pull request with one resolved lockfile. Go modules get no version pull request at all — the limit of zero says so in the file — while Dependabot security updates, which the settings bundle turns on, are not subject to that limit and open one as soon as an advisory matches. Everything else in `go.mod` moves through a hand pull request, prompted by a satellite release or by the Nightly `go get -u ./...` (section [The Nightly](#the-nightly)).
 
 Every Dependabot pull request runs the full Gate and merges like any other; it gets no secrets, which nothing in the Gate needs.
 
