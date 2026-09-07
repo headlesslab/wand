@@ -1024,6 +1024,39 @@ func TestPageWaitLoadErr(t *testing.T) {
 	})
 }
 
+// TestPageWaitLoadCircularReference is the regression test of go-rod/rod#1150
+// (ticket #49): a load listener registered ahead of WaitLoad's, as Bootstrap's
+// event delegation does, gives the event a circular property, and the promise
+// WaitLoad resolved with that event could not come back by value ("Object
+// reference chain is too long"). The fixture holds its load event back with
+// an iframe the server answers once the page has seen WaitLoad's listener
+// registered, so the listeners fire in the order of the bug on every run;
+// upstream's test navigated three times on a fixed port and hoped for it.
+// The document was still loading when the listener came, which is what the
+// readyState the fixture kept shows, so WaitLoad did wait for the event.
+func TestPageWaitLoadCircularReference(t *testing.T) {
+	g := setup(t)
+
+	listening := make(chan struct{})
+	var once sync.Once
+	s := g.Serve()
+	s.Route("/", "fixtures/wait-load-circular-reference.html")
+	s.Mux.HandleFunc("/listening", func(http.ResponseWriter, *http.Request) {
+		once.Do(func() { close(listening) })
+	})
+	s.Mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-listening:
+		case <-r.Context().Done():
+		}
+		_, _ = fmt.Fprint(w, "loaded")
+	})
+
+	page := g.page.Timeout(10 * time.Second).MustNavigate(s.URL())
+	g.E(page.WaitLoad())
+	g.Eq(page.MustEval(`() => window.readyStateAtListening`).Str(), "interactive")
+}
+
 func TestPageNavigation(t *testing.T) {
 	g := setup(t)
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!--
+  The page of rod #1150. A load listener registered ahead of the driver's, as
+  Bootstrap's event delegation does, gives the event a circular property, and
+  a promise resolved with that event cannot come back by value.
+
+  The iframe holds the load event back: the server answers it once the page
+  has reported, through /listening, that a load listener was registered after
+  its own, which is the driver's. So the listeners fire in the order of the bug
+  on every run, and the test needs neither a fixed port nor luck. The document's
+  readyState at that moment is kept for the test to check that the driver's
+  listener did come before the event.
+-->
+<html>
+  <head>
+    <script>
+      const circular = { self: null }
+      circular.self = circular
+      window.addEventListener('load', (e) => {
+        e.delegateTarget = circular
+      })
+
+      const add = window.addEventListener.bind(window)
+      window.addEventListener = (type, ...rest) => {
+        add(type, ...rest)
+        if (type === 'load') {
+          window.readyStateAtListening = document.readyState
+          fetch('/listening')
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <iframe src="/slow"></iframe>
+  </body>
+</html>
