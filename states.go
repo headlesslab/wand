@@ -114,6 +114,25 @@ func (p *Page) DisableDomain(method proto.Request) (restore func()) {
 	return p.browser.Context(p.ctx).DisableDomain(p.SessionID, method)
 }
 
+// removeSessionStates drops every state set stored under the session, the
+// parameters of each call made through it, once the session is gone. The
+// Snapshot never did, so the states of every closed page, the HTML of each
+// SetDocumentContent among them, stayed for the life of the browser (rod
+// #1226). The map holds one entry per method per live session, so the walk
+// is short.
+func (b *Browser) removeSessionStates(sessionID proto.TargetSessionID) {
+	b.states.Range(func(key, _ interface{}) bool {
+		if k, ok := key.(stateKey); ok && k.sessionID == sessionID {
+			b.states.Delete(key)
+		}
+		return true
+	})
+}
+
+// cleanupStates drops what the browser holds for a page Page.Close closed:
+// the cached *Page under its TargetID, which Close removes under the targets
+// lock like PageFromTarget adds it, and the states of its session.
 func (p *Page) cleanupStates() {
 	p.browser.RemoveState(p.TargetID)
+	p.browser.removeSessionStates(p.SessionID)
 }

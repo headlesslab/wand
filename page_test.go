@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -192,6 +193,62 @@ func TestLoadState(t *testing.T) {
 	g := setup(t)
 
 	g.True(g.page.LoadState(&proto.PageEnable{}))
+}
+
+// TestPageCloseClearsStates is the regression test of go-rod/rod#1235 (rod
+// #1226, ticket #49): closing a page drops every state the browser stored
+// under the page's session, the parameters of each call the page made, so a
+// browser that opens and closes pages does not keep the HTML of every
+// SetDocumentContent for as long as it lives.
+func TestPageCloseClearsStates(t *testing.T) {
+	g := setup(t)
+
+	html := "<html><body>" + strings.Repeat("x", 64*1024) + "</body></html>"
+	var sessions []proto.TargetSessionID
+
+	for i := 0; i < 5; i++ {
+		page := g.browser.MustPage(g.blank())
+		page.MustSetDocumentContent(html)
+		g.True(page.LoadState(&proto.PageSetDocumentContent{}))
+		g.True(page.LoadState(&proto.PageEnable{}))
+
+		page.MustClose()
+
+		g.False(page.LoadState(&proto.PageSetDocumentContent{}))
+		g.False(page.LoadState(&proto.PageEnable{}))
+		sessions = append(sessions, page.SessionID)
+	}
+
+	for _, id := range sessions {
+		g.False(g.browser.LoadState(id, &proto.PageSetDocumentContent{}))
+		g.False(g.browser.LoadState(id, &proto.PageEnable{}))
+	}
+
+	// the states of a page still open stay
+	g.True(g.page.LoadState(&proto.PageEnable{}))
+}
+
+// A page closed without Page.Close, by a script's window.close, by the user
+// or here by the browser, loses its states the same way once its session
+// detaches, before its context ends.
+func TestPageClosedByBrowserClearsStates(t *testing.T) {
+	g := setup(t)
+
+	// Chromium ignores a close of a page still navigating, the way Page.Close
+	// retries around, hence the wait for load.
+	page := g.browser.MustPage(g.blank()).MustWaitLoad()
+	g.True(page.LoadState(&proto.PageEnable{}))
+
+	g.E(proto.TargetCloseTarget{TargetID: page.TargetID}.Call(g.browser))
+
+	select {
+	case <-page.GetContext().Done():
+	case <-time.After(5 * time.Second):
+		g.Fatal("the closed page's session never detached")
+	}
+
+	g.False(page.LoadState(&proto.PageEnable{}))
+	g.False(g.browser.LoadState(page.SessionID, &proto.PageEnable{}))
 }
 
 func TestDisableDomain(t *testing.T) {

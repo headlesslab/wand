@@ -1058,7 +1058,15 @@ func (p *Page) initEvents() {
 			destroyed := proto.TargetTargetDestroyed{}
 
 			if (msg.Load(&detached) && detached.SessionID == p.SessionID) ||
-				(msg.Load(destroyed) && destroyed.TargetID == p.TargetID) {
+				(msg.Load(&destroyed) && destroyed.TargetID == p.TargetID) {
+				// The session is gone whether or not Page.Close closed the
+				// page: a script's window.close, the user, or the browser.
+				// Its states go before the page's context ends, so that
+				// nothing of them outlives the context. The cached *Page
+				// stays for Close to remove under the targets lock, since a
+				// PageFromTarget attaching anew to a live target must not
+				// lose its entry to this goroutine.
+				p.browser.removeSessionStates(p.SessionID)
 				p.sessionCancel()
 				return
 			}
