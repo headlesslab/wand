@@ -663,16 +663,32 @@ func TestWaitStable(t *testing.T) {
 
 	p := g.page.MustNavigate(g.srcFile("fixtures/wait-stable.html"))
 	el := p.MustElement("button")
-	// The clock starts before the goroutine's second does, so the wait is
-	// held to the second whatever the scheduler makes of the two (on the
-	// pooled testers the wait once ended 906 ms after a later start).
+
+	// The movement the wait has to outlast comes from the stub, not from
+	// the button's CSS animation, which is stopped here: the renderer reports
+	// an animated shape as of its last frame, and on a loaded runner it
+	// painted none for 300 ms while the animation was meant to run, so the
+	// Gate read the same quads twice in a row (775 px into the second the
+	// wait was held to) and WaitStable rightly ended at 940 ms. The stub
+	// shifts the shape on each of the first three reads; the two after are
+	// the button's own, so the wait ends after four ticks of the interval it
+	// waits between reads, whatever the machine. The visibility check before
+	// the reads asks no quads, so the ordinals are the shape reads', and
+	// 1000 px is nowhere the button is.
+	el.MustEval(`() => this.classList.remove("play")`)
+
+	const moves = 3
+	g.mc.stubFirst(moves, proto.DOMGetContentQuads{}, func(i int, send StubSend) (lazyjson.JSON, error) {
+		res, err := send()
+		if err != nil {
+			return res, err
+		}
+		return *res.Set("quads.0.0", float64(1000+i)), nil
+	})
+	d := 300 * time.Millisecond
 	start := time.Now()
-	go func() {
-		utils.Sleep(1)
-		el.MustEval(`() => this.classList.remove("play")`)
-	}()
-	el.MustWaitStable()
-	g.Gt(time.Since(start), time.Second)
+	g.E(el.WaitStable(d))
+	g.Gte(time.Since(start), (moves+1)*d)
 
 	ctx := g.Context()
 	g.mc.stub(1, proto.DOMGetContentQuads{}, func(send StubSend) (lazyjson.JSON, error) {

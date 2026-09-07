@@ -166,6 +166,16 @@ func TestIdleCounter(t *testing.T) {
 	utils.All(func() {
 		ct := utils.NewIdleCounter(100 * time.Millisecond)
 
+		// The clock starts before the goroutine that sleeps does, so the
+		// wait is held to the 300 ms of that sleep plus the counter's own
+		// 100 ms of idle after the last Done whatever the scheduler makes of
+		// the two goroutines: a start taken after the goroutine had begun its
+		// sleep read 393 ms in the Gate. Neither a sleep nor a timer ends
+		// early, so the lower bound is exact; the upper bounds below are
+		// wide, a hosted runner under -race has taken 10 ms to wake a
+		// goroutine.
+		start := time.Now()
+
 		ct.Add()
 		go func() {
 			ct.Add()
@@ -176,13 +186,9 @@ func TestIdleCounter(t *testing.T) {
 
 		ctx := g.Context()
 
-		// The lower bound is the counter's own idle time after the last
-		// Done; the upper bounds below are wide, a hosted runner under -race
-		// has taken 10 ms to wake a goroutine.
-		start := time.Now()
 		ct.Wait(ctx)
 		d := time.Since(start)
-		g.Gt(d, 400*time.Millisecond)
+		g.Gte(d, 400*time.Millisecond)
 		g.Lt(d, 700*time.Millisecond)
 
 		g.Panic(func() {
