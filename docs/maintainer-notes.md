@@ -245,16 +245,19 @@ Observed 2026-09-07, the run these steps were written from: the App was created 
 
 ## The Roll
 
-The Roll (spec #33, section 15) moves the Target Chrome, the Protocol roll, the Companion Chromium and every managed-browser archive hash together. Until its workflow exists, and for a Security roll, the Roll tool is run by hand from the module root:
+The Roll (spec #33, section 15) moves the Target Chrome, the Protocol roll, the Companion Chromium and every managed-browser archive hash together. `.github/workflows/roll.yml` runs it on a schedule and opens the pull request; the tool underneath is the same one, and is run by hand for a Roll taken outside the schedule or to inspect one before it opens:
 
 ```sh
 go run ./lib/launcher/pins/generate                 # Chrome for Testing's current Stable
 go run ./lib/launcher/pins/generate 153.0.8010.27   # that version instead (a Security roll)
+go run ./lib/launcher/pins/generate -if-newer       # that Stable, but only past the pinned milestone
 go run ./lib/launcher/pins/generate -render         # rewrite the outputs from the committed pins, no download
 go run ./lib/launcher/pins/generate -check          # what the generate Gate runs
 ```
 
 The tool reads Chrome for Testing's version JSON for the Target Chrome and its branch position, lists the tags of `ChromeDevTools/devtools-protocol` through `git ls-remote` for the Protocol roll (the largest `v0.0.<rev>` not above the branch position), lists the Chromium trunk build bucket for the Companion Chromium (the newest position at or below the branch position whose archive exists under all five prefixes, searching an ever wider window below the position until one is found), then downloads every managed-browser archive, twelve Chrome for Testing ones and five Chromium ones (about 2.5 GB), from Google's bucket only and hashes each as it streams; nothing is kept on disk. It rewrites `lib/launcher/pins/pins.go` and the browser table between the `<!-- pins:begin -->` and `<!-- pins:end -->` markers of `README.md` and `README.zh-CN.md`, and prints the three pins. Running it again for the same version gives no diff. `-render` rewrites the same outputs from the committed pins without downloading anything, for when the table's layout or a README's prose changes between two Rolls.
+
+`-if-newer` is the schedule's form, and the only one that decides for itself whether to roll at all: it reads the last-known-good Stable, compares its milestone with the committed Target Chrome's, and writes nothing at all unless Stable has reached a higher milestone. So it costs one HTTP request on every day between two milestones, and downloads the 2.5 GB only on the day there is a Roll. An equal milestone is not newer: one Milestone release per Chrome stable milestone (ADR-0008), so a move inside a milestone is a forced version, never the schedule's doing.
 
 When Google serves no archive for one of the six Chrome for Testing platforms (linux-arm64 exists from 153.0.8001.0 on), the tool still writes what it verified, lists the missing archives and exits 1, so the gap is visible in the diff rather than hidden; a Roll pull request is not opened from such a run.
 
@@ -267,10 +270,37 @@ go run ./internal/tools/print-pins         # Chrome <version>, protocol r<roll>,
 go run ./internal/tools/print-pins -json   # {"chrome":"<version>","protocol":<roll>,"chromium":<position>}
 ```
 
+### The Roll workflow
+
+`.github/workflows/roll.yml` runs daily at 05:17 UTC and on `workflow_dispatch`, with two inputs: a `version` that forces that version, and a `dry-run` that computes and prints everything and opens nothing.
+
+```sh
+gh workflow run roll.yml                                   # what the schedule does
+gh workflow run roll.yml -f dry-run=true                   # compute and print, open nothing
+gh workflow run roll.yml -f version=153.0.8010.27          # a milestone taken early, or a Security roll
+```
+
+It mints a token from the automation identity first, so a rejected token fails before 2.5 GB is downloaded, and it checks out with that token, because GitHub starts no workflow from a `GITHUB_TOKEN` push: the Gate has to run on a Roll, and the App's push is what makes it run. Then the Roll tool with `-if-newer` or the forced version, the protocol generator for the new Protocol roll, `-check` as the generate Gate will run it, and a pull request titled `roll to Chrome <version> (protocol r<rev>)`, labelled `roll`, whose body carries the three pins and the generator's symbol-level summary.
+
+The `roll` label is a repository label of its own, created by hand when this workflow landed; `gh pr create` fails outright on a label that does not exist, so a rebuilt repository needs `gh label create roll` before the first Roll. #60 gives it a section of its own in the release notes through `.github/release.yml`.
+
+Two states end the run green without a pull request: the pins unchanged, which is every day between two milestones, and a Roll whose pull request is already open, which is every day between the Roll and its merge. Without the second check the schedule would push the same branch and fail every day until the first Roll merged.
+
+A failure — the token rejected, an archive Google does not serve, a protocol that does not re-derive — opens **The Roll failed** and comments on that same issue on each later failure, rather than opening one a day. `GITHUB_TOKEN` opens it, since the App token is one of the things that may have failed. Close it once the Roll is green again.
+
+### The Security roll
+
+A Chrome fix for a vulnerability exploited in the wild ships as a patch release (spec #33, section 15; user story 50), and its Roll moves the patch number inside the milestone, which the schedule will never do on its own:
+
+1. Take the version from the Chrome releases blog, and check that its milestone is the one already pinned. A milestone move is an ordinary Roll and a minor release, not this procedure.
+2. `gh workflow run roll.yml -f version=<version>`. The pull request carries only the patch number, the branch position, the Protocol roll if the roll moved, the Companion Chromium and the hashes; the protocol summary is usually empty within a milestone.
+3. Review the hash diff, which is the thing being approved (ADR-0005), and merge once the Gate is green.
+4. Cut a patch release from `main` with the release workflow. A patch never breaks (ADR-0008), and a Security roll changes no exported symbol, so `go get -u=patch` carries the fix to everyone.
+
 ### What stays human
 
-- Deciding to roll: the tool computes and downloads, it opens no pull request. The reviewed Roll pull request is the trust anchor for every managed-browser hash (ADR-0005), so its reviewer reads the hash diff as the thing being approved.
-- Running the protocol generator for the new Protocol roll (below) and putting its symbol-level summary in the pull request, until the Roll workflow does both.
+- Deciding to roll early: the schedule waits for Chrome for Testing to promote the milestone to Stable. Taking a milestone before that, or a Security roll, is a `workflow_dispatch` with a version.
+- Reviewing the Roll: the reviewed pull request is the trust anchor for every managed-browser hash (ADR-0005), so its reviewer reads the hash diff as the thing being approved. The workflow opens it and merges nothing.
 
 ## The protocol layer
 

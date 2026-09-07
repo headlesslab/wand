@@ -4,6 +4,7 @@
 // carry the same numbers.
 //
 //	go run ./lib/launcher/pins/generate [<version>]
+//	go run ./lib/launcher/pins/generate -if-newer
 //	go run ./lib/launcher/pins/generate -render
 //	go run ./lib/launcher/pins/generate -check
 //
@@ -19,6 +20,14 @@
 // README.zh-CN.md. An archive Google does not serve is reported and the exit
 // status is 1; what was verified is still written, so the gap shows in the
 // diff instead of hiding.
+//
+// -if-newer is the scheduled Roll's form, and the only one that decides for
+// itself whether there is anything to do: it reads the last-known-good Stable
+// and rolls to it only when its milestone is above the committed Target
+// Chrome's, so a daily schedule costs one request on every day between two
+// milestones and downloads the archives on the day there is a Roll. An equal
+// milestone is not newer, one Milestone release per Chrome stable milestone
+// (ADR-0008), so a move inside a milestone is a version given instead.
 //
 // -render downloads nothing: it rewrites the same outputs from the pins as
 // committed, for when the renderer or a README's prose changes between two
@@ -43,6 +52,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 
 	"github.com/headlesslab/wand/lib/launcher/pins"
 )
@@ -71,6 +81,8 @@ func run(opts options) int {
 		return check(ctx, r)
 	case opts.render:
 		return rerender(r)
+	case opts.ifNewer:
+		return rollIfNewer(ctx, r)
 	default:
 		return roll(ctx, r, opts.version)
 	}
@@ -117,6 +129,67 @@ func roll(ctx context.Context, r *roller, version string) int {
 	return 0
 }
 
+// rollIfNewer is what the scheduled Roll runs: it rolls only once Chrome for
+// Testing's Stable has reached a milestone above the Target Chrome's, so that
+// a schedule running every day still opens one pull request per Chrome stable
+// milestone (ADR-0008) and writes nothing on all the other days. An
+// in-milestone move, a Security roll, is a forced version instead.
+func rollIfNewer(ctx context.Context, r *roller) int {
+	target := pins.ChromeVersion
+
+	version, needed, err := rollNeeded(ctx, r, target)
+	if err != nil {
+		return fail(err)
+	}
+	if !needed {
+		fmt.Printf("pins: Chrome for Testing Stable is %s, which is no milestone above the Target Chrome %s; nothing to roll\n",
+			version, target)
+		return 0
+	}
+
+	return roll(ctx, r, version)
+}
+
+// rollNeeded reads Chrome for Testing's last-known-good Stable and reports
+// whether its milestone is above target's. It returns the Stable version
+// either way, so that the caller can name it in both outcomes, and it reads
+// nothing but the version JSON: the decision costs one request.
+func rollNeeded(ctx context.Context, r *roller, target string) (string, bool, error) {
+	pinned, err := milestone(target)
+	if err != nil {
+		return "", false, err
+	}
+
+	version, _, err := r.stable(ctx)
+	if err != nil {
+		return "", false, err
+	}
+
+	stable, err := milestone(version)
+	if err != nil {
+		return "", false, err
+	}
+
+	return version, stable > pinned, nil
+}
+
+// milestone is the Chrome milestone of a four-number Chrome version: the 153
+// of 153.0.8010.12.
+func milestone(version string) (int, error) {
+	m := chromeVersion.FindStringSubmatch(version)
+	if m == nil {
+		return 0, notAChromeVersion(version)
+	}
+
+	// The pattern admits only digits, so this fails on nothing but a number
+	// too large for an int, which no Chrome milestone will ever be.
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0, fmt.Errorf("the milestone of the Chrome version %q: %w", version, err)
+	}
+	return n, nil
+}
+
 // outputNames lists the outputs as prose: "a, b and c".
 func outputNames() string {
 	names := ""
@@ -141,11 +214,13 @@ func fail(err error) int {
 type options struct {
 	check   bool
 	render  bool
+	ifNewer bool
 	version string
 }
 
-// chromeVersion is the four-number form Chrome for Testing publishes.
-var chromeVersion = regexp.MustCompile(`^\d+\.\d+\.\d+\.\d+$`)
+// chromeVersion is the four-number form Chrome for Testing publishes, its
+// first number captured because that is the milestone.
+var chromeVersion = regexp.MustCompile(`^(\d+)\.\d+\.\d+\.\d+$`)
 
 func parseArgs(args []string) (options, error) {
 	var opts options
@@ -154,24 +229,56 @@ func parseArgs(args []string) (options, error) {
 		return options{}, err
 	}
 
-	rest := fs.Args()
-	switch {
-	case opts.check && opts.render:
-		return options{}, errors.New("-check and -render exclude each other")
-	case len(rest) > 1:
-		return options{}, errors.New("at most one version may be given")
-	case len(rest) == 1 && opts.check:
-		return options{}, errors.New("-check takes no version: it checks the pins as committed")
-	case len(rest) == 1 && opts.render:
-		return options{}, errors.New("-render takes no version: it rewrites the pins as committed")
-	case len(rest) == 1:
-		if !chromeVersion.MatchString(rest[0]) {
-			return options{}, fmt.Errorf("%q is not a Chrome version of the form 152.0.7977.82", rest[0])
-		}
-		opts.version = rest[0]
+	if err := opts.modes(); err != nil {
+		return options{}, err
+	}
+	if err := opts.takeVersion(fs.Args()); err != nil {
+		return options{}, err
 	}
 
 	return opts, nil
+}
+
+// notAChromeVersion is the one wording for a string that is not a Chrome
+// version, shared by the argument and the milestone comparison so that the
+// two cannot drift apart.
+func notAChromeVersion(version string) error {
+	return fmt.Errorf("%q is not a Chrome version of the form 152.0.7977.82", version)
+}
+
+// modes rejects the flag combinations that ask for two runs at once: each
+// flag names a whole run, so no two of them go together.
+func (o *options) modes() error {
+	switch {
+	case o.check && o.render:
+		return errors.New("-check and -render exclude each other")
+	case o.ifNewer && (o.check || o.render):
+		return errors.New("-if-newer rolls or does nothing: it excludes -check and -render")
+	}
+	return nil
+}
+
+// takeVersion reads the one optional version argument, which only a plain run
+// accepts: each flag either decides the version for itself or reads the pins
+// as committed.
+func (o *options) takeVersion(rest []string) error {
+	switch {
+	case len(rest) > 1:
+		return errors.New("at most one version may be given")
+	case len(rest) == 0:
+		return nil
+	case o.check:
+		return errors.New("-check takes no version: it checks the pins as committed")
+	case o.render:
+		return errors.New("-render takes no version: it rewrites the pins as committed")
+	case o.ifNewer:
+		return errors.New("-if-newer takes no version: a version given is a Roll already decided on")
+	case !chromeVersion.MatchString(rest[0]):
+		return notAChromeVersion(rest[0])
+	}
+
+	o.version = rest[0]
+	return nil
 }
 
 // flagSet declares the flags on opts. usage prints the same set, so every
@@ -183,11 +290,13 @@ func flagSet(opts *options) *flag.FlagSet {
 		"write nothing; fail unless the committed pins re-derive and every output re-renders to the same bytes")
 	fs.BoolVar(&opts.render, "render", false,
 		"download nothing; rewrite every output from the committed pins")
+	fs.BoolVar(&opts.ifNewer, "if-newer", false,
+		"roll only when Chrome for Testing's Stable is a newer milestone than the Target Chrome; otherwise say so and do nothing")
 	return fs
 }
 
 func usage(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "usage: go run ./lib/launcher/pins/generate [-check | -render | <version>]")
+	_, _ = fmt.Fprintln(w, "usage: go run ./lib/launcher/pins/generate [-check | -render | -if-newer | <version>]")
 	fs := flagSet(&options{})
 	fs.SetOutput(w)
 	fs.PrintDefaults()

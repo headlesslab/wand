@@ -1,0 +1,293 @@
+# The Roll: once per Chrome stable milestone a pull request arrives that moves
+# the Target Chrome, the Protocol roll, the Companion Chromium and every
+# managed-browser archive hash together, with the protocol generator's
+# symbol-level summary in its body (spec #33, section 15; ADR-0004, ADR-0005,
+# ADR-0008; ticket #59).
+#
+# The schedule asks the Roll tool with -if-newer, which reads Chrome for
+# Testing's last-known-good Stable and does nothing at all unless its
+# milestone is above the Target Chrome's. So a daily run is one HTTP request
+# on all the days between two milestones, and the 2.5 GB of archive downloads
+# happen only on the day there is a Roll to open.
+#
+# A version input forces that version instead, which is how a Security roll
+# moves inside a milestone (maintainer notes, "The Security roll") and how a
+# milestone is taken before Chrome for Testing promotes it to Stable. The
+# dry-run input computes and prints the diff and opens nothing.
+#
+# The pull request is opened with the automation identity's token, not
+# GITHUB_TOKEN, because GitHub starts no workflow from a GITHUB_TOKEN push:
+# the Gate has to run on a Roll, since the hashes are what its reviewer
+# approves (ADR-0005), and the App token is what makes it run (#58).
+#
+# Every action is pinned to a full-length commit SHA with its version in a
+# trailing comment; Dependabot keeps the pins moving.
+name: Roll
+
+on:
+  schedule:
+    # Daily, 05:17 UTC. Off the hour, where the scheduler is busiest and a
+    # run is queued longest.
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Chrome version to roll to, e.g. 153.0.8010.27. Empty rolls only when Stable is a newer milestone.'
+        required: false
+        type: string
+      dry-run:
+        description: 'Compute and print the diff without opening a pull request.'
+        required: false
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One Roll at a time, and never cancel one: a cancelled run leaves no pull
+# request and wastes the whole download.
+concurrency:
+  group: roll
+  cancel-in-progress: false
+
+env:
+  # Never download a newer toolchain: a dependency raising its Go floor above
+  # ours must fail the run, not silently pull a toolchain.
+  GOTOOLCHAIN: local
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  roll:
+    name: Roll
+    runs-on: ubuntu-latest
+    # The downloads are about 2.5 GB, streamed and hashed, never kept; the
+    # hand Roll of #54 took six minutes on a good day. The ceiling is for a
+    # bad one.
+    timeout-minutes: 90
+    permissions:
+      # Only what the failure notice needs. The checkout, the push and the
+      # pull request all use the App token instead.
+      issues: write
+    steps:
+      # First, so that a rejected token fails before anything is downloaded,
+      # and so that the checkout can carry it: a push from this job has to be
+      # the App's for the Gate to run on the pull request.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: token
+        with:
+          client-id: ${{ secrets.AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.token.outputs.token }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.work.sum
+            **/go.sum
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: internal/tools/package-lock.json
+
+      # go mod download and the pinned Node tools: the protocol generator
+      # formats its output with the golangci-lint internal/devutil pins.
+      - run: go run ./internal/tools/setup
+
+      # The Roll itself. A forced version skips the milestone comparison,
+      # since a version given is a Roll already decided on; -if-newer makes
+      # the comparison and writes nothing when Stable has not moved on. The
+      # version reaches the tool through the environment rather than through
+      # the command line, so that a dispatch input is one argument and never
+      # a fragment of shell.
+      - name: Roll the pins
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$VERSION" ]; then
+            go run ./lib/launcher/pins/generate "$VERSION"
+          else
+            go run ./lib/launcher/pins/generate -if-newer
+          fi
+
+      # Nothing written means Stable is still the pinned milestone, which is
+      # what every day between two milestones looks like. The rest of the job
+      # is skipped and the run is green.
+      #
+      # A Roll whose pull request is already open is the same non-event: the
+      # pins on main have not moved yet, so tomorrow's schedule recomputes the
+      # very same Roll. Without this check it would try to push the same
+      # branch and open the same pull request every day until the first one
+      # merges, and fail loudly each time.
+      - name: Is there a Roll to open?
+        id: rolled
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          if git diff --quiet && git diff --quiet --cached; then
+            echo 'nothing to roll: the pins are unchanged'
+            echo 'rolled=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          version=$(go run ./internal/tools/print-pins -json | jq -r .chrome)
+          branch="roll/chrome-$version"
+          open=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$open" ]; then
+            echo "the Roll to Chrome $version is already open: $open"
+            echo 'rolled=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo 'rolled=true'
+            echo "branch=$branch"
+          } >> "$GITHUB_OUTPUT"
+
+      # The protocol package for the new Protocol roll, and its symbol-level
+      # summary of removed, renamed and newly deprecated Go identifiers, which
+      # goes into the pull request body and later into the release notes.
+      - name: Regenerate the protocol
+        if: steps.rolled.outputs.rolled == 'true'
+        run: go run ./lib/proto/generate
+
+      # What the generate Gate will run on the pull request: the Protocol roll
+      # re-derives from the branch position and every output re-renders to the
+      # bytes just written. Running it here fails the Roll rather than opening
+      # a pull request that is red on arrival.
+      - name: Check the pins
+        if: steps.rolled.outputs.rolled == 'true'
+        run: go run ./lib/launcher/pins/generate -check
+
+      # Each value on its own line and assigned before it is written, so that
+      # a failing jq fails the step rather than writing an empty pin into the
+      # pull request title.
+      - name: Read the new pins
+        id: pins
+        if: steps.rolled.outputs.rolled == 'true'
+        run: |
+          out="$RUNNER_TEMP/pins.json"
+          go run ./internal/tools/print-pins -json > "$out"
+          chrome=$(jq -er .chrome "$out")
+          protocol=$(jq -er .protocol "$out")
+          chromium=$(jq -er .chromium "$out")
+          {
+            echo "chrome=$chrome"
+            echo "protocol=$protocol"
+            echo "chromium=$chromium"
+            echo "title=roll to Chrome $chrome (protocol r$protocol)"
+          } >> "$GITHUB_OUTPUT"
+
+      # Everything the pull request would carry, printed: the title, the diff
+      # and the symbol-level summary. This is what a dry run is for, so it
+      # runs before the split and prints the same thing either way.
+      - name: What this Roll carries
+        if: steps.rolled.outputs.rolled == 'true'
+        env:
+          TITLE: ${{ steps.pins.outputs.title }}
+        run: |
+          echo "$TITLE"
+          echo
+          git --no-pager diff --stat
+          echo
+          git --no-pager diff -- lib/launcher/pins/pins.go
+          echo
+          cat tmp/proto-summary.md
+
+      # A dry run has now computed and printed everything a real run would
+      # commit, and reaches none of the steps that write outside this runner.
+      - name: Dry run opens nothing
+        if: steps.rolled.outputs.rolled == 'true' && inputs.dry-run
+        run: |
+          echo 'dry run: the Roll above was computed and nothing was opened'
+
+      - name: Open the pull request
+        id: pr
+        if: steps.rolled.outputs.rolled == 'true' && !inputs.dry-run
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          BRANCH: ${{ steps.rolled.outputs.branch }}
+          TITLE: ${{ steps.pins.outputs.title }}
+          CHROME: ${{ steps.pins.outputs.chrome }}
+          PROTOCOL: ${{ steps.pins.outputs.protocol }}
+          CHROMIUM: ${{ steps.pins.outputs.chromium }}
+        run: |
+          # The commit is the App's. GitHub links a bot commit to its account
+          # only through the "<numeric id>+<login>@users.noreply" form, and
+          # the id is one more API call for an avatar; the author name and the
+          # pull request already say who did this.
+          git config user.name 'headlesslab-automation[bot]'
+          git config user.email 'headlesslab-automation[bot]@users.noreply.github.com'
+
+          git checkout -b "$BRANCH"
+          # Every path, not only the tracked ones: a roll that adds a protocol
+          # domain adds files, and an untracked file left behind would fail
+          # the generate Gate on the pull request.
+          git add --all
+          git commit --message "$TITLE"
+          git push --set-upstream origin "$BRANCH"
+
+          {
+            echo '| pin | value |'
+            echo '| --- | --- |'
+            echo "| Target Chrome | \`$CHROME\` |"
+            echo "| Protocol roll | \`r$PROTOCOL\` |"
+            echo "| Companion Chromium | \`$CHROMIUM\` |"
+            echo
+            echo 'Every managed-browser archive hash in this diff was computed by'
+            echo "streaming the archive from Google's origin bucket, never from"
+            echo 'another Download host (ADR-0005). Reviewing this pull request is'
+            echo 'approving those hashes.'
+            echo
+            echo '## Symbol-level summary'
+            echo
+            # The generator always writes this file and always opens it with a
+            # count line, so there is no empty case to fall back to.
+            cat tmp/proto-summary.md
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          url=$(gh pr create --base main --head "$BRANCH" \
+            --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md" --label roll)
+          echo "opened $url"
+
+      # The Roll fails loudly (spec #33, section 15): a rejected token, an
+      # archive Google does not serve, a protocol regeneration that does not
+      # re-derive. A scheduled run has nobody watching it, so the failure
+      # becomes an issue keyed by the workflow's name, and later failures
+      # comment on that one rather than opening one a day (CONTEXT.md,
+      # Nightly). A dry run is somebody watching, so it is excluded.
+      #
+      # GITHUB_TOKEN opens it, because the App token is one of the things
+      # that may have failed. GH_REPO names the repository, because when the
+      # token step is what failed the checkout never ran and there is no git
+      # remote here for gh to read one from.
+      - name: Say so when the Roll fails
+        if: failure() && !inputs.dry-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: ${{ github.workflow }} failed
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # gh's own --jq takes no jq flags, so the title reaches the filter
+          # as data through a real jq rather than as a spliced-in string.
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title \
+            | jq -r --arg t "$TITLE" '[.[] | select(.title == $t) | .number] | first // empty')
+
+          body=$(printf '%s\n\n%s\n' \
+            "$TITLE: $RUN" \
+            "The usual causes, in the order the job reaches them: the App token was rejected (the client id or the private key of #58), Google served no archive for one of the platforms the pins name, or the regenerated protocol did not re-derive from the branch position. The step that went red says which. This issue stays open and collects one comment per failure, so close it once the Roll is green again.")
+
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh issue create --title "$TITLE" --label needs-triage --body "$body"
+          fi

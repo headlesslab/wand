@@ -568,4 +568,85 @@ func TestUsage(t *testing.T) {
 	g.Has(out.String(), "go run ./lib/launcher/pins/generate")
 	g.Has(out.String(), "-check")
 	g.Has(out.String(), "-render")
+	g.Has(out.String(), "-if-newer")
+}
+
+func TestMilestone(t *testing.T) {
+	g := setup(t)
+
+	m, err := milestone("153.0.8010.12")
+	g.E(err)
+	g.Eq(m, 153)
+
+	m, err = milestone("99.0.1.0")
+	g.E(err)
+	g.Eq(m, 99)
+
+	for _, bad := range []string{"", "153", "153.0.8010", "v153.0.8010.12", "x.0.8010.12"} {
+		_, err = milestone(bad)
+		g.Desc("%q", bad).Err(err)
+		g.Desc("%q", bad).Has(err.Error(), "Chrome version")
+	}
+}
+
+func TestRollNeeded(t *testing.T) {
+	g := setup(t)
+
+	// The bucket serves Stable 152.0.7977.82. A Target Chrome already on a
+	// later milestone is the state between a Roll and the day that milestone
+	// reaches Stable: nothing to do, and nothing downloaded to find out.
+	b := newBucket()
+	s := testRoller(t, b, nil)
+	version, needed, err := rollNeeded(context.Background(), s, "153.0.8010.12")
+	g.E(err)
+	g.False(needed)
+	g.Eq(version, "152.0.7977.82")
+	g.Eq(b.count(http.MethodGet, "/cft/last-known-good-versions.json"), 1)
+	g.Eq(b.count(http.MethodGet, "/api/o"), 0)
+
+	// The same milestone is not newer: one Milestone release per Chrome
+	// stable milestone (ADR-0008), so an in-milestone patch is a forced
+	// dispatch, never the schedule's doing.
+	_, needed, err = rollNeeded(context.Background(), s, "152.0.7000.1")
+	g.E(err)
+	g.False(needed)
+
+	// A newer Stable milestone is the whole point.
+	_, needed, err = rollNeeded(context.Background(), s, "151.0.7000.1")
+	g.E(err)
+	g.True(needed)
+
+	// A pin that is not a Chrome version is an error, not a silent skip: the
+	// schedule must never roll on a comparison it could not make.
+	_, _, err = rollNeeded(context.Background(), s, "bogus")
+	g.Err(err)
+	g.Has(err.Error(), "Chrome version")
+
+	// Chrome for Testing unreachable is an error too.
+	s.cft = "http://127.0.0.1:1/cft"
+	_, _, err = rollNeeded(context.Background(), s, "153.0.8010.12")
+	g.Err(err)
+}
+
+func TestParseArgsIfNewer(t *testing.T) {
+	g := setup(t)
+
+	opts, err := parseArgs([]string{"-if-newer"})
+	g.E(err)
+	g.True(opts.ifNewer)
+	g.False(opts.check)
+	g.False(opts.render)
+	g.Eq(opts.version, "")
+
+	// -if-newer asks the tool to decide from Chrome for Testing's Stable, so
+	// it cannot be combined with a version that has already decided, nor with
+	// the two modes that write or read the committed pins.
+	for _, bad := range [][]string{
+		{"-if-newer", "153.0.8010.27"},
+		{"-if-newer", "-check"},
+		{"-if-newer", "-render"},
+	} {
+		_, err = parseArgs(bad)
+		g.Desc("%q", bad).Err(err)
+	}
 }
