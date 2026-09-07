@@ -25,10 +25,12 @@ func main() {
 
 	el := page.MustElement(`textarea[aria-label="Source text"]`)
 
-	// The includes are regexps matched against a request's URL, not prefixes:
+	// MustWaitRequestIdle takes excludes, so this names the requests the wait
+	// ignores: the account calls the page keeps making would otherwise hold it
+	// open. They are regexps matched against a request's URL, not prefixes, so
 	// the host is anchored and its dots escaped, or the pattern would also
-	// wait for https://accounts-google-com.example/ and for any URL that
-	// merely carries this one in a query string.
+	// ignore https://accounts-google-com.example/ and any URL that merely
+	// carries this one in a query string.
 	wait := page.MustWaitRequestIdle(`^https://accounts\.google\.com/`)
 	el.MustInput(source)
 	wait()
