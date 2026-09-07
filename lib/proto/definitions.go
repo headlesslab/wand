@@ -13,7 +13,7 @@ const Version = "v1.3"
 // v0.0.<ProtocolRoll> of ChromeDevTools/devtools-protocol, the largest
 // roll not above the Target Chrome's branch position
 // (lib/launcher/pins).
-const ProtocolRoll = 1666840
+const ProtocolRoll = 1680125
 
 var types = map[string]reflect.Type{
 	"Accessibility.AXValueSource":                                reflect.TypeOf(AccessibilityAXValueSource{}),
@@ -419,6 +419,7 @@ var types = map[string]reflect.Type{
 	"DOM.getAnchorElementResult":                                 reflect.TypeOf(DOMGetAnchorElementResult{}),
 	"DOM.forceShowPopover":                                       reflect.TypeOf(DOMForceShowPopover{}),
 	"DOM.forceShowPopoverResult":                                 reflect.TypeOf(DOMForceShowPopoverResult{}),
+	"DOM.forceShowInterest":                                      reflect.TypeOf(DOMForceShowInterest{}),
 	"DOM.attributeModified":                                      reflect.TypeOf(DOMAttributeModified{}),
 	"DOM.adoptedStyleSheetsModified":                             reflect.TypeOf(DOMAdoptedStyleSheetsModified{}),
 	"DOM.attributeRemoved":                                       reflect.TypeOf(DOMAttributeRemoved{}),
@@ -514,6 +515,7 @@ var types = map[string]reflect.Type{
 	"Emulation.setCPUThrottlingRate":                             reflect.TypeOf(EmulationSetCPUThrottlingRate{}),
 	"Emulation.setDefaultBackgroundColorOverride":                reflect.TypeOf(EmulationSetDefaultBackgroundColorOverride{}),
 	"Emulation.setSafeAreaInsetsOverride":                        reflect.TypeOf(EmulationSetSafeAreaInsetsOverride{}),
+	"Emulation.setVirtualKeyboardGeometryOverride":               reflect.TypeOf(EmulationSetVirtualKeyboardGeometryOverride{}),
 	"Emulation.setDeviceMetricsOverride":                         reflect.TypeOf(EmulationSetDeviceMetricsOverride{}),
 	"Emulation.setDevicePostureOverride":                         reflect.TypeOf(EmulationSetDevicePostureOverride{}),
 	"Emulation.clearDevicePostureOverride":                       reflect.TypeOf(EmulationClearDevicePostureOverride{}),
@@ -743,7 +745,6 @@ var types = map[string]reflect.Type{
 	"Network.CookieParam":                                        reflect.TypeOf(NetworkCookieParam{}),
 	"Network.AuthChallenge":                                      reflect.TypeOf(NetworkAuthChallenge{}),
 	"Network.AuthChallengeResponse":                              reflect.TypeOf(NetworkAuthChallengeResponse{}),
-	"Network.RequestPattern":                                     reflect.TypeOf(NetworkRequestPattern{}),
 	"Network.SignedExchangeSignature":                            reflect.TypeOf(NetworkSignedExchangeSignature{}),
 	"Network.SignedExchangeHeader":                               reflect.TypeOf(NetworkSignedExchangeHeader{}),
 	"Network.SignedExchangeError":                                reflect.TypeOf(NetworkSignedExchangeError{}),
@@ -777,8 +778,6 @@ var types = map[string]reflect.Type{
 	"Network.ChallengeEventDetails":                              reflect.TypeOf(NetworkChallengeEventDetails{}),
 	"Network.LoadNetworkResourcePageResult":                      reflect.TypeOf(NetworkLoadNetworkResourcePageResult{}),
 	"Network.LoadNetworkResourceOptions":                         reflect.TypeOf(NetworkLoadNetworkResourceOptions{}),
-	"Network.setAcceptedEncodings":                               reflect.TypeOf(NetworkSetAcceptedEncodings{}),
-	"Network.clearAcceptedEncodingsOverride":                     reflect.TypeOf(NetworkClearAcceptedEncodingsOverride{}),
 	"Network.canClearBrowserCache":                               reflect.TypeOf(NetworkCanClearBrowserCache{}),
 	"Network.canClearBrowserCacheResult":                         reflect.TypeOf(NetworkCanClearBrowserCacheResult{}),
 	"Network.canClearBrowserCookies":                             reflect.TypeOf(NetworkCanClearBrowserCookies{}),
@@ -787,7 +786,6 @@ var types = map[string]reflect.Type{
 	"Network.canEmulateNetworkConditionsResult":                  reflect.TypeOf(NetworkCanEmulateNetworkConditionsResult{}),
 	"Network.clearBrowserCache":                                  reflect.TypeOf(NetworkClearBrowserCache{}),
 	"Network.clearBrowserCookies":                                reflect.TypeOf(NetworkClearBrowserCookies{}),
-	"Network.continueInterceptedRequest":                         reflect.TypeOf(NetworkContinueInterceptedRequest{}),
 	"Network.deleteCookies":                                      reflect.TypeOf(NetworkDeleteCookies{}),
 	"Network.disable":                                            reflect.TypeOf(NetworkDisable{}),
 	"Network.emulateNetworkConditions":                           reflect.TypeOf(NetworkEmulateNetworkConditions{}),
@@ -806,10 +804,6 @@ var types = map[string]reflect.Type{
 	"Network.getResponseBodyResult":                              reflect.TypeOf(NetworkGetResponseBodyResult{}),
 	"Network.getRequestPostData":                                 reflect.TypeOf(NetworkGetRequestPostData{}),
 	"Network.getRequestPostDataResult":                           reflect.TypeOf(NetworkGetRequestPostDataResult{}),
-	"Network.getResponseBodyForInterception":                     reflect.TypeOf(NetworkGetResponseBodyForInterception{}),
-	"Network.getResponseBodyForInterceptionResult":               reflect.TypeOf(NetworkGetResponseBodyForInterceptionResult{}),
-	"Network.takeResponseBodyForInterceptionAsStream":            reflect.TypeOf(NetworkTakeResponseBodyForInterceptionAsStream{}),
-	"Network.takeResponseBodyForInterceptionAsStreamResult":      reflect.TypeOf(NetworkTakeResponseBodyForInterceptionAsStreamResult{}),
 	"Network.replayXHR":                                          reflect.TypeOf(NetworkReplayXHR{}),
 	"Network.searchInResponseBody":                               reflect.TypeOf(NetworkSearchInResponseBody{}),
 	"Network.searchInResponseBodyResult":                         reflect.TypeOf(NetworkSearchInResponseBodyResult{}),
@@ -821,7 +815,6 @@ var types = map[string]reflect.Type{
 	"Network.setCookies":                                         reflect.TypeOf(NetworkSetCookies{}),
 	"Network.setExtraHTTPHeaders":                                reflect.TypeOf(NetworkSetExtraHTTPHeaders{}),
 	"Network.setAttachDebugStack":                                reflect.TypeOf(NetworkSetAttachDebugStack{}),
-	"Network.setRequestInterception":                             reflect.TypeOf(NetworkSetRequestInterception{}),
 	"Network.setUserAgentOverride":                               reflect.TypeOf(NetworkSetUserAgentOverride{}),
 	"Network.streamResourceContent":                              reflect.TypeOf(NetworkStreamResourceContent{}),
 	"Network.streamResourceContentResult":                        reflect.TypeOf(NetworkStreamResourceContentResult{}),
@@ -839,7 +832,6 @@ var types = map[string]reflect.Type{
 	"Network.eventSourceMessageReceived":                         reflect.TypeOf(NetworkEventSourceMessageReceived{}),
 	"Network.loadingFailed":                                      reflect.TypeOf(NetworkLoadingFailed{}),
 	"Network.loadingFinished":                                    reflect.TypeOf(NetworkLoadingFinished{}),
-	"Network.requestIntercepted":                                 reflect.TypeOf(NetworkRequestIntercepted{}),
 	"Network.requestServedFromCache":                             reflect.TypeOf(NetworkRequestServedFromCache{}),
 	"Network.requestWillBeSent":                                  reflect.TypeOf(NetworkRequestWillBeSent{}),
 	"Network.resourceChangedPriority":                            reflect.TypeOf(NetworkResourceChangedPriority{}),
@@ -1054,6 +1046,10 @@ var types = map[string]reflect.Type{
 	"Page.setLifecycleEventsEnabled":                             reflect.TypeOf(PageSetLifecycleEventsEnabled{}),
 	"Page.setTouchEmulationEnabled":                              reflect.TypeOf(PageSetTouchEmulationEnabled{}),
 	"Page.startScreencast":                                       reflect.TypeOf(PageStartScreencast{}),
+	"Page.startScreenRecording":                                  reflect.TypeOf(PageStartScreenRecording{}),
+	"Page.startScreenRecordingResult":                            reflect.TypeOf(PageStartScreenRecordingResult{}),
+	"Page.stopScreenRecording":                                   reflect.TypeOf(PageStopScreenRecording{}),
+	"Page.stopScreenRecordingResult":                             reflect.TypeOf(PageStopScreenRecordingResult{}),
 	"Page.stopLoading":                                           reflect.TypeOf(PageStopLoading{}),
 	"Page.crash":                                                 reflect.TypeOf(PageCrash{}),
 	"Page.close":                                                 reflect.TypeOf(PageClose{}),

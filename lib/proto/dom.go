@@ -1653,6 +1653,24 @@ type DOMForceShowPopoverResult struct {
 	NodeIDs []DOMNodeID `json:"nodeIds"`
 }
 
+// DOMForceShowInterest (experimental) When enabling, this API forces an element to gain interest in its target,
+// keeping interest active until disabled.
+type DOMForceShowInterest struct {
+	// NodeID Id of the interest invoker HTMLElement.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// Enable If true, opens and holds interest. If false, releases forced interest.
+	Enable bool `json:"enable"`
+}
+
+// ProtoReq name.
+func (m DOMForceShowInterest) ProtoReq() string { return "DOM.forceShowInterest" }
+
+// Call sends the request.
+func (m DOMForceShowInterest) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // DOMAttributeModified Fired when `Element`'s attribute is modified.
 type DOMAttributeModified struct {
 	// NodeID Id of the node that has changed.

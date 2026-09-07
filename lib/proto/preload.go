@@ -457,6 +457,9 @@ const (
 	// PreloadPrefetchStatusPrefetchNotEligibleBrowserContextOffTheRecord enum const.
 	PreloadPrefetchStatusPrefetchNotEligibleBrowserContextOffTheRecord PreloadPrefetchStatus = "PrefetchNotEligibleBrowserContextOffTheRecord"
 
+	// PreloadPrefetchStatusPrefetchNotEligibleCrossOrigin enum const.
+	PreloadPrefetchStatusPrefetchNotEligibleCrossOrigin PreloadPrefetchStatus = "PrefetchNotEligibleCrossOrigin"
+
 	// PreloadPrefetchStatusPrefetchNotEligibleDataSaverEnabled enum const.
 	PreloadPrefetchStatusPrefetchNotEligibleDataSaverEnabled PreloadPrefetchStatus = "PrefetchNotEligibleDataSaverEnabled"
 

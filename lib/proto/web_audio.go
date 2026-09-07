@@ -123,6 +123,9 @@ type WebAudioBaseAudioContext struct {
 
 	// SampleRate Context sample rate.
 	SampleRate float64 `json:"sampleRate"`
+
+	// RenderQuantumSize ...
+	RenderQuantumSize float64 `json:"renderQuantumSize"`
 }
 
 // WebAudioAudioListener Protocol object for AudioListener.

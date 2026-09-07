@@ -14,11 +14,11 @@ wand is aligned to one Chrome stable at a time, the Target Chrome: the protocol 
 <!-- prettier-ignore-start -->
 | Managed browser | Linux x64 | Linux arm64 | macOS x64 | macOS arm64 | Windows x86 | Windows x64 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Chrome 152.0.7977.82 ([Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)) | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| chrome-headless-shell 152.0.7977.82 | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Chromium 1668623 ([trunk build](https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html)) | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Chrome 153.0.8010.12 ([Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| chrome-headless-shell 153.0.8010.12 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chromium 1680292 ([trunk build](https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html)) | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
 
-Protocol: [devtools-protocol r1666840](https://github.com/ChromeDevTools/devtools-protocol/tree/v0.0.1666840). Support window: Chrome 149 to 152, the Target Chrome and the three stable milestones before it.
+Protocol: [devtools-protocol r1680125](https://github.com/ChromeDevTools/devtools-protocol/tree/v0.0.1680125). Support window: Chrome 150 to 153, the Target Chrome and the three stable milestones before it.
 <!-- prettier-ignore-end -->
 
 <!-- pins:end -->

@@ -524,6 +524,27 @@ func (m EmulationSetSafeAreaInsetsOverride) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// EmulationSetVirtualKeyboardGeometryOverride (experimental) Overrides virtual keyboard geometry in CSS pixels, relative to the top-level viewport. The
+// provided rect is used for navigator.virtualKeyboard.boundingRect, geometrychange events, and
+// env(keyboard-inset-*) values on the inspected frame. The override applies independently of
+// navigator.virtualKeyboard.overlaysContent so clients can preview overlay geometry without
+// mutating page state. Values are rounded to the nearest CSS pixel. Omitting the rect clears the
+// override.
+type EmulationSetVirtualKeyboardGeometryOverride struct {
+	// KeyboardRect (optional) ...
+	KeyboardRect *DOMRect `json:"keyboardRect,omitempty"`
+}
+
+// ProtoReq name.
+func (m EmulationSetVirtualKeyboardGeometryOverride) ProtoReq() string {
+	return "Emulation.setVirtualKeyboardGeometryOverride"
+}
+
+// Call sends the request.
+func (m EmulationSetVirtualKeyboardGeometryOverride) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // EmulationSetDeviceMetricsOverrideScrollbarType enum.
 type EmulationSetDeviceMetricsOverrideScrollbarType string
 
