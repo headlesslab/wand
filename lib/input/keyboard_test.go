@@ -147,3 +147,43 @@ func TestMac(t *testing.T) {
 		},
 	})
 }
+
+// TestMultiByteKey is the test of rod #1220, a character of more than one
+// byte is one key, so it is printable and goes out as text, and of what
+// AddKey does with such a key: it is registered under its own rune, as an
+// ASCII key is, with its shifted form. The assertions go through the rune
+// rather than the returned Key, so that a second registration of the same
+// key, under -count, finds the first.
+func TestMultiByteKey(t *testing.T) {
+	g := got.T(t)
+
+	// Cyrillic: two bytes per character.
+	k := input.AddKey("б", "Б", "KeyБ", 1041, 0)
+	g.Eq(k.Info(), input.KeyInfo{
+		Key:      "б",
+		Code:     "KeyБ",
+		KeyCode:  1041,
+		Location: 0,
+	})
+	g.True(k.Printable())
+
+	lower := input.Key('б')
+	g.Eq(lower.Info(), k.Info())
+	g.True(lower.Printable())
+
+	upper, has := lower.Shift()
+	g.True(has)
+	g.Eq(upper, input.Key('Б'))
+	g.Eq(upper.Info().Key, "Б")
+	g.True(upper.Printable())
+
+	g.Eq(lower.Encode(proto.InputDispatchKeyEventTypeKeyDown, 0), &proto.InputDispatchKeyEvent{
+		Type:                  "keyDown",
+		Text:                  "б",
+		UnmodifiedText:        "б",
+		Code:                  "KeyБ",
+		Key:                   "б",
+		WindowsVirtualKeyCode: 1041,
+		Location:              lazyjson.Int(0),
+	})
+}
