@@ -226,7 +226,14 @@ func (h *Hijack) ContinueRequest(cq *proto.FetchContinueRequest) {
 }
 
 // LoadResponse will send request to the real destination and load the response as default response to override.
+// The request body goes out with its length and can be sent more than once: by the client on a 307 or 308
+// redirect and on an HTTP/2 stream the server refused, and by a later LoadResponse.
 func (h *Hijack) LoadResponse(client *http.Client, loadBody bool) error {
+	err := h.Request.bufferBody()
+	if err != nil {
+		return err
+	}
+
 	res, err := client.Do(h.Request.req)
 	if err != nil {
 		return err
@@ -324,6 +331,59 @@ func (ctx *HijackRequest) SetBody(obj interface{}) *HijackRequest {
 
 	return ctx
 }
+
+// bufferBody puts the request body in memory, so that a fresh copy goes out on
+// every send. The client sends a body again on a 307 or 308 redirect and on an
+// HTTP/2 stream the server refused, and can only do so through GetBody (rod
+// #1128); a LoadResponse after a failed one sends it again as well. The body
+// is read once, whether it is the one the browser sent, one SetBody installed
+// or one the caller put on the request through Req, and goes out with its
+// Content-Length, as the browser sent it, instead of chunked. No body, or an
+// empty one, is sent as http.NoBody, with no length and no GetBody left over
+// from a body sent before.
+func (ctx *HijackRequest) bufferBody() error {
+	req := ctx.req
+	if body, ok := req.Body.(*bufferedBody); ok {
+		req.Body = body.fresh()
+		return nil
+	}
+
+	var b []byte
+	if req.Body != nil && req.Body != http.NoBody {
+		var err error
+		b, err = io.ReadAll(req.Body)
+		_ = req.Body.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	req.ContentLength = int64(len(b))
+	if len(b) == 0 {
+		req.Body, req.GetBody = http.NoBody, nil
+		return nil
+	}
+
+	body := &bufferedBody{b: b}
+	req.Body = body.fresh()
+	req.GetBody = func() (io.ReadCloser, error) { return body.fresh(), nil }
+	return nil
+}
+
+// bufferedBody is a request body LoadResponse installed: bytes in memory, read
+// through a reader of their own on each send, so that a send the transport may
+// still be reading after it failed never shares a reader with the next one.
+type bufferedBody struct {
+	*bytes.Reader
+
+	b []byte
+}
+
+func (body *bufferedBody) fresh() *bufferedBody {
+	return &bufferedBody{Reader: bytes.NewReader(body.b), b: body.b}
+}
+
+func (*bufferedBody) Close() error { return nil }
 
 // IsNavigation determines whether the request is a navigation request.
 func (ctx *HijackRequest) IsNavigation() bool {

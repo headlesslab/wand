@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -303,6 +304,10 @@ func TestHijackLoadResponseErr(t *testing.T) {
 			}},
 		}, true))
 
+		// a request body that cannot be read
+		ctx.Request.Req().Body = io.NopCloser(&MockReader{err: errors.New("err")})
+		g.Err(ctx.LoadResponse(http.DefaultClient, true))
+
 		wg.Done()
 
 		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
@@ -382,3 +387,138 @@ func TestHandleAuth(t *testing.T) {
 	wait2()
 	page2.MustClose()
 }
+
+// TestHijackLoadResponseRedirectBody: LoadResponse sends the body the handler
+// set with its length, and the client sends it again on every 307 the server
+// answers with, so the redirect chain is followed by the client and the
+// browser sees one response (rod #1128).
+func TestHijackLoadResponseRedirectBody(t *testing.T) {
+	g := setup(t)
+
+	var mu sync.Mutex
+	redirects, hits, status := 0, 0, 0
+	var loadErr error
+
+	s := g.Serve()
+	s.Mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		g.Eq(r.Method, http.MethodPost)
+		b, err := io.ReadAll(r.Body)
+		g.E(err)
+		g.Eq(string(b), "test")
+		g.Eq(r.ContentLength, int64(4))
+
+		mu.Lock()
+		defer mu.Unlock()
+		if redirects < 3 {
+			redirects++
+			w.Header().Set("Location", s.URL("/test"))
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		g.HandleHTTP(".html", "OK")(w, r)
+	})
+
+	router := g.page.HijackRequests()
+	defer router.MustStop()
+
+	router.MustAdd(s.URL("/test"), func(ctx *wand.Hijack) {
+		ctx.Request.Req().Method = http.MethodPost
+		ctx.Request.SetBody("test")
+
+		err := ctx.LoadResponse(http.DefaultClient, true)
+
+		mu.Lock()
+		defer mu.Unlock()
+		hits++
+		loadErr = err
+		if err == nil {
+			status = ctx.Response.RawResponse.StatusCode
+		}
+	})
+
+	go router.Run()
+
+	g.page.MustNavigate(s.URL("/test"))
+	g.Eq(g.page.MustElement("body").MustText(), "OK")
+
+	mu.Lock()
+	defer mu.Unlock()
+	g.E(loadErr)
+	g.Eq(redirects, 3)
+	g.Eq(hits, 1)
+	g.Eq(status, http.StatusOK)
+}
+
+// TestHijackLoadResponseBodyAgain: whatever body the request carries when
+// LoadResponse runs goes out with its length, an empty one as no body, and a
+// LoadResponse after a failed one sends the body again.
+func TestHijackLoadResponseBodyAgain(t *testing.T) {
+	g := setup(t)
+
+	type seen struct {
+		method string
+		length int64
+		body   string
+	}
+	var mu sync.Mutex
+	seenBy := map[string]seen{}
+
+	// Every request is redirected once, so that the client sends its body twice.
+	s := g.Serve()
+	s.Mux.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
+		if !r.URL.Query().Has("hop") {
+			w.Header().Set("Location", r.URL.String()+"&hop=1")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		b, err := io.ReadAll(r.Body)
+		g.E(err)
+		mu.Lock()
+		seenBy[r.URL.Query().Get("case")] = seen{r.Method, r.ContentLength, string(b)}
+		mu.Unlock()
+		g.HandleHTTP(".html", "OK")(w, r)
+	})
+
+	router := g.page.HijackRequests()
+	defer router.MustStop()
+
+	router.MustAdd(s.URL("/echo*"), func(ctx *wand.Hijack) {
+		switch ctx.Request.URL().Query().Get("case") {
+		case "swap":
+			ctx.Request.Req().Method = http.MethodPost
+			ctx.Request.Req().Body = io.NopCloser(strings.NewReader("swapped"))
+		case "empty":
+			ctx.Request.Req().Method = http.MethodPost
+			ctx.Request.SetBody("")
+		case "again":
+			ctx.Request.Req().Method = http.MethodPost
+			ctx.Request.SetBody("again")
+			g.Err(ctx.LoadResponse(&http.Client{Transport: readThenFail{}}, true))
+		}
+		ctx.MustLoadResponse()
+	})
+
+	go router.Run()
+
+	for _, c := range []string{"swap", "empty", "again"} {
+		g.page.MustNavigate(s.URL("/echo?case=" + c))
+		g.Eq(g.page.MustElement("body").MustText(), "OK")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	g.Eq(seenBy["swap"], seen{http.MethodPost, 7, "swapped"})
+	g.Eq(seenBy["empty"], seen{http.MethodPost, 0, ""})
+	g.Eq(seenBy["again"], seen{http.MethodPost, 5, "again"})
+}
+
+// readThenFail is a transport that consumes the request body, as a real one
+// does before the connection fails, and then fails.
+type readThenFail struct{}
+
+func (readThenFail) RoundTrip(req *http.Request) (*http.Response, error) {
+	_, _ = io.ReadAll(req.Body)
+	_ = req.Body.Close()
+	return nil, errors.New("connection lost")
+}
+
