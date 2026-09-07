@@ -1,0 +1,30 @@
+# The pull-request list GitHub generates under a release's body: every pull
+# request merged since the previous tag, grouped by the labels it carries
+# (spec #33, section 15; ADR-0008; ticket #60). The release workflow puts the
+# three pins and, when there is one, the Release preamble above this list, and
+# wand keeps no changelog file.
+#
+# A pull request lands in the first category whose labels it matches, so the
+# catch-all comes last; the Roll has a section of its own, since one Milestone
+# release follows each Roll, and the version number says nothing about the
+# Chrome it moved to (ADR-0008) while this section does.
+changelog:
+  categories:
+    - title: The Roll
+      labels:
+        - roll
+    - title: Enhancements
+      labels:
+        - enhancement
+    - title: Bug fixes
+      labels:
+        - bug
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other changes
+      labels:
+        - '*'

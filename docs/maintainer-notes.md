@@ -282,7 +282,7 @@ gh workflow run roll.yml -f version=153.0.8010.27          # a milestone taken e
 
 It mints a token from the automation identity first, so a rejected token fails before 2.5 GB is downloaded, and it checks out with that token, because GitHub starts no workflow from a `GITHUB_TOKEN` push: the Gate has to run on a Roll, and the App's push is what makes it run. Then the Roll tool with `-if-newer` or the forced version, the protocol generator for the new Protocol roll, `-check` as the generate Gate will run it, and a pull request titled `roll to Chrome <version> (protocol r<rev>)`, labelled `roll`, whose body carries the three pins and the generator's symbol-level summary.
 
-The `roll` label is a repository label of its own, created by hand when this workflow landed; `gh pr create` fails outright on a label that does not exist, so a rebuilt repository needs `gh label create roll` before the first Roll. #60 gives it a section of its own in the release notes through `.github/release.yml`.
+The `roll` label is a repository label of its own, created by hand when this workflow landed; `gh pr create` fails outright on a label that does not exist, so a rebuilt repository needs `gh label create roll` before the first Roll. It has a section of its own in the release notes, through `.github/release.yml`.
 
 Two states end the run green without a pull request: the pins unchanged, which is every day between two milestones, and a Roll whose pull request is already open, which is every day between the Roll and its merge. Without the second check the schedule would push the same branch and fail every day until the first Roll merged.
 
@@ -301,6 +301,91 @@ A Chrome fix for a vulnerability exploited in the wild ships as a patch release 
 
 - Deciding to roll early: the schedule waits for Chrome for Testing to promote the milestone to Stable. Taking a milestone before that, or a Security roll, is a `workflow_dispatch` with a version.
 - Reviewing the Roll: the reviewed pull request is the trust anchor for every managed-browser hash (ADR-0005), so its reviewer reads the hash diff as the thing being approved. The workflow opens it and merges nothing.
+
+## The release
+
+Cutting a release is one `workflow_dispatch` of `.github/workflows/release.yml`, run from `main` (spec #33, sections 14 and 15; ADR-0008; ticket #60):
+
+```sh
+gh workflow run release.yml -f version=v0.1.0-rc.1                # the release candidate
+gh workflow run release.yml -f version=v0.1.0                     # the release it is promoted to
+gh workflow run release.yml -f version=v0.1.1 -f dry-run=true     # all of it, published to throwaway tags and deleted
+```
+
+What is released is `main`'s head at the moment of the dispatch, by SHA, so a `main` that moves while the run works cannot slip into it. Nothing else in the repository creates a tag: merging a Roll opens no release, and there is no version constant in the code, so a release is named by what is typed here and nowhere else.
+
+The run validates before it writes anything: the version's shape (`vX.Y.Z`, or `vX.Y.Z-rc.N` with the candidate numbered from 1) and that it is above every version already tagged, every check the `main` ruleset requires green on that very commit (a skipped one counts, which is what the dependency review Gate is on a push to `main`), the pins re-derived and re-rendered (`-check`), and the protocol regenerated to the committed bytes. Then it works in the order of what cannot be undone: both architectures build the image and push it under no tag at all; the two digests become one manifest per tag, each with its attestations; the `versions.json` row is committed on `main`; and the GitHub Release is created last, which is what creates the tag. So a run that fails leaves at worst an untagged manifest in the registry and, past the commit, a row on `main` that the release it names will carry.
+
+The commit, the tag and the Release are the automation identity's (#58): the `main` and `v*` rulesets bind everyone but their bypass actors, and `GITHUB_TOKEN` is not one.
+
+### The Release body
+
+The body is the three pins on the first line, the Release preamble under it when the release has one, and then the pull-request list GitHub generates from the labels of `.github/release.yml`: the Roll first in a section of its own, then enhancements, bug fixes, documentation, dependencies and everything else. `-rc.N` is marked a pre-release, and `latest` moves only for a release that is not a candidate.
+
+A Release preamble is `docs/releases/<tag>.md`, committed through a reviewed pull request before the dispatch and read from the tagged commit; a release with nothing to say beyond its pins and its pull requests has none. Two placeholders are filled in, and any other `{{...}}` fails the release rather than reaching the Release page:
+
+| Placeholder | What it becomes                                                                                          |
+| ----------- | -------------------------------------------------------------------------------------------------------- |
+| `{{rc}}`    | the candidate's number, and for a release that is not a candidate the last candidate of the same version |
+| `{{date}}`  | the day the release is cut, `YYYY-MM-DD` in UTC                                                          |
+
+### versions.json
+
+The root `versions.json` maps every release to the three pins it carried, one row per release, newest last, and there is no changelog file. The workflow appends the row through the pins printer (`go run ./internal/tools/print-pins -json`), so nothing parses Go source, and writes the bytes prettier writes, since the generate Gate runs over the commit it makes.
+
+### The image
+
+`ghcr.io/headlesslab/wand` is published only by this workflow, never by the image Gate. Each architecture is built natively on its own runner and pushed by digest, under no tag; the two digests then become one manifest per tag, `vX.Y.Z` or `vX.Y.Z-rc.N` (plus `latest` when it is not a candidate) for the runtime image and `dev` for the development one. A published tag is never rebuilt in place.
+
+Every manifest published carries a build-provenance attestation and an SPDX SBOM attestation, pushed to the registry beside it and recorded in Sigstore's public log, and the run itself verifies each tag before it goes on:
+
+```sh
+gh attestation verify oci://ghcr.io/headlesslab/wand:v0.1.0 -R headlesslab/wand
+```
+
+The bill of materials is read off the registry by Trivy, which resolves a multi-architecture manifest to the runner's own, so what it lists is the linux/amd64 image; both architectures are built from one Dockerfile and one base image digest, so the package set is the same and the architecture is not.
+
+A dry run does all of this under throwaway tags (`dry-run-<run id>-...`), verifies them and deletes them at the end, and creates no commit, no tag and no Release. The untagged manifests it pushes stay, as every image's do until a tag names them.
+
+### Promotion
+
+`v0.1.0` is cut from the last candidate once at least 14 days have passed since `rc.1`, at least 7 since the latest candidate, and no issue labelled `release-blocking` is open. Any change makes `rc.N+1` instead, a Roll landing mid-soak included. That label is a repository label of its own, created by hand when this workflow landed, so a rebuilt repository needs `gh label create release-blocking` before its first soak.
+
+The workflow releases `main`'s head, so at promotion `main` must still be the candidate's commit plus the promotion's own documentation. What the promotion adds is `docs/releases/v0.1.0.md`, the same preamble under a promotion header; nothing else may have landed:
+
+```sh
+git diff v0.1.0-rc.1..main -- . ':!docs/releases' ':!versions.json'   # empty, or it is rc.N+1
+```
+
+Afterwards the candidate's own notes get a one-line banner pointing at `v0.1.0`, which immutable releases still allow, and no other Release page is edited.
+
+### A bad release
+
+A tag is never deleted or moved, so a release that should not have shipped is retracted rather than removed (ADR-0008):
+
+1. Open a pull request adding a `retract` directive to `go.mod`, naming the version and why in one line:
+
+   ```go
+   retract v0.1.1 // the manager refused every launch on linux/arm64
+   ```
+
+   The directive reaches consumers through the release that carries it, so it ships with the fix, not on its own.
+
+2. Cut the fixed patch with this workflow. `latest` moves to it, and `go get -u=patch` carries it to everyone (ADR-0008).
+
+   This works while the bad release is the newest one, which is what a release found bad normally is: the workflow releases `main`'s head and refuses a version that is not above every tag published, so a patch for an older minor has nowhere to be cut from. Fixing one would take a release branch, which the baseline has none of; until it does, the fix goes out on top.
+
+3. Mark the bad Release withdrawn: edit its notes to open with one line naming the release that replaces it, and clear its latest marker. Immutable releases lock a published tag and its assets; the title, the notes and the pre-release and latest markers stay editable, which is what makes this possible.
+
+Nothing is published over the bad release's image tags either; the fixed patch publishes its own.
+
+### What stays human
+
+- **Deciding the version and dispatching it.** The workflow validates a version, it does not choose one: a Roll makes the next minor, a fix the next patch (ADR-0008).
+- **The Release preamble**, when the release has something to say: a reviewed pull request adding `docs/releases/<tag>.md` before the dispatch.
+- **The soak**, its `release-blocking` label and the promotion decision above.
+- **The package's visibility.** GHCR creates a package private on its first push and exposes no REST endpoint for the setting, so the first release is followed by making `ghcr.io/headlesslab/wand` public and linking it to the repository, in the package's settings.
+- **A dry run's throwaway tags**, when `GITHUB_TOKEN` was not allowed to delete a package version: the run says which tags are still there, and they go in the package's settings.
 
 ## The protocol layer
 

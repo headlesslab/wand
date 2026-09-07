@@ -130,6 +130,10 @@ _Avoid_: harvested fix, ported fix, closed upstream issue
 The hand-written part of a release's GitHub Release body, placed above the generated pull-request list and kept in the repository per tag; optional, written only when a release has something to say beyond its pins and pull requests, such as a first release, a breaking change or a Security roll.
 _Avoid_: release notes (as the file's name; those are the whole body), announcement (as the file's name), changelog
 
+**Withdrawn release**:
+A published release replaced by a later one after a mistake shipped: the tag stays where it is, the release that fixes it carries the `retract` directive naming it, and its own notes open with a line pointing at the replacement.
+_Avoid_: pulled release, deleted release, unpublished release, yanked release
+
 ### Verification
 
 **Gate**:

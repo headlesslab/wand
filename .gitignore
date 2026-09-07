@@ -13,5 +13,9 @@ tmp/
 !internal/tools/package.json
 !internal/tools/package-lock.json
 
+# Every release and the three pins it carries, which the release workflow
+# appends a row to and commits (ADR-0008, #60).
+!versions.json
+
 # A GitHub App private key downloaded into a checkout by accident (#58).
 *.pem
