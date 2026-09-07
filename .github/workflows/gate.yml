@@ -1,7 +1,7 @@
-# The Gate: every push and every pull request proves wand on the four Tier 1
-# platforms with a real browser and -race (the seven Tier 1 jobs: linux/amd64
-# and linux/arm64 on Go stable and on the Go floor, windows/amd64 and
-# darwin/arm64 on stable, and linux/amd64 once more on the Companion
+# The Gate: every pull request, and every push to main, proves wand on the
+# four Tier 1 platforms with a real browser and -race (the seven Tier 1 jobs:
+# linux/amd64 and linux/arm64 on Go stable and on the Go floor, windows/amd64
+# and darwin/arm64 on stable, and linux/amd64 once more on the Companion
 # Chromium), builds, vets and compiles the tests for the three Tier 2 targets
 # on both Go versions (the three Tier 2 jobs), keeps statement coverage at
 # 100 % on the linux/amd64 stable job, and regenerates everything from the
@@ -17,10 +17,16 @@
 # trailing comment; Dependabot keeps the pins moving once #56 turns it on.
 name: Gate
 
+# A pull request is checked as its merge result; a push to a branch is not
+# checked on its own, since the pull request that carries it is, and the two
+# runs of one commit that both events gave cost a matrix each and could
+# block the merge on a red push run beside a green pull-request run. A push
+# to main, the merge itself, is checked, so main's own history is green run
+# by green run (spec #33, section 13, amended in a comment on #33).
 on:
   push:
     branches:
-      - '**'
+      - main
   pull_request:
 
 permissions:
