@@ -1117,6 +1117,10 @@ func TestPagePool(t *testing.T) {
 	pool.Cleanup(func(p *wand.Page) {
 		p.MustClose()
 	})
+
+	// After Cleanup a Get gets an error, not a page and not a wait (rod #1117).
+	_, err = pool.Get(func() (*wand.Page, error) { return g.browser.Page(proto.TargetCreateTarget{}) })
+	g.Eq(err, wand.ErrPoolCleanedUp)
 }
 
 func TestPageUseNonExistSession(t *testing.T) {

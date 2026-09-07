@@ -1164,9 +1164,7 @@ func (el *Element) MustGetXPath(optimized bool) string {
 
 // MustGet an elem from the pool. Use the [Pool[T].Put] to make it reusable later.
 func (p Pool[T]) MustGet(create func() *T) *T {
-	elem := <-p
-	if elem == nil {
-		elem = create()
-	}
+	elem, err := p.Get(func() (*T, error) { return create(), nil })
+	utils.E(err)
 	return elem
 }

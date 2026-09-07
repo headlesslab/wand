@@ -484,6 +484,10 @@ func TestBrowserPool(t *testing.T) {
 	pool.Cleanup(func(p *wand.Browser) {
 		p.MustClose()
 	})
+
+	// After Cleanup a Get gets an error, not a browser and not a wait (rod #1117).
+	_, err = pool.Get(func() (*wand.Browser, error) { return wand.New().ControlURL(u), nil })
+	g.Eq(err, wand.ErrPoolCleanedUp)
 }
 
 // TestBrowserCloseLaunched: a browser Connect launched itself is wand's own,
