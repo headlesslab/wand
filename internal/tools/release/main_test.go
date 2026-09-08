@@ -285,6 +285,36 @@ func TestAReleaseTheWorkflowMustNotCut(t *testing.T) {
 	g.Eq(read(g, filepath.Join(dir, "versions.json")), "[]\n")
 }
 
+// sections are the headings a Release preamble carries, in the order it
+// carries them: what wand is leads, then what the release fixes and adds, then
+// what a go-rod program has to change, and last what the release promises and
+// where to report it (spec #33, section 17; ticket #32). The Chinese ones say
+// the same things and are collapsed under the English.
+var sections = struct{ english, chinese []string }{
+	english: []string{
+		"## What this release fixes",
+		"## What is new",
+		"## What changed in behaviour",
+		"## Migrating from go-rod",
+		"## What is tested",
+		"## The container image",
+		"## Verifying what you install",
+		"## Roadmap",
+		"## About this candidate",
+	},
+	chinese: []string{
+		"## 修复了哪些问题",
+		"## 新增了什么",
+		"## 行为变化",
+		"## 从 go-rod 迁移",
+		"## 测试到什么程度",
+		"## 容器镜像",
+		"## 怎么校验你装到的东西",
+		"## 后续计划",
+		"## 关于这个候选版本",
+	},
+}
+
 // TestThePreamblesThisRepositoryShips is the announcement itself rather than
 // the tool: every file under docs/releases is named for a release this
 // workflow cuts and fills in with nothing left over, and a release that is not
@@ -331,10 +361,15 @@ func TestThePreamblesThisRepositoryShips(t *testing.T) {
 		text = strings.TrimSpace(strings.ReplaceAll(text, "\r\n", "\n"))
 		preambles[tag] = text
 
-		// English first, with the Chinese section collapsed under it, and the
-		// two things the announcement has to say in as many words.
-		english, _, collapsed := strings.Cut(text, "<details>")
+		// English first, with the Chinese section collapsed under it, and each
+		// language carrying every section in the order they are written in.
+		english, chinese, collapsed := strings.Cut(text, "<details>")
 		g.Desc("%s.md carries a collapsed Chinese section", tag).True(collapsed)
+		inOrder(g, tag+".md, in English", english, sections.english)
+		inOrder(g, tag+".md, in Chinese", chinese, sections.chinese)
+
+		// The two things the announcement has to say in as many words, and the
+		// issue a reader of it reports to.
 		g.Desc("%s.md says the API modernization changes the API", tag).
 			Has(english, "will change wand's API in a later minor")
 		g.Desc("%s.md names the safe upgrade", tag).Has(english, "`go get -u=patch`")
@@ -346,13 +381,6 @@ func TestThePreamblesThisRepositoryShips(t *testing.T) {
 		for _, word := range []string{"abandoned", "dead", "successor", "official continuation"} {
 			said := regexp.MustCompile(`(?i)\b` + word + `\b`).FindString(text)
 			g.Desc("%s.md says %q", tag, said).Eq(said, "")
-		}
-
-		// The eight paragraphs #32 settled, and no ninth. A promotion is the
-		// same eight under a header, which the loop below holds it to instead.
-		if rel.rc > 0 {
-			g.Desc("%s.md is eight paragraphs", tag).
-				Len(strings.Split(strings.TrimSpace(english), "\n\n"), 8)
 		}
 	}
 
@@ -372,6 +400,23 @@ func TestThePreamblesThisRepositoryShips(t *testing.T) {
 			True(strings.HasSuffix(preambles[tag], preambles[promoted]))
 		g.Desc("%s.md adds a promotion header above it", tag).
 			Gt(len(preambles[tag]), len(preambles[promoted]))
+	}
+}
+
+// inOrder holds text to every one of parts, each after the one before it, so
+// that a section left out or moved fails naming itself.
+func inOrder(g got.G, what, text string, parts []string) {
+	at := 0
+
+	for _, part := range parts {
+		found := strings.Index(text[at:], part)
+		g.Desc("%s holds %q, after the sections above it", what, part).True(found >= 0)
+
+		if found < 0 {
+			return
+		}
+
+		at += found + len(part)
 	}
 }
 
