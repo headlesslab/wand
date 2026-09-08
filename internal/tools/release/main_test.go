@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -281,6 +283,141 @@ func TestAReleaseTheWorkflowMustNotCut(t *testing.T) {
 	g.Err(err)
 	g.Has(err.Error(), filepath.Join("docs", "releases", "v0.3.0.md"))
 	g.Eq(read(g, filepath.Join(dir, "versions.json")), "[]\n")
+}
+
+// sections are the headings a Release preamble carries, in the order it
+// carries them: what wand is leads, then what the release fixes and adds, then
+// what a go-rod program has to change, and last what the release promises and
+// where to report it (spec #33, section 17; ticket #32). The Chinese ones say
+// the same things and are collapsed under the English.
+var sections = struct{ english, chinese []string }{
+	english: []string{
+		"## What this release fixes",
+		"## What is new",
+		"## What changed in behaviour",
+		"## Migrating from go-rod",
+		"## What is tested",
+		"## The container image",
+		"## Verifying what you install",
+		"## Roadmap",
+		"## About this candidate",
+	},
+	chinese: []string{
+		"## 修复了哪些问题",
+		"## 新增了什么",
+		"## 行为变化",
+		"## 从 go-rod 迁移",
+		"## 测试范围",
+		"## 容器镜像",
+		"## 如何校验产物",
+		"## 后续计划",
+		"## 关于这个候选版本",
+	},
+}
+
+// TestThePreamblesThisRepositoryShips is the announcement itself rather than
+// the tool: every file under docs/releases is named for a release this
+// workflow cuts and fills in with nothing left over, and a release that is not
+// a candidate carries its candidate's preamble word for word under a promotion
+// header, so editing one of the two without the other fails here rather than
+// on the Release page (spec #33, section 17; ADR-0008; ticket #63).
+func TestThePreamblesThisRepositoryShips(t *testing.T) {
+	g := setup(t)
+
+	// The tool reads docs/releases below the directory it is given, and the
+	// repository root is the three above this package.
+	root := filepath.Join("..", "..", "..")
+
+	files, err := filepath.Glob(filepath.Join(root, releasesDir, "*.md"))
+	g.E(err)
+	g.Gt(len(files), 0)
+
+	// The candidates the repository ships stand in for the tags published: at
+	// a promotion its candidates are tagged already, and which one {{rc}} names
+	// is then the tool's own arithmetic rather than this test's.
+	releases := map[string]release{}
+	candidates := []string{}
+
+	for _, file := range files {
+		tag := strings.TrimSuffix(filepath.Base(file), ".md")
+
+		rel, err := parse(tag)
+		g.Desc("%s is named for a release this workflow cuts", file).E(err)
+
+		releases[tag] = rel
+		if rel.rc > 0 {
+			candidates = append(candidates, tag)
+		}
+	}
+
+	preambles := map[string]string{}
+
+	for tag, rel := range releases {
+		text, err := readPreamble(root, rel, candidates, day)
+		g.Desc("%s.md fills in", tag).E(err)
+
+		// A checkout on Windows holds these files with CRLF endings, and what
+		// is compared below is the prose rather than what git wrote it with.
+		text = strings.TrimSpace(strings.ReplaceAll(text, "\r\n", "\n"))
+		preambles[tag] = text
+
+		// English first, with the Chinese section collapsed under it, and each
+		// language carrying every section in the order they are written in.
+		english, chinese, collapsed := strings.Cut(text, "<details>")
+		g.Desc("%s.md carries a collapsed Chinese section", tag).True(collapsed)
+		inOrder(g, tag+".md, in English", english, sections.english)
+		inOrder(g, tag+".md, in Chinese", chinese, sections.chinese)
+
+		// The two things the announcement has to say in as many words, and the
+		// issue a reader of it reports to.
+		g.Desc("%s.md says the API modernization changes the API", tag).
+			Has(english, "will change wand's API in a later minor")
+		g.Desc("%s.md names the safe upgrade", tag).Has(english, "`go get -u=patch`")
+		g.Desc("%s.md links the feedback issue", tag).
+			Has(english, "https://github.com/headlesslab/wand/issues/117")
+
+		// The words the announcement does not use about go-rod, whatever their
+		// case and wherever they sit in a sentence.
+		for _, word := range []string{"abandoned", "dead", "successor", "official continuation"} {
+			said := regexp.MustCompile(`(?i)\b` + word + `\b`).FindString(text)
+			g.Desc("%s.md says %q", tag, said).Eq(said, "")
+		}
+	}
+
+	for tag, rel := range releases {
+		if rel.rc > 0 {
+			continue
+		}
+
+		// A release that is not a candidate promotes the last candidate of its
+		// own version unchanged, so its preamble is that one's under a
+		// promotion header and nothing else (ADR-0008).
+		last := candidate(rel, candidates)
+		g.Desc("%s.md promotes a candidate this repository ships", tag).Gt(last, 0)
+
+		promoted := release{major: rel.major, minor: rel.minor, patch: rel.patch, rc: last}.String()
+		g.Desc("%s.md ends with the preamble of %s.md, word for word", tag, promoted).
+			True(strings.HasSuffix(preambles[tag], preambles[promoted]))
+		g.Desc("%s.md adds a promotion header above it", tag).
+			Gt(len(preambles[tag]), len(preambles[promoted]))
+	}
+}
+
+// inOrder holds text to every one of parts, each after the one before it, so
+// that a section left out or moved fails naming itself.
+func inOrder(g got.G, what, text string, parts []string) {
+	at := 0
+
+	for _, part := range parts {
+		found := strings.Index(text[at:], part)
+		g.Desc("%s holds %q, after the sections above it", what, part).True(found >= 0)
+
+		if found < 0 {
+			return
+		}
+
+		at += found + len(part)
+	}
 }
 
 // checkout is a tree holding what the tool reads: the versions file seeded as

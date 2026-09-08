@@ -351,13 +351,13 @@ A dry run does all of this under throwaway tags (`dry-run-<run id>-...`), verifi
 
 `v0.1.0` is cut from the last candidate once at least 14 days have passed since `rc.1`, at least 7 since the latest candidate, and no issue labelled `release-blocking` is open. Any change makes `rc.N+1` instead, a Roll landing mid-soak included. That label is a repository label of its own, created by hand when this workflow landed, so a rebuilt repository needs `gh label create release-blocking` before its first soak.
 
-The workflow releases `main`'s head, so at promotion `main` must still be the candidate's commit plus the promotion's own documentation. What the promotion adds is `docs/releases/v0.1.0.md`, the same preamble under a promotion header; nothing else may have landed:
+The workflow releases `main`'s head, so at promotion `main` must still be the candidate's own commit. `docs/releases/v0.1.0.md` — the same preamble under a promotion header, whose `{{rc}}` and `{{date}}` the workflow fills in — is merged with the candidate's preamble, before `rc.1` is cut (#63), so a promotion adds no commit of its own and nothing at all may have landed since the tag:
 
 ```sh
-git diff v0.1.0-rc.1..main -- . ':!docs/releases' ':!versions.json'   # empty, or it is rc.N+1
+git diff v0.1.0-rc.1..main   # empty, or it is rc.N+1
 ```
 
-Afterwards the candidate's own notes get a one-line banner pointing at `v0.1.0`, which immutable releases still allow, and no other Release page is edited.
+Afterwards the candidate's own notes get a one-line banner pointing at `v0.1.0`, which immutable releases still allow, and no other Release page is edited. The [release candidate feedback issue](https://github.com/headlesslab/wand/issues/117), pinned when `rc.1` was cut, is closed and unpinned with a summary of what came in.
 
 ### A bad release
 
