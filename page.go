@@ -366,11 +366,27 @@ func (p *Page) Close() error {
 		}
 	}
 
-	if success {
-		p.cleanupStates()
-	} else {
+	if !success {
 		return &PageCloseCanceledError{}
 	}
+
+	p.cleanupStates()
+
+	// And the page's context ends here rather than whenever the goroutine
+	// initEvents started gets to it. That goroutine is another subscriber to
+	// the very targetDestroyed this function stopped on, so which of the two
+	// runs first is the scheduler's to decide, and returning before it had
+	// left a window in which the browser has already dropped the session but
+	// this page still sends: an action right after Close then answered with
+	// the browser's "Session with given id not found" instead of
+	// context.Canceled, which is how the Gate saw it on two platforms (#99).
+	//
+	// Cancelling rather than waiting for that goroutine, because a page from
+	// PageFromSession never had one — it is for low-level debugging and gets
+	// no initEvents — so a wait would never return there. Both do the states
+	// before the context, so that nothing of them outlives it, and a context
+	// cancelled twice is cancelled once.
+	p.sessionCancel()
 
 	return nil
 }

@@ -1200,6 +1200,14 @@ func TestPageActionAfterClose(t *testing.T) {
 
 		p.MustClose()
 
+		// Close ends the page's context before it returns, which is what makes
+		// the action below answer with that context rather than with whatever
+		// the browser says about a session it has already dropped. Both this
+		// and the assertion after it passed before Close did so, on the runs
+		// where the goroutine that also watches the target go had happened to
+		// run first; what changed is that they no longer depend on it (#99).
+		g.Eq(p.GetContext().Err(), context.Canceled)
+
 		_, err := p.Element("not-exists")
 		g.Eq(err, context.Canceled)
 	}
