@@ -331,14 +331,20 @@ func (lc *Browser) resolve(platform string, musl bool) (archive, error) {
 }
 
 func (lc *Browser) resolveChrome(platform string) (archive, error) {
-	cft, has := chromePlatforms[platform]
-	if !has {
-		return archive{}, fmt.Errorf("no Chrome for Testing build exists for %s: %s", platform, wayOut)
-	}
-
+	// The binary before the platform, as in resolveChromium below: a binary
+	// Chrome for Testing does not publish is wrong on every platform, so that
+	// is the answer wherever it is asked, windows/arm64 included, which has no
+	// build at all. The other order told a caller on such a platform that its
+	// platform was the problem when what it had passed was a name that exists
+	// nowhere.
 	if _, has := binaries[SourceChrome][lc.Binary]; !has {
 		return archive{}, fmt.Errorf("unknown Chrome for Testing binary %q: %q or %q",
 			lc.Binary, BinaryChrome, BinaryHeadlessShell)
+	}
+
+	cft, has := chromePlatforms[platform]
+	if !has {
+		return archive{}, fmt.Errorf("no Chrome for Testing build exists for %s: %s", platform, wayOut)
 	}
 
 	a := archive{platform: cft, version: lc.Version, name: fmt.Sprintf("%s-%s.zip", lc.Binary, cft)}

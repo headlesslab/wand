@@ -203,10 +203,19 @@ func TestIdleCounter(t *testing.T) {
 		ct.Wait(g.Context())
 		g.Lt(time.Since(start), 400*time.Millisecond)
 	}, func() {
+		// A counter with no idle duration has nothing to wait for: Wait resets
+		// the timer to zero and comes back as soon as the scheduler hands the
+		// goroutine back. So the only thing a clock can say here is that it
+		// came back at all — a timer that never fired would leave Wait blocked
+		// until this test's context is cancelled, which is the harness killing
+		// the run rather than a failure to read. The bound is what turns that
+		// hang into a failure, and it is wide because what it measures is the
+		// machine: at 100 ms it went red on a loaded darwin/arm64 Nightly,
+		// where waking the goroutine took 114 ms (#99).
 		ct := utils.NewIdleCounter(0)
 		start := time.Now()
 		ct.Wait(g.Context())
-		g.Lt(time.Since(start), 100*time.Millisecond)
+		g.Lt(time.Since(start), time.Second)
 	})()
 }
 

@@ -64,15 +64,38 @@ func archiveOf(g got.G, b *Browser) ([]byte, string) {
 	return buf.Bytes(), hex.EncodeToString(sum[:])
 }
 
-// pin records sum as the Target Chrome's archive hash for this platform, in
-// place of the real pins, until the test ends.
-func pin(g got.G, sum string) {
+// managedBrowser is the Chrome for Testing platform of the one running, and
+// skips the test where there is none. A download has no archive to resolve on
+// such a platform, so what the launcher does there is refuse with a message
+// naming it, which TestResolveArchives asserts for each of the three. This is
+// an environment guard of the kind the suite rules keep, not a skip for
+// flakiness (spec #33, section 12).
+//
+// It used to sit inside pin below, which is why only the tests that pin a hash
+// had it: the Nightly's System browser job (#61) is the first to run this suite
+// on windows/arm64, and it found the three tests that download without pinning
+// failing on the platform rather than on what they assert.
+func managedBrowser(g got.G) string {
 	cft, has := chromePlatforms[runtime.GOOS+"/"+runtime.GOARCH]
 	if !has {
 		g.Skip("Chrome for Testing has no build for this platform")
 	}
 
-	chromeSHA256 = map[string]map[string]string{string(BinaryChrome): {cft: sum}}
+	return cft
+}
+
+// hasManagedBrowser reports the same thing without skipping, for a test that
+// has something to assert either way.
+func hasManagedBrowser() bool {
+	_, has := chromePlatforms[runtime.GOOS+"/"+runtime.GOARCH]
+
+	return has
+}
+
+// pin records sum as the Target Chrome's archive hash for this platform, in
+// place of the real pins, until the test ends.
+func pin(g got.G, sum string) {
+	chromeSHA256 = map[string]map[string]string{string(BinaryChrome): {managedBrowser(g): sum}}
 	g.Cleanup(func() { chromeSHA256 = pins.ChromeSHA256 })
 }
 
@@ -194,6 +217,8 @@ func TestDownloadDeadHost(t *testing.T) {
 func TestDownloadUnverified(t *testing.T) {
 	g := setup(t)
 
+	managedBrowser(g)
+
 	// A version no pin records.
 	b := newBrowser(t)
 	b.Version = "0.0.0.1"
@@ -218,6 +243,8 @@ func TestDownloadUnverified(t *testing.T) {
 func TestGetReplacesBrokenCache(t *testing.T) {
 	g := setup(t)
 
+	managedBrowser(g)
+
 	b := newBrowser(t)
 	b.Version = "0.0.0.1"
 	data, _ := archiveOf(g, b)
@@ -239,6 +266,8 @@ func TestGetReplacesBrokenCache(t *testing.T) {
 
 func TestDownloadErr(t *testing.T) {
 	g := setup(t)
+
+	managedBrowser(g)
 
 	// Not an archive.
 	b := newBrowser(t)
