@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -505,13 +504,18 @@ func (g *G) checkLeaking() {
 		// target can still be listed while the browser finishes destroying
 		// it: Target.closeTarget answers before the target is gone, and the
 		// error path of Browser.Page closes the target it created that way,
-		// without waiting. Closing such a target fails with "No target with
-		// given id found", which is what closing it here was for; the outcome
-		// is what is checked, once the browser has had a moment to finish.
+		// without waiting.
+		//
+		// Closing such a target fails, and Chrome has more than one way of
+		// saying so — "No target with given id found" once it is gone, and
+		// "Specified target doesn't support closing" while its agent host is
+		// on its way out, which is how TestPageErr's Nightly went red. So no
+		// error here is read at all: what this loop is for is the targets it
+		// does close, and whether any survived is the poll below, which fails
+		// with the type, id and URL of whatever is left.
 		for _, info := range g.otherTargets() {
-			_, err := proto.TargetCloseTarget{TargetID: info.TargetID}.Call(g.browser)
-			if err != nil && !strings.Contains(err.Error(), "No target with given id found") {
-				g.E(err)
+			if _, err := (proto.TargetCloseTarget{TargetID: info.TargetID}).Call(g.browser); err != nil {
+				g.Logf("closing the leftover target %s %s: %v", info.Type, info.TargetID, err)
 			}
 		}
 
