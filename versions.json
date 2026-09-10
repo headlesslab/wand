@@ -4,5 +4,11 @@
     "chrome": "153.0.8010.12",
     "protocol": 1680125,
     "chromium": 1680292
+  },
+  {
+    "version": "v0.1.0-rc.2",
+    "chrome": "153.0.8010.12",
+    "protocol": 1680125,
+    "chromium": 1680292
   }
 ]
