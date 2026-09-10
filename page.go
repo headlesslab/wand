@@ -168,7 +168,13 @@ func (p *Page) SetBlockedURLs(urls []string) error {
 }
 
 // Navigate to the url. If the url is empty, "about:blank" will be used.
-// It will return immediately after the server responds the http header.
+// It returns once the navigation has committed, the point from which the
+// page's commands reach the document it loaded: Chrome answers Page.navigate
+// as soon as the navigation is ready to commit, before the renderer has
+// committed the document, and a command bound for the renderer that arrives
+// in between is held by the browser until the commit, where it can be lost
+// with no answer at all (#120). A navigation that turns into a download
+// commits nothing and is a [NavigationError].
 func (p *Page) Navigate(url string) error {
 	if url == "" {
 		url = "about:blank"
@@ -177,23 +183,34 @@ func (p *Page) Navigate(url string) error {
 	// try to stop loading
 	_ = p.StopLoading()
 
+	p, cancel := p.WithCancel()
+	defer cancel()
+
+	wait := p.waitNavigated()
+
 	res, err := proto.PageNavigate{URL: url}.Call(p)
 	if err != nil {
 		return err
 	}
+	if res.IsDownload {
+		return &NavigationError{"the navigation turned into a download"}
+	}
 	if res.ErrorText != "" {
 		return &NavigationError{res.ErrorText}
 	}
+
+	wait()
 
 	p.root.unsetJSCtxID()
 
 	return nil
 }
 
-// NavigateBack history.
+// NavigateBack history. It returns once the entry has committed, as
+// [Page.Navigate] does, and at once where there is no entry to go back to.
 func (p *Page) NavigateBack() error {
 	// Not using cdp API because it doesn't work for iframe
-	return p.navigateByScript(`() => history.back()`)
+	return p.navigateHistory(-1, `() => history.back()`)
 }
 
 // navigateByScript runs js, whose effect is a navigation of the page. When a
@@ -211,6 +228,56 @@ func (p *Page) navigateByScript(js string) error {
 	return err
 }
 
+// navigateHistory runs js, which asks for the history entry delta away from
+// the current one, and returns once that entry has committed. Where the
+// history has no entry there, the script would navigate nothing and there
+// would be nothing to wait for, so neither is done.
+func (p *Page) navigateHistory(delta int, js string) error {
+	history, err := p.GetNavigationHistory()
+	if err != nil {
+		// The history is the browser's, and the browser answers for the top
+		// level only, so a page that is an out-of-process frame cannot read
+		// it, nor can one whose own last navigation the browser has yet to
+		// finish. Neither is a reason to fail the call: it navigates as it
+		// did before the wait, without one.
+		return p.navigateByScript(js)
+	}
+	if i := history.CurrentIndex + delta; i < 0 || i >= len(history.Entries) {
+		return nil
+	}
+
+	p, cancel := p.WithCancel()
+	defer cancel()
+
+	wait := p.waitNavigated()
+
+	err = p.navigateByScript(js)
+	if err != nil {
+		return err
+	}
+
+	wait()
+
+	p.root.unsetJSCtxID()
+
+	return nil
+}
+
+// waitNavigated subscribes to the page's commits and returns the wait for the
+// next one: Page.frameNavigated where the navigation loads a document of its
+// own, Page.navigatedWithinDocument where it stays in the current one. It is
+// called before the navigation is asked for, since a commit can reach the
+// client with the answer, or before it: the browser answers Page.navigate,
+// while the renderer, which commits, reports the commit down a channel of its
+// own. As every wait in wand, it ends with the page's context.
+func (p *Page) waitNavigated() (wait func()) {
+	return p.EachEvent(func(e *proto.PageFrameNavigated) bool {
+		return e.Frame.ID == p.FrameID
+	}, func(e *proto.PageNavigatedWithinDocument) bool {
+		return e.FrameID == p.FrameID
+	})
+}
+
 // ResetNavigationHistory reset history.
 func (p *Page) ResetNavigationHistory() error {
 	err := proto.PageResetNavigationHistory{}.Call(p)
@@ -222,10 +289,11 @@ func (p *Page) GetNavigationHistory() (*proto.PageGetNavigationHistoryResult, er
 	return proto.PageGetNavigationHistory{}.Call(p)
 }
 
-// NavigateForward history.
+// NavigateForward history. It returns once the entry has committed, as
+// [Page.Navigate] does, and at once where there is no entry to go forward to.
 func (p *Page) NavigateForward() error {
 	// Not using cdp API because it doesn't work for iframe
-	return p.navigateByScript(`() => history.forward()`)
+	return p.navigateHistory(1, `() => history.forward()`)
 }
 
 // Reload page.
@@ -233,9 +301,7 @@ func (p *Page) Reload() error {
 	p, cancel := p.WithCancel()
 	defer cancel()
 
-	wait := p.EachEvent(func(e *proto.PageFrameNavigated) bool {
-		return e.Frame.ID == p.FrameID
-	})
+	wait := p.waitNavigated()
 
 	// Not using cdp API because it doesn't work for iframe
 	err := p.navigateByScript(`() => location.reload()`)

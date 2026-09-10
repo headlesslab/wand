@@ -1084,12 +1084,18 @@ func TestPageNavigation(t *testing.T) {
 	// evaluation is delivered (at once for an entry in the back/forward cache),
 	// the browser fails the reply with the context-destroyed error, under
 	// either of its messages; the navigation has started all the same. Once in
-	// six Gate runs, MustNavigateBack failed with it.
-	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+	// six Gate runs, MustNavigateBack failed with it. The script is sent for
+	// real, on a context refreshed after the navigation before it, and its
+	// reply replaced: the entry it asks for is what the call then waits for.
+	p.MustEval(`() => 1`)
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(send StubSend) (lazyjson.JSON, error) {
+		_, _ = send()
 		return lazyjson.New(nil), &cdp.Error{Code: -32000, Message: "Inspected target navigated or closed"}
 	})
 	g.E(p.NavigateBack())
-	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(_ StubSend) (lazyjson.JSON, error) {
+	p.MustEval(`() => 1`)
+	g.mc.stub(1, proto.RuntimeCallFunctionOn{}, func(send StubSend) (lazyjson.JSON, error) {
+		_, _ = send()
 		return lazyjson.New(nil), cdp.ErrCtxDestroyed
 	})
 	g.E(p.NavigateForward())
@@ -1098,6 +1104,82 @@ func TestPageNavigation(t *testing.T) {
 	g.Err(p.NavigateBack())
 	g.mc.stubErr(1, proto.RuntimeCallFunctionOn{})
 	g.Err(p.Reload())
+}
+
+// Navigate returns with its navigation committed, however long the renderer
+// takes to commit it: Chrome answers Page.navigate as soon as the navigation
+// is ready to commit, which is at once here, while the old document holds the
+// renderer's main thread for half a second right then, and the commit with
+// it. So the call takes the renderer's time, not the answer's.
+func TestPageNavigateCommitted(t *testing.T) {
+	g := setup(t)
+
+	busy := 500 * time.Millisecond
+	p := g.page.MustNavigate(g.srcFile("fixtures/click.html")).MustWaitLoad()
+	p.MustEval(`ms => setTimeout(() => { const until = Date.now() + ms; while (Date.now() < until) {} }, 0)`,
+		busy.Milliseconds())
+
+	start := time.Now()
+	p.MustNavigate(g.blank())
+	g.Gt(time.Since(start), busy/2)
+
+	g.Regex("fixtures/blank.html$", p.MustEval(`() => location.href`).Str())
+}
+
+// A navigation inside the current document is committed by
+// Page.navigatedWithinDocument, which no new document sends.
+func TestPageNavigateSameDocument(t *testing.T) {
+	g := setup(t)
+
+	url := g.srcFile("fixtures/click.html")
+	p := g.page.MustNavigate(url).MustWaitLoad()
+
+	p.MustNavigate(url + "#anchor")
+	g.Eq(p.MustEval(`() => location.hash`).Str(), "#anchor")
+
+	p.MustNavigateBack()
+	g.Eq(p.MustEval(`() => location.hash`).Str(), "")
+}
+
+// NavigateBack and NavigateForward return with the entry committed, and at
+// once where the history has no entry to go to.
+func TestPageNavigateHistoryCommitted(t *testing.T) {
+	g := setup(t)
+
+	p := g.page.MustNavigate(g.srcFile("fixtures/click.html")).MustWaitLoad()
+	p.MustNavigate(g.srcFile("fixtures/selector.html")).MustWaitLoad()
+
+	href := func() string { return p.MustEval(`() => location.href`).Str() }
+
+	p.MustNavigateBack()
+	g.Regex("fixtures/click.html$", href())
+	p.MustNavigateForward()
+	g.Regex("fixtures/selector.html$", href())
+
+	// The last entry: nothing to go forward to, nothing to wait for.
+	p.MustNavigateForward()
+	g.Regex("fixtures/selector.html$", href())
+
+	// A page that cannot read the browser's history navigates without the
+	// wait, as it did before there was one.
+	g.mc.stubErr(1, proto.PageGetNavigationHistory{})
+	g.E(p.NavigateBack())
+	p.MustWaitLoad()
+	g.Regex("fixtures/click.html$", href())
+}
+
+// A navigation that turns into a download navigates nothing, so Navigate is
+// a NavigationError rather than a wait for a commit that never comes.
+func TestPageNavigateDownload(t *testing.T) {
+	g := setup(t)
+
+	s := g.Serve()
+	s.Mux.HandleFunc("/file", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Disposition", "attachment; filename=file.txt")
+		g.E(w.Write([]byte("file")))
+	})
+
+	g.Is(g.page.Navigate(s.URL("/file")), &wand.NavigationError{})
 }
 
 func TestPagePool(t *testing.T) {
