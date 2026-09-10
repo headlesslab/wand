@@ -263,6 +263,7 @@ func (b *Browser) Close() error {
 }
 
 // Page creates a new browser tab. If opts.URL is empty, the default target will be "about:blank".
+// With a URL, it returns once the document has committed, as [Page.Navigate] does.
 func (b *Browser) Page(opts proto.TargetCreateTarget) (p *Page, err error) {
 	req := opts
 	req.BrowserContextID = b.BrowserContextID

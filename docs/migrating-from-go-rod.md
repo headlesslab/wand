@@ -23,6 +23,7 @@ Two things worth knowing before you start:
 | [8](#8--rod-becomes--wand)                                       | `-rod=` → `-wand=`, `DISABLE_ROD_FLAG` → `DISABLE_WAND_FLAG`, plus `WAND_BROWSER_*`           | flags and environment          |
 | [9](#9-cdperrctxdestroyed-matches-a-second-message)              | Chrome 152's "Inspected target navigated or closed" now matches                               | runtime behaviour              |
 | [10](#10-the-container-image)                                    | `ghcr.io/go-rod/rod` → `ghcr.io/headlesslab/wand`, one multi-arch manifest                    | deployment                     |
+| [11](#11-navigations-return-once-the-document-has-committed)     | `Navigate`, `NavigateBack` and `NavigateForward` return once the document has committed       | runtime behaviour              |
 
 ## 1. The import prefix
 
@@ -229,6 +230,12 @@ Every published manifest carries a build-provenance attestation and an SPDX SBOM
 ```sh
 gh attestation verify oci://ghcr.io/headlesslab/wand:v0.1.0 -R headlesslab/wand
 ```
+
+## 11. Navigations return once the document has committed
+
+go-rod's `Page.Navigate` returns as soon as Chrome answers `Page.navigate`, which it does once the navigation is ready to commit, before the renderer has committed the new document; `NavigateBack` and `NavigateForward` return as soon as their script has run. A command bound for the renderer that is sent in between, `SetViewport` or `Emulate` say, is held by Chrome until the commit and can be lost there with no answer, a hang that only the page's context ends (#120).
+
+wand's `Navigate`, `NavigateBack` and `NavigateForward` return once the navigation has committed: `Page.frameNavigated` where it loads a document of its own, `Page.navigatedWithinDocument` where it stays in the current one. That is the point Playwright calls `commit`, and the one Puppeteer requires before any lifecycle event; `Reload` already waited for it. What they do not wait for is unchanged: the load event is still `WaitLoad`'s, and `WaitNavigation` still takes a lifecycle event, so nothing that already waits waits twice. A navigation that turns into a download commits nothing and is a `NavigationError`; `NavigateBack` at the first entry and `NavigateForward` at the last return at once. As with every wait in wand, the bound is the page's context: `Page.Timeout`.
 
 ## Known limitations
 
