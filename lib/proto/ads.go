@@ -56,6 +56,20 @@ type AdsAdMetrics struct {
 	RemoveAdFrames []PageFrameID `json:"removeAdFrames"`
 }
 
+// AdsAdScript An ad script.
+// Note: when the script is a transitive ad script, we only fill in the
+// immediate ancestor script in the provenance's adScriptAncestry field (as its
+// first entry), rather than filling in the full ancestry. This saves work for
+// the backend, and the frontend can reconstruct the full ancestry if
+// necessary.
+type AdsAdScript struct {
+	// ScriptID The script ID.
+	ScriptID RuntimeScriptID `json:"scriptId"`
+
+	// Provenance The ad provenance.
+	Provenance *NetworkAdProvenance `json:"provenance"`
+}
+
 // AdsGetAdMetrics Retrieves ad metrics for the current page.
 type AdsGetAdMetrics struct{}
 
@@ -72,4 +86,24 @@ func (m AdsGetAdMetrics) Call(c Client) (*AdsGetAdMetricsResult, error) {
 type AdsGetAdMetricsResult struct {
 	// Metrics ...
 	Metrics *AdsAdMetrics `json:"metrics"`
+}
+
+// AdsGetAdScripts Retrieves ad scripts for the current page. To minimize payload size, this
+// only returns the newly tracked ad scripts since the last call to
+// getAdScripts (i.e., the delta).
+type AdsGetAdScripts struct{}
+
+// ProtoReq name.
+func (m AdsGetAdScripts) ProtoReq() string { return "Ads.getAdScripts" }
+
+// Call the request.
+func (m AdsGetAdScripts) Call(c Client) (*AdsGetAdScriptsResult, error) {
+	var res AdsGetAdScriptsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// AdsGetAdScriptsResult ...
+type AdsGetAdScriptsResult struct {
+	// NewScripts ...
+	NewScripts []*AdsAdScript `json:"newScripts"`
 }
