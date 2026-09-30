@@ -63,6 +63,80 @@ const (
 	ServiceWorkerServiceWorkerVersionStatusRedundant ServiceWorkerServiceWorkerVersionStatus = "redundant"
 )
 
+// ServiceWorkerServiceWorkerRouterCondition Mostly corresponds to `RouterCondition` in ServiceWorker spec
+// (https://www.w3.org/TR/service-workers/#dictdef-routercondition) while this
+// currently lacks support for the nested conditions ("or" and "not").
+// TODO(crbug.com/540469610): Support recursive conditions.
+type ServiceWorkerServiceWorkerRouterCondition struct {
+	// URLPattern (optional) Plain text, or JSON serialization of URLPatternInit or URLPattern.
+	URLPattern string `json:"urlPattern,omitempty"`
+
+	// RequestMethod (optional) ...
+	RequestMethod string `json:"requestMethod,omitempty"`
+
+	// RequestMode (optional) ...
+	RequestMode string `json:"requestMode,omitempty"`
+
+	// RequestDestination (optional) ...
+	RequestDestination string `json:"requestDestination,omitempty"`
+
+	// RunningStatus (optional) ...
+	RunningStatus ServiceWorkerServiceWorkerVersionRunningStatus `json:"runningStatus,omitempty"`
+}
+
+// ServiceWorkerServiceWorkerRouterSourceType ...
+type ServiceWorkerServiceWorkerRouterSourceType string
+
+const (
+	// ServiceWorkerServiceWorkerRouterSourceTypeCache enum const.
+	ServiceWorkerServiceWorkerRouterSourceTypeCache ServiceWorkerServiceWorkerRouterSourceType = "cache"
+
+	// ServiceWorkerServiceWorkerRouterSourceTypeFetchEvent enum const.
+	ServiceWorkerServiceWorkerRouterSourceTypeFetchEvent ServiceWorkerServiceWorkerRouterSourceType = "fetchEvent"
+
+	// ServiceWorkerServiceWorkerRouterSourceTypeNetwork enum const.
+	ServiceWorkerServiceWorkerRouterSourceTypeNetwork ServiceWorkerServiceWorkerRouterSourceType = "network"
+
+	// ServiceWorkerServiceWorkerRouterSourceTypeRaceNetworkAndFetchHandler enum const.
+	ServiceWorkerServiceWorkerRouterSourceTypeRaceNetworkAndFetchHandler ServiceWorkerServiceWorkerRouterSourceType = "raceNetworkAndFetchHandler"
+
+	// ServiceWorkerServiceWorkerRouterSourceTypeRaceNetworkAndCache enum const.
+	ServiceWorkerServiceWorkerRouterSourceTypeRaceNetworkAndCache ServiceWorkerServiceWorkerRouterSourceType = "raceNetworkAndCache"
+
+	// ServiceWorkerServiceWorkerRouterSourceTypeSourceDict enum const.
+	ServiceWorkerServiceWorkerRouterSourceTypeSourceDict ServiceWorkerServiceWorkerRouterSourceType = "sourceDict"
+)
+
+// ServiceWorkerServiceWorkerRouterSourceDict https://www.w3.org/TR/service-workers/#dictdef-routersourcedict.
+type ServiceWorkerServiceWorkerRouterSourceDict struct {
+	// CacheName ...
+	CacheName string `json:"cacheName"`
+}
+
+// ServiceWorkerServiceWorkerRouterSource Corresponds to `RouterSource` in the spec while the representation is different as follows.
+// (https://www.w3.org/TR/service-workers/#typedefdef-routersource)
+// - `RouterSourceEnum`: `type` equals `cache`, `sourceDict` is null.
+// - `RouterSourceDict`: `type` equals `sourceDict`, `sourceDict` has valid value.
+type ServiceWorkerServiceWorkerRouterSource struct {
+	// Type ...
+	Type ServiceWorkerServiceWorkerRouterSourceType `json:"type"`
+
+	// SourceDict (optional) Non-empty iff `type` equals "sourceDict".
+	SourceDict *ServiceWorkerServiceWorkerRouterSourceDict `json:"sourceDict,omitempty"`
+}
+
+// ServiceWorkerServiceWorkerRouterRule ...
+type ServiceWorkerServiceWorkerRouterRule struct {
+	// Condition ...
+	Condition *ServiceWorkerServiceWorkerRouterCondition `json:"condition"`
+
+	// Source ...
+	Source *ServiceWorkerServiceWorkerRouterSource `json:"source"`
+
+	// ID Rule ID assigned by the browser. Unique within each ServiceWorkerVersion.
+	ID int `json:"id"`
+}
+
 // ServiceWorkerServiceWorkerVersion ServiceWorker version.
 type ServiceWorkerServiceWorkerVersion struct {
 	// VersionID ...
@@ -93,8 +167,13 @@ type ServiceWorkerServiceWorkerVersion struct {
 	// TargetID (optional) ...
 	TargetID TargetTargetID `json:"targetId,omitempty"`
 
-	// RouterRules (optional) ...
+	// RouterRules (optional) Migration to `typedRouterRules` is in progress. The browser sends either
+	// `routerRules` or `typedRouterRules`.
+	// TODO(crbug.com/540469610): Remove `routerRules` after the migration.
 	RouterRules string `json:"routerRules,omitempty"`
+
+	// TypedRouterRules (optional) ...
+	TypedRouterRules []*ServiceWorkerServiceWorkerRouterRule `json:"typedRouterRules,omitempty"`
 }
 
 // ServiceWorkerServiceWorkerErrorMessage ServiceWorker error message.

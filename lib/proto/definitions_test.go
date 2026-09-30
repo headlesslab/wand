@@ -70,6 +70,12 @@ func (t T) AdsGetAdMetrics() {
 	t.Nil(err)
 }
 
+func (t T) AdsGetAdScripts() {
+	c := &Client{}
+	_, err := proto.AdsGetAdScripts{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) AnimationDisable() {
 	c := &Client{}
 	err := proto.AnimationDisable{}.Call(c)
@@ -407,6 +413,12 @@ func (t T) BrowserGetBrowserCommandLine() {
 	t.Nil(err)
 }
 
+func (t T) BrowserAddMockCamera() {
+	c := &Client{}
+	err := proto.BrowserAddMockCamera{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) BrowserGetHistograms() {
 	c := &Client{}
 	_, err := proto.BrowserGetHistograms{}.Call(c)
@@ -458,6 +470,18 @@ func (t T) BrowserExecuteBrowserCommand() {
 func (t T) BrowserAddPrivacySandboxEnrollmentOverride() {
 	c := &Client{}
 	err := proto.BrowserAddPrivacySandboxEnrollmentOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BrowserGetGlobalPrivacyControl() {
+	c := &Client{}
+	_, err := proto.BrowserGetGlobalPrivacyControl{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) BrowserSetGlobalPrivacyControl() {
+	c := &Client{}
+	_, err := proto.BrowserSetGlobalPrivacyControl{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1660,6 +1684,12 @@ func (t T) EmulationSetDataSaverOverride() {
 func (t T) EmulationSetHardwareConcurrencyOverride() {
 	c := &Client{}
 	err := proto.EmulationSetHardwareConcurrencyOverride{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) EmulationSetCPUPerformanceOverride() {
+	c := &Client{}
+	err := proto.EmulationSetCPUPerformanceOverride{}.Call(c)
 	t.Nil(err)
 }
 
@@ -3987,48 +4017,6 @@ func (t T) StorageClearTrustTokens() {
 	t.Nil(err)
 }
 
-func (t T) StorageGetSharedStorageMetadata() {
-	c := &Client{}
-	_, err := proto.StorageGetSharedStorageMetadata{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageGetSharedStorageEntries() {
-	c := &Client{}
-	_, err := proto.StorageGetSharedStorageEntries{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageSetSharedStorageEntry() {
-	c := &Client{}
-	err := proto.StorageSetSharedStorageEntry{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageDeleteSharedStorageEntry() {
-	c := &Client{}
-	err := proto.StorageDeleteSharedStorageEntry{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageClearSharedStorageEntries() {
-	c := &Client{}
-	err := proto.StorageClearSharedStorageEntries{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageResetSharedStorageBudget() {
-	c := &Client{}
-	err := proto.StorageResetSharedStorageBudget{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageSetSharedStorageTracking() {
-	c := &Client{}
-	err := proto.StorageSetSharedStorageTracking{}.Call(c)
-	t.Nil(err)
-}
-
 func (t T) StorageSetStorageBucketTracking() {
 	c := &Client{}
 	err := proto.StorageSetStorageBucketTracking{}.Call(c)
@@ -4070,16 +4058,6 @@ func (t T) StorageIndexedDBContentUpdated() {
 
 func (t T) StorageIndexedDBListUpdated() {
 	e := proto.StorageIndexedDBListUpdated{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) StorageSharedStorageAccessed() {
-	e := proto.StorageSharedStorageAccessed{}
-	t.Regex("", e.ProtoEvent())
-}
-
-func (t T) StorageSharedStorageWorkletOperationExecutionFinished() {
-	e := proto.StorageSharedStorageWorkletOperationExecutionFinished{}
 	t.Regex("", e.ProtoEvent())
 }
 

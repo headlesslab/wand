@@ -5,21 +5,21 @@ package pins
 // ChromeVersion is the Target Chrome: the Chrome for Testing Stable version
 // the protocol layer is generated for and the launcher's default Managed
 // browser is pinned to.
-const ChromeVersion = "153.0.8010.12"
+const ChromeVersion = "154.0.8037.92"
 
 // ChromePosition is the Chromium main branch position the Target Chrome
 // branched from, as Chrome for Testing reports it.
-const ChromePosition = 1681091
+const ChromePosition = 1689415
 
 // ProtocolRoll is the Protocol roll: the devtools-protocol revision the
 // protocol layer is generated from, tag v0.0.<ProtocolRoll> of
 // ChromeDevTools/devtools-protocol, the largest roll not above ChromePosition.
-const ProtocolRoll = 1680125
+const ProtocolRoll = 1687809
 
 // ChromiumPosition is the Companion Chromium: the newest Chromium trunk build
 // at or below ChromePosition whose archive exists for every prefix in
 // ChromiumSHA256.
-const ChromiumPosition = 1680292
+const ChromiumPosition = 1689152
 
 // ChromeSHA256 is the SHA-256, as lower-case hex, of each Chrome for Testing
 // archive of the Target Chrome, keyed by binary and then by Chrome for Testing
@@ -28,29 +28,29 @@ const ChromiumPosition = 1680292
 // version.
 var ChromeSHA256 = map[string]map[string]string{
 	"chrome": {
-		"linux-arm64": "7d8a4b4ff289efe44a06501a519df142c4c18fff7aaf1c1401a3fbb12b3bd069",
-		"linux64":     "8aac35011c18f6e2d10696154af89a5728ac2ddd6dc6fad24ffdf243c3fcfd5a",
-		"mac-arm64":   "930e2a2c15addbaca1fe9b07bfa520667bced556d7988707186819cb4279ef3b",
-		"mac-x64":     "4e12e2b8a297a2eb79c16258e46961c73f8aa2fa6be6b1d3cdbb553fb5d4ef1c",
-		"win32":       "19bef198c5c06835093e6cdcadc84647dd5e589038805cdfe1c86f3b92428b14",
-		"win64":       "415968b02065d4a9e2c10b85f0ae9f489b8fba500e94d9d0a7b7c4852a7234c1",
+		"linux-arm64": "c0af361aab66b24c72e36a4326dce4d7edf4bc23f9aede8af988c2cb6ea3fec0",
+		"linux64":     "ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732",
+		"mac-arm64":   "b62e904b6571c5ff5108ed7812cf93ac6d1c4027f10ae47ac34d8e229ed88001",
+		"mac-x64":     "9ddd0959603a3cdb90926427b2942279d81414c9aad856c97d405bb406d50e8b",
+		"win32":       "ed07adc92a948b215fe75d86b02ceb1b6993cad7979d2437e836aaea6b3679d4",
+		"win64":       "b897ef3601c947ac0620c784556dec719ac602b0159ce105927acf645ee0f598",
 	},
 	"chrome-headless-shell": {
-		"linux-arm64": "d433c45172c7836e38124fe545f767b02210bfb43a6262f08a297473a8e91c99",
-		"linux64":     "a9da028861a0cf789ff25c2fed45f5f1aaf969ed9247835b6a7821a4f7af9d1d",
-		"mac-arm64":   "89d80a6d26ccd0ccfd51e22d9e1297283862af2b0cd91dce07459b35ca0059f2",
-		"mac-x64":     "5c2eaa1aad62111bb5a70dd0889dd3093f3142277b8f78957a238257ee85f009",
-		"win32":       "08102e0e7b77480f77057566321ba0ebd5eab4ae6d22e2128405a0b24e3af468",
-		"win64":       "7aec872f3090e639c4237467624ea863c20fe2878914c93a6556bdbb52aa6c4c",
+		"linux-arm64": "0ed0e47d9e9f639197f508d62ada09e5c6b4c4c60edab3160a9312a733091df6",
+		"linux64":     "636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9",
+		"mac-arm64":   "77da14e75d7f2568e6f7898d3df7cdc6faac74b15e903b2c9d486ebb6ca9b929",
+		"mac-x64":     "a54292aaacbb77f76f6ef47558e7c51ab884044e0adacca315567f83c060bcc4",
+		"win32":       "56b30d2d6c35775ebf8dc3618680f6529e1c38c87f7feb28a16e9904273d51f7",
+		"win64":       "3ac2561f02d9d87aadc0399d00b9002d718a4c365624fa67db9e7bfaf6b1a568",
 	},
 }
 
 // ChromiumSHA256 is the SHA-256, as lower-case hex, of the Companion Chromium
 // archive under each prefix of the Chromium trunk build bucket.
 var ChromiumSHA256 = map[string]string{
-	"Linux_x64": "ba6394dd2f36d6a14b285ad44ecfb4f126b20c4eff5c14630d5348b575447fa9",
-	"Mac":       "b081e2010f0a70c32776b366a775f6de6a3290f6123db3e221c470d487bb8bff",
-	"Mac_Arm":   "2c7bf6c0281dab948c07cb41cb2fe5df270b1b618b17af145a8ce366632bb59c",
-	"Win":       "2bb54a6760c840643f526a45d16167ddadafac6bd3e32b3e66e2c772e6ebe601",
-	"Win_x64":   "d418d66597fb1068b19aa1cdc7c73ad15b7906f0c9fdca7607366f97d43ec0d7",
+	"Linux_x64": "9945d54fa7aac0eb94ee5f1db4fdf3d123808c1d03d5c6db19b46ad0e3cafbb4",
+	"Mac":       "d2bdb9efbf910acbd30b93dcb8887a7239e889bd3e8d46e2b0d22471b2af5d55",
+	"Mac_Arm":   "d5085ad72795cf5322f576191d392ddebe7ad363958031bdf78a9d9690499f0e",
+	"Win":       "cd8c30ece4a1a1077c13fcc866950618e7a249cfa0ca6c74c01aaa7115dc851f",
+	"Win_x64":   "abe806e1a56ab8eca56b26b68a33b1ce53e9fbbf80a2b8f3edb103a408c12805",
 }

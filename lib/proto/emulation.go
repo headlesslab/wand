@@ -1203,6 +1203,42 @@ func (m EmulationSetHardwareConcurrencyOverride) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// EmulationSetCPUPerformanceOverridePerformanceTier enum.
+type EmulationSetCPUPerformanceOverridePerformanceTier string
+
+const (
+	// EmulationSetCPUPerformanceOverridePerformanceTierUnknown enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierUnknown EmulationSetCPUPerformanceOverridePerformanceTier = "unknown"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierLow enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierLow EmulationSetCPUPerformanceOverridePerformanceTier = "low"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierMid enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierMid EmulationSetCPUPerformanceOverridePerformanceTier = "mid"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierHigh enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierHigh EmulationSetCPUPerformanceOverridePerformanceTier = "high"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierUltra enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierUltra EmulationSetCPUPerformanceOverridePerformanceTier = "ultra"
+)
+
+// EmulationSetCPUPerformanceOverride (experimental) Overrides the value of navigator.cpuPerformance.
+type EmulationSetCPUPerformanceOverride struct {
+	// PerformanceTier (optional) Override value. Omitting the parameter disables the override.
+	PerformanceTier EmulationSetCPUPerformanceOverridePerformanceTier `json:"performanceTier,omitempty"`
+}
+
+// ProtoReq name.
+func (m EmulationSetCPUPerformanceOverride) ProtoReq() string {
+	return "Emulation.setCPUPerformanceOverride"
+}
+
+// Call sends the request.
+func (m EmulationSetCPUPerformanceOverride) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // EmulationSetUserAgentOverride Allows overriding user agent with the given string.
 // `userAgentMetadata` must be set for Client Hint headers to be sent.
 type EmulationSetUserAgentOverride struct {
