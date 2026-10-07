@@ -275,6 +275,9 @@ const (
 	// PagePermissionsPolicyFeatureGyroscope enum const.
 	PagePermissionsPolicyFeatureGyroscope PagePermissionsPolicyFeature = "gyroscope"
 
+	// PagePermissionsPolicyFeatureHaptics enum const.
+	PagePermissionsPolicyFeatureHaptics PagePermissionsPolicyFeature = "haptics"
+
 	// PagePermissionsPolicyFeatureHid enum const.
 	PagePermissionsPolicyFeatureHid PagePermissionsPolicyFeature = "hid"
 
@@ -2876,8 +2879,18 @@ type PageStartScreencast struct {
 	// MaxHeight (optional) Maximum screenshot height.
 	MaxHeight *int `json:"maxHeight,omitempty"`
 
-	// EveryNthFrame (optional) Send every n-th frame.
+	// EveryNthFrame (optional) Send every n-th frame. Must be a positive integer.
 	EveryNthFrame *int `json:"everyNthFrame,omitempty"`
+
+	// MaxFramesInFlight (optional) Maximum number of frames sent until screencastFrameAck is required.
+	// Defaults to 3. Must be a positive integer.
+	MaxFramesInFlight *int `json:"maxFramesInFlight,omitempty"`
+
+	// SendLastFrame (optional) By default, after screencastFrameAck arrives, the next produced frame is sent.
+	// Passing this flag enables storing the last produced frame in memory, which is
+	// immediately sent upon screencastFrameAck. This way, overall performance is
+	// traded for a better latency.
+	SendLastFrame bool `json:"sendLastFrame,omitempty"`
 }
 
 // ProtoReq name.
