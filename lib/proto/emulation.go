@@ -556,6 +556,17 @@ const (
 	EmulationSetDeviceMetricsOverrideScrollbarTypeDefault EmulationSetDeviceMetricsOverrideScrollbarType = "default"
 )
 
+// EmulationSetDeviceMetricsOverrideViewportMeta enum.
+type EmulationSetDeviceMetricsOverrideViewportMeta string
+
+const (
+	// EmulationSetDeviceMetricsOverrideViewportMetaEnable enum const.
+	EmulationSetDeviceMetricsOverrideViewportMetaEnable EmulationSetDeviceMetricsOverrideViewportMeta = "enable"
+
+	// EmulationSetDeviceMetricsOverrideViewportMetaDefault enum const.
+	EmulationSetDeviceMetricsOverrideViewportMetaDefault EmulationSetDeviceMetricsOverrideViewportMeta = "default"
+)
+
 // EmulationSetDeviceMetricsOverride Overrides the values of device screen dimensions (window.screen.width, window.screen.height,
 // window.innerWidth, window.innerHeight, and "device-width"/"device-height"-related CSS media
 // query results).
@@ -621,6 +632,10 @@ type EmulationSetDeviceMetricsOverride struct {
 	// useful for emulating mobile device orientation lock behavior in
 	// responsive design mode.
 	ScreenOrientationLockEmulation bool `json:"screenOrientationLockEmulation,omitempty"`
+
+	// ViewportMeta (experimental) (optional) Viewport meta tag behavior. Default: `default`. Note: if `mobile` is `true`,
+	// the viewport meta tag is always enabled.
+	ViewportMeta EmulationSetDeviceMetricsOverrideViewportMeta `json:"viewportMeta,omitempty"`
 }
 
 // ProtoReq name.
@@ -1200,6 +1215,42 @@ func (m EmulationSetHardwareConcurrencyOverride) ProtoReq() string {
 
 // Call sends the request.
 func (m EmulationSetHardwareConcurrencyOverride) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// EmulationSetCPUPerformanceOverridePerformanceTier enum.
+type EmulationSetCPUPerformanceOverridePerformanceTier string
+
+const (
+	// EmulationSetCPUPerformanceOverridePerformanceTierUnknown enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierUnknown EmulationSetCPUPerformanceOverridePerformanceTier = "unknown"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierLow enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierLow EmulationSetCPUPerformanceOverridePerformanceTier = "low"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierMid enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierMid EmulationSetCPUPerformanceOverridePerformanceTier = "mid"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierHigh enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierHigh EmulationSetCPUPerformanceOverridePerformanceTier = "high"
+
+	// EmulationSetCPUPerformanceOverridePerformanceTierUltra enum const.
+	EmulationSetCPUPerformanceOverridePerformanceTierUltra EmulationSetCPUPerformanceOverridePerformanceTier = "ultra"
+)
+
+// EmulationSetCPUPerformanceOverride (experimental) Overrides the value of navigator.cpuPerformance.
+type EmulationSetCPUPerformanceOverride struct {
+	// PerformanceTier (optional) Override value. Omitting the parameter disables the override.
+	PerformanceTier EmulationSetCPUPerformanceOverridePerformanceTier `json:"performanceTier,omitempty"`
+}
+
+// ProtoReq name.
+func (m EmulationSetCPUPerformanceOverride) ProtoReq() string {
+	return "Emulation.setCPUPerformanceOverride"
+}
+
+// Call sends the request.
+func (m EmulationSetCPUPerformanceOverride) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 

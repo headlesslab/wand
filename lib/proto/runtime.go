@@ -240,6 +240,9 @@ const (
 	// RuntimeRemoteObjectSubtypeWasmvalue enum const.
 	RuntimeRemoteObjectSubtypeWasmvalue RuntimeRemoteObjectSubtype = "wasmvalue"
 
+	// RuntimeRemoteObjectSubtypeDeferredmodule enum const.
+	RuntimeRemoteObjectSubtypeDeferredmodule RuntimeRemoteObjectSubtype = "deferredmodule"
+
 	// RuntimeRemoteObjectSubtypeTrustedtype enum const.
 	RuntimeRemoteObjectSubtypeTrustedtype RuntimeRemoteObjectSubtype = "trustedtype"
 )
@@ -382,6 +385,9 @@ const (
 	// RuntimeObjectPreviewSubtypeWasmvalue enum const.
 	RuntimeObjectPreviewSubtypeWasmvalue RuntimeObjectPreviewSubtype = "wasmvalue"
 
+	// RuntimeObjectPreviewSubtypeDeferredmodule enum const.
+	RuntimeObjectPreviewSubtypeDeferredmodule RuntimeObjectPreviewSubtype = "deferredmodule"
+
 	// RuntimeObjectPreviewSubtypeTrustedtype enum const.
 	RuntimeObjectPreviewSubtypeTrustedtype RuntimeObjectPreviewSubtype = "trustedtype"
 )
@@ -499,6 +505,9 @@ const (
 
 	// RuntimePropertyPreviewSubtypeWasmvalue enum const.
 	RuntimePropertyPreviewSubtypeWasmvalue RuntimePropertyPreviewSubtype = "wasmvalue"
+
+	// RuntimePropertyPreviewSubtypeDeferredmodule enum const.
+	RuntimePropertyPreviewSubtypeDeferredmodule RuntimePropertyPreviewSubtype = "deferredmodule"
 
 	// RuntimePropertyPreviewSubtypeTrustedtype enum const.
 	RuntimePropertyPreviewSubtypeTrustedtype RuntimePropertyPreviewSubtype = "trustedtype"

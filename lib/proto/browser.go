@@ -459,6 +459,24 @@ type BrowserGetBrowserCommandLineResult struct {
 	Arguments []string `json:"arguments"`
 }
 
+// BrowserAddMockCamera (experimental) Adds or updates a mock camera in the shared video capture device list for
+// test automation. The mock camera is not scoped to a particular page or
+// frame and is removed when the DevTools session that created it disconnects.
+type BrowserAddMockCamera struct {
+	// DeviceID Required non-empty identifier for the mock camera. This is mapped to an
+	// internal virtual-device identifier and is not the MediaDeviceInfo.deviceId
+	// exposed to the page.
+	DeviceID string `json:"deviceId"`
+}
+
+// ProtoReq name.
+func (m BrowserAddMockCamera) ProtoReq() string { return "Browser.addMockCamera" }
+
+// Call sends the request.
+func (m BrowserAddMockCamera) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // BrowserGetHistograms (experimental) Get Chrome histograms.
 type BrowserGetHistograms struct {
 	// Query (optional) Requested substring in name. Only histograms which have query as a
@@ -642,6 +660,47 @@ func (m BrowserAddPrivacySandboxEnrollmentOverride) ProtoReq() string {
 // Call sends the request.
 func (m BrowserAddPrivacySandboxEnrollmentOverride) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
+}
+
+// BrowserGetGlobalPrivacyControl (experimental) Gets the current globally-applied privacy control status
+// See https://www.w3.org/TR/gpc/#get-global-privacy-control.
+type BrowserGetGlobalPrivacyControl struct{}
+
+// ProtoReq name.
+func (m BrowserGetGlobalPrivacyControl) ProtoReq() string { return "Browser.getGlobalPrivacyControl" }
+
+// Call the request.
+func (m BrowserGetGlobalPrivacyControl) Call(c Client) (*BrowserGetGlobalPrivacyControlResult, error) {
+	var res BrowserGetGlobalPrivacyControlResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// BrowserGetGlobalPrivacyControlResult (experimental) ...
+type BrowserGetGlobalPrivacyControlResult struct {
+	// Gpc ...
+	Gpc bool `json:"gpc"`
+}
+
+// BrowserSetGlobalPrivacyControl (experimental) Sets and then gets the current globally-applied privacy control status
+// See https://www.w3.org/TR/gpc/#set-global-privacy-control.
+type BrowserSetGlobalPrivacyControl struct {
+	// Gpc ...
+	Gpc bool `json:"gpc"`
+}
+
+// ProtoReq name.
+func (m BrowserSetGlobalPrivacyControl) ProtoReq() string { return "Browser.setGlobalPrivacyControl" }
+
+// Call the request.
+func (m BrowserSetGlobalPrivacyControl) Call(c Client) (*BrowserSetGlobalPrivacyControlResult, error) {
+	var res BrowserSetGlobalPrivacyControlResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// BrowserSetGlobalPrivacyControlResult (experimental) ...
+type BrowserSetGlobalPrivacyControlResult struct {
+	// Gpc ...
+	Gpc bool `json:"gpc"`
 }
 
 // BrowserDownloadWillBegin (experimental) Fired when page is about to start a download.
