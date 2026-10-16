@@ -1653,6 +1653,27 @@ type DOMForceShowPopoverResult struct {
 	NodeIDs []DOMNodeID `json:"nodeIds"`
 }
 
+// DOMGetImplicitAnchorCandidates (experimental) Returns candidate nodes that are configured as triggers for the given popover.
+type DOMGetImplicitAnchorCandidates struct {
+	// NodeID Id of the popover HTMLElement.
+	NodeID DOMNodeID `json:"nodeId"`
+}
+
+// ProtoReq name.
+func (m DOMGetImplicitAnchorCandidates) ProtoReq() string { return "DOM.getImplicitAnchorCandidates" }
+
+// Call the request.
+func (m DOMGetImplicitAnchorCandidates) Call(c Client) (*DOMGetImplicitAnchorCandidatesResult, error) {
+	var res DOMGetImplicitAnchorCandidatesResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// DOMGetImplicitAnchorCandidatesResult (experimental) ...
+type DOMGetImplicitAnchorCandidatesResult struct {
+	// BackendNodeIDs Candidate elements that can invoke this popover.
+	BackendNodeIDs []DOMBackendNodeID `json:"backendNodeIds"`
+}
+
 // DOMForceShowInterest (experimental) When enabling, this API forces an element to gain interest in its target,
 // keeping interest active until disabled.
 type DOMForceShowInterest struct {

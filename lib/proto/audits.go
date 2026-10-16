@@ -1103,6 +1103,9 @@ const (
 
 	// AuditsFederatedAuthRequestIssueReasonSuppressedBySegmentationPlatform enum const.
 	AuditsFederatedAuthRequestIssueReasonSuppressedBySegmentationPlatform AuditsFederatedAuthRequestIssueReason = "SuppressedBySegmentationPlatform"
+
+	// AuditsFederatedAuthRequestIssueReasonPopupBlockedByConnectionAllowlist enum const.
+	AuditsFederatedAuthRequestIssueReasonPopupBlockedByConnectionAllowlist AuditsFederatedAuthRequestIssueReason = "PopupBlockedByConnectionAllowlist"
 )
 
 // AuditsFederatedAuthUserInfoRequestIssueDetails ...
@@ -1327,6 +1330,9 @@ const (
 
 	// AuditsEmailVerificationRequestIssueReasonTokenVerificationKbSignatureFailed enum const.
 	AuditsEmailVerificationRequestIssueReasonTokenVerificationKbSignatureFailed AuditsEmailVerificationRequestIssueReason = "TokenVerificationKbSignatureFailed"
+
+	// AuditsEmailVerificationRequestIssueReasonCrossOriginIframeNotSupported enum const.
+	AuditsEmailVerificationRequestIssueReasonCrossOriginIframeNotSupported AuditsEmailVerificationRequestIssueReason = "CrossOriginIframeNotSupported"
 )
 
 // AuditsClientHintIssueDetails This issue tracks client hints related issues. It's used to deprecate old
@@ -1588,6 +1594,36 @@ type AuditsPermissionElementIssueDetails struct {
 	DisableReason string `json:"disableReason,omitempty"`
 }
 
+// AuditsWebInstallIssueReason ...
+type AuditsWebInstallIssueReason string
+
+const (
+	// AuditsWebInstallIssueReasonManifestParsingOrNetworkError enum const.
+	AuditsWebInstallIssueReasonManifestParsingOrNetworkError AuditsWebInstallIssueReason = "ManifestParsingOrNetworkError"
+
+	// AuditsWebInstallIssueReasonStartURLInvalid enum const.
+	AuditsWebInstallIssueReasonStartURLInvalid AuditsWebInstallIssueReason = "StartUrlInvalid"
+
+	// AuditsWebInstallIssueReasonManifestMissingNameOrShortName enum const.
+	AuditsWebInstallIssueReasonManifestMissingNameOrShortName AuditsWebInstallIssueReason = "ManifestMissingNameOrShortName"
+
+	// AuditsWebInstallIssueReasonManifestMissingID enum const.
+	AuditsWebInstallIssueReasonManifestMissingID AuditsWebInstallIssueReason = "ManifestMissingId"
+
+	// AuditsWebInstallIssueReasonNoManifest enum const.
+	AuditsWebInstallIssueReasonNoManifest AuditsWebInstallIssueReason = "NoManifest"
+)
+
+// AuditsWebInstallIssueDetails This issue reports a failure involving a web app manifest used by a Web
+// Install operation.
+type AuditsWebInstallIssueDetails struct {
+	// ManifestURL (optional) ...
+	ManifestURL string `json:"manifestUrl,omitempty"`
+
+	// Reason ...
+	Reason AuditsWebInstallIssueReason `json:"reason"`
+}
+
 // AuditsSelectivePermissionsInterventionIssueDetails The issue warns about blocked calls to privacy sensitive APIs via the
 // Selective Permissions Intervention.
 type AuditsSelectivePermissionsInterventionIssueDetails struct {
@@ -1708,6 +1744,9 @@ const (
 
 	// AuditsInspectorIssueCodeLazyLoadImageIssue enum const.
 	AuditsInspectorIssueCodeLazyLoadImageIssue AuditsInspectorIssueCode = "LazyLoadImageIssue"
+
+	// AuditsInspectorIssueCodeWebInstallIssue enum const.
+	AuditsInspectorIssueCodeWebInstallIssue AuditsInspectorIssueCode = "WebInstallIssue"
 )
 
 // AuditsInspectorIssueDetails This struct holds a list of optional fields with additional information
@@ -1805,6 +1844,9 @@ type AuditsInspectorIssueDetails struct {
 
 	// LazyLoadImageIssueDetails (optional) ...
 	LazyLoadImageIssueDetails *AuditsLazyLoadImageIssueDetails `json:"lazyLoadImageIssueDetails,omitempty"`
+
+	// WebInstallIssueDetails (optional) ...
+	WebInstallIssueDetails *AuditsWebInstallIssueDetails `json:"webInstallIssueDetails,omitempty"`
 }
 
 // AuditsIssueID A unique id for a DevTools inspector issue. Allows other entities (e.g.
