@@ -563,7 +563,8 @@ jobs:
 
       # --ignore-unfixed leaves what no upgrade would fix, so a red step is
       # always something a base image digest or a dependency bump can move,
-      # which is the same threshold the Gate holds a freshly built image to.
+      # which is the same threshold the Gate holds a freshly built image to,
+      # with the same one exception, .github/trivy.rego (#142).
       - name: Trivy on the release image
         if: steps.published.outputs.latest == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -573,6 +574,7 @@ jobs:
           vuln-type: os,library
           ignore-unfixed: true
           severity: CRITICAL
+          ignore-policy: .github/trivy.rego
           exit-code: '1'
 
       - name: Trivy on the development image
@@ -584,6 +586,7 @@ jobs:
           vuln-type: os,library
           ignore-unfixed: true
           severity: CRITICAL
+          ignore-policy: .github/trivy.rego
           exit-code: '1'
 
   # The report: one issue per red job, keyed by the job's name, or a comment on
