@@ -160,7 +160,7 @@ type WebAuthnCredential struct {
 	// If -1, the credential won't have an associated signature counter, and
 	// every assertion operation will report a value of 0.
 	// See https://w3c.github.io/webauthn/#signature-counter.
-	SignCount int `json:"signCount"`
+	SignCount float64 `json:"signCount"`
 
 	// LargeBlob (optional) The large blob associated with the credential.
 	// See https://w3c.github.io/webauthn/#sctn-large-blob-extension (Encoded as a base64 string when passed over JSON).
@@ -445,7 +445,7 @@ type WebAuthnSetCredentialProperties struct {
 	// If -1, the signature counter is removed from the credential, and every
 	// assertion operation will report a value of 0.
 	// See https://w3c.github.io/webauthn/#signature-counter.
-	SignCount *int `json:"signCount,omitempty"`
+	SignCount *float64 `json:"signCount,omitempty"`
 }
 
 // ProtoReq name.

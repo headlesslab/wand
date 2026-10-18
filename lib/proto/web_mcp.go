@@ -20,6 +20,9 @@ type WebMCPAnnotation struct {
 	// UntrustedContent (optional) A hint indicating that the tool output may contain untrusted content, ex: UGC, 3rd party data.
 	UntrustedContent bool `json:"untrustedContent,omitempty"`
 
+	// Consequential (optional) A hint indicating that executing the tool will result in consequential actions, ex: booking a flight, transferring money.
+	Consequential bool `json:"consequential,omitempty"`
+
 	// Autosubmit (optional) If the declarative tool was declared with the autosubmit attribute.
 	Autosubmit bool `json:"autosubmit,omitempty"`
 }

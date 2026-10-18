@@ -1639,6 +1639,9 @@ type NetworkAdProvenance struct {
 	FilterlistRule string `json:"filterlistRule,omitempty"`
 
 	// AdScriptAncestry (optional) The script ancestry that created the ad, if any.
+	// Note: depending on the context, this may represent the full ancestry up
+	// to the root script, or it may contain only one script representing the
+	// immediate ancestor.
 	AdScriptAncestry *NetworkAdAncestry `json:"adScriptAncestry,omitempty"`
 }
 
@@ -2281,6 +2284,9 @@ const (
 
 	// NetworkTerminationEventDetailsDeletionReasonDevTools enum const.
 	NetworkTerminationEventDetailsDeletionReasonDevTools NetworkTerminationEventDetailsDeletionReason = "DevTools"
+
+	// NetworkTerminationEventDetailsDeletionReasonReplaced enum const.
+	NetworkTerminationEventDetailsDeletionReasonReplaced NetworkTerminationEventDetailsDeletionReason = "Replaced"
 )
 
 // NetworkTerminationEventDetails (experimental) Session event details specific to termination.
