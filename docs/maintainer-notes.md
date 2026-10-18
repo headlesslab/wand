@@ -345,6 +345,8 @@ gh attestation verify oci://ghcr.io/headlesslab/wand:v0.1.0 -R headlesslab/wand
 
 The bill of materials is read off the registry by Trivy, which resolves a multi-architecture manifest to the runner's own, so what it lists is the linux/amd64 image; both architectures are built from one Dockerfile and one base image digest, so the package set is the same and the architecture is not.
 
+Every Trivy step, the image Gate's and the Nightly's, holds an image to no fixable CRITICAL with one exception, `.github/trivy.rego`: the kernel's own vulnerabilities reported against `linux-libc-dev`. That package is the kernel's user-space headers, which `build-essential` brings into the development image, and a container runs its host's kernel rather than any it carries, so none of them is reachable from inside the image; without the exception each batch Ubuntu publishes kept the Nightly red until a release republished `:dev` (#142). Widening the policy is a reviewed change to that file, like the licence allowlist.
+
 A dry run does all of this under throwaway tags (`dry-run-<run id>-...`), verifies them and deletes them at the end, and creates no commit, no tag and no Release. The untagged manifests it pushes stay, as every image's do until a tag names them.
 
 ### Promotion
