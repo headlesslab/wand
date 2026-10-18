@@ -5,7 +5,7 @@ package devutil
 // linters run at the versions its own go.mod pins, so moving this line moves
 // them all together; the satellites' reusable workflow in headlesslab/.github
 // pins the same version (spec #33, section 13: no @latest in a Gate).
-const GolangciLint = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
+const GolangciLint = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0"
 
 // Govulncheck is the vulnerability scanner of the security Gate, pinned here
 // for the same reason: no Gate resolves a version at run time (spec #33,
