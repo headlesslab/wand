@@ -22,7 +22,8 @@
 # repo-settings tool applies both).
 #
 # Every action is pinned to a full-length commit SHA with its version in a
-# trailing comment; Dependabot moves the pins weekly (.github/dependabot.yml).
+# trailing comment. The pins move by hand, or by a Dependabot security update
+# when an advisory names one (.github/dependabot.yml).
 name: Gate
 
 # A pull request is checked as its merge result; a push to a branch is not
@@ -387,8 +388,8 @@ jobs:
       # Trivy over the operating system packages and the Go and Node
       # dependencies of each image. --ignore-unfixed leaves what no upgrade
       # would fix, so a red step is always something a base image digest or a
-      # dependency bump can move; Dependabot's docker ecosystem keeps the
-      # digests coming. The published tags are scanned again by the Nightly.
+      # dependency bump can move, by hand: Dependabot opens no version
+      # updates here. The published tags are scanned again by the Nightly.
       # .github/trivy.rego lets through the kernel's own vulnerabilities on
       # linux-libc-dev, headers of a kernel no container runs (#142).
       - name: Trivy on the runtime image

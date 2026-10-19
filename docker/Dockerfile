@@ -9,7 +9,7 @@
 #     go run ./internal/tools/docker
 #
 # Both base images are pinned by digest, so a rebuild takes the same bytes
-# until Dependabot moves the pin (spec #33, section 13).
+# until the pin is moved, by hand (spec #33, section 13).
 
 # The builder holds Go and the module cache; nothing of it reaches the image
 # below except the manager binary and the browser it downloaded.
