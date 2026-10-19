@@ -13,7 +13,7 @@
 
 # The builder holds Go and the module cache; nothing of it reaches the image
 # below except the manager binary and the browser it downloaded.
-FROM golang:1.27-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS build
+FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build
 
 # Never download a newer toolchain: a dependency raising its Go floor above
 # this image's must fail the build, not silently pull a toolchain.

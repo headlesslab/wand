@@ -23,7 +23,7 @@ ARG base="ghcr.io/headlesslab/wand"
 # Dependabot sees a FROM line for it and moves the digest. Both are the
 # bookworm variant: its glibc is older than noble's, so what is copied below
 # runs there.
-FROM golang:1.27-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS golang
+FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS golang
 
 FROM node:24-bookworm@sha256:be23f54a88d34e8824c741b19b91064094f92c1c97b194144bfc8b50d67258e2 AS node
 
