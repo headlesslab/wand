@@ -25,7 +25,8 @@
 # actors, and the App is one of them (#58).
 #
 # Every action is pinned to a full-length commit SHA with its version in a
-# trailing comment; Dependabot keeps the pins moving.
+# trailing comment. The pins move by hand, or by a Dependabot security update
+# when an advisory names one (.github/dependabot.yml).
 name: Release
 
 on:

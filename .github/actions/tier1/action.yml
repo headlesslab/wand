@@ -11,10 +11,11 @@
 # and take nothing else from this file.
 #
 # Nothing here uses another action, on purpose. Dependabot's github-actions
-# updater reads .github/workflows and a root action.yml, and nothing else, so
-# a SHA pinned in this file would be a pin nothing moves. The three steps that
-# do use one — the checkout, the toolchain and the artifact upload — stay in
-# each workflow, where Dependabot sees them, and the zero-leftover check goes
+# security updates read .github/workflows and a root action.yml, and nothing
+# else, so a SHA pinned in this file would be a pin no advisory reaches. The
+# three steps that do use one — the checkout, the toolchain and the artifact
+# upload — stay in each workflow, where Dependabot sees them, and the
+# zero-leftover check goes
 # with them because it has to run after the upload.
 name: Tier 1
 description: Build, vet and run the whole suite with -race on the browser the pins name.

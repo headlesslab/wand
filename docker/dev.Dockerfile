@@ -19,8 +19,8 @@
 ARG base="ghcr.io/headlesslab/wand"
 
 # The toolchains come from the official images rather than from tarball URLs,
-# and each is a named stage rather than an inline COPY --from, so that
-# Dependabot sees a FROM line for it and moves the digest. Both are the
+# and each is a named stage rather than an inline COPY --from, so that each
+# has a FROM line with a digest of its own to move. Both are the
 # bookworm variant: its glibc is older than noble's, so what is copied below
 # runs there.
 FROM golang:1.27-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS golang

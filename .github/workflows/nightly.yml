@@ -38,7 +38,8 @@
 #                        the Gate scans the image it just built and pushes none
 #
 # Every action is pinned to a full-length commit SHA with its version in a
-# trailing comment; Dependabot moves the pins weekly (.github/dependabot.yml).
+# trailing comment. The pins move by hand, or by a Dependabot security update
+# when an advisory names one (.github/dependabot.yml).
 name: Nightly
 
 on:
@@ -505,7 +506,7 @@ jobs:
   # that is not a candidate, and :dev beside it. The Gate scans the images it
   # has just built and pushes none, so a base image that grew a vulnerability
   # after a release was cut is seen here and nowhere else; the answer to a red
-  # is a Dependabot digest bump and a patch release (ADR-0008).
+  # is a digest moved by hand and a patch release (ADR-0008).
   #
   # Before the first release neither tag exists, and this job says so and stops
   # rather than failing on an image that was never pushed.
