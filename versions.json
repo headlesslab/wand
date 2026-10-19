@@ -16,5 +16,11 @@
     "chrome": "155.0.8059.84",
     "protocol": 1696802,
     "chromium": 1697040
+  },
+  {
+    "version": "v0.1.0-rc.4",
+    "chrome": "155.0.8059.84",
+    "protocol": 1696802,
+    "chromium": 1697040
   }
 ]
