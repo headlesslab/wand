@@ -54,11 +54,11 @@ wand 一次只对齐一个 Chrome 稳定版，即 Target Chrome：协议层为�
 <!-- prettier-ignore-start -->
 | Managed browser | Linux x64 | Linux arm64 | macOS x64 | macOS arm64 | Windows x86 | Windows x64 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Chrome 155.0.8059.84（[Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| chrome-headless-shell 155.0.8059.84 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chromium 1697040（[主干构建](https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html)） | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Chrome 156.0.8078.47（[Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| chrome-headless-shell 156.0.8078.47 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chromium 1705747（[主干构建](https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html)） | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
 
-协议：[devtools-protocol r1696802](https://github.com/ChromeDevTools/devtools-protocol/tree/v0.0.1696802)。支持窗口：Chrome 152 至 155，即 Target Chrome 及其之前的三个稳定里程碑。
+协议：[devtools-protocol r1704951](https://github.com/ChromeDevTools/devtools-protocol/tree/v0.0.1704951)。支持窗口：Chrome 153 至 156，即 Target Chrome 及其之前的三个稳定里程碑。
 <!-- prettier-ignore-end -->
 
 <!-- pins:end -->

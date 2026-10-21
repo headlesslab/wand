@@ -23,6 +23,9 @@ type WebMCPAnnotation struct {
 	// Consequential (optional) A hint indicating that executing the tool will result in consequential actions, ex: booking a flight, transferring money.
 	Consequential bool `json:"consequential,omitempty"`
 
+	// Debugging (optional) If true, indicates that the tool is intended for debugging and developer tooling rather than end-user interactions.
+	Debugging bool `json:"debugging,omitempty"`
+
 	// Autosubmit (optional) If the declarative tool was declared with the autosubmit attribute.
 	Autosubmit bool `json:"autosubmit,omitempty"`
 }

@@ -56,9 +56,6 @@ const (
 	// AuditsCookieExclusionReasonExcludeDomainNonASCII enum const.
 	AuditsCookieExclusionReasonExcludeDomainNonASCII AuditsCookieExclusionReason = "ExcludeDomainNonASCII"
 
-	// AuditsCookieExclusionReasonExcludeThirdPartyCookieBlockedInFirstPartySet enum const.
-	AuditsCookieExclusionReasonExcludeThirdPartyCookieBlockedInFirstPartySet AuditsCookieExclusionReason = "ExcludeThirdPartyCookieBlockedInFirstPartySet"
-
 	// AuditsCookieExclusionReasonExcludeThirdPartyPhaseout enum const.
 	AuditsCookieExclusionReasonExcludeThirdPartyPhaseout AuditsCookieExclusionReason = "ExcludeThirdPartyPhaseout"
 
