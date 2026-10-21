@@ -1171,6 +1171,18 @@ func (t T) DOMForceShowInterest() {
 	t.Nil(err)
 }
 
+func (t T) DOMSetTextMarker() {
+	c := &Client{}
+	err := proto.DOMSetTextMarker{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) DOMClearTextMarkers() {
+	c := &Client{}
+	err := proto.DOMClearTextMarkers{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) DOMAttributeModified() {
 	e := proto.DOMAttributeModified{}
 	t.Regex("", e.ProtoEvent())
@@ -3131,6 +3143,18 @@ func (t T) PageGetAppID() {
 	t.Nil(err)
 }
 
+func (t T) PageGetSubApps() {
+	c := &Client{}
+	_, err := proto.PageGetSubApps{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PageGetSiblingSubApps() {
+	c := &Client{}
+	_, err := proto.PageGetSiblingSubApps{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) PageGetAdScriptAncestry() {
 	c := &Client{}
 	_, err := proto.PageGetAdScriptAncestry{}.Call(c)
@@ -4023,6 +4047,36 @@ func (t T) StorageClearTrustTokens() {
 	t.Nil(err)
 }
 
+func (t T) StorageGetPrivateVerificationTokens() {
+	c := &Client{}
+	_, err := proto.StorageGetPrivateVerificationTokens{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageGetPrivateVerificationTokensIssuerConfigs() {
+	c := &Client{}
+	_, err := proto.StorageGetPrivateVerificationTokensIssuerConfigs{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageClearPrivateVerificationTokens() {
+	c := &Client{}
+	err := proto.StorageClearPrivateVerificationTokens{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageDeletePrivateVerificationToken() {
+	c := &Client{}
+	err := proto.StorageDeletePrivateVerificationToken{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageSetPrivateVerificationTokensTracking() {
+	c := &Client{}
+	err := proto.StorageSetPrivateVerificationTokensTracking{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) StorageSetStorageBucketTracking() {
 	c := &Client{}
 	err := proto.StorageSetStorageBucketTracking{}.Call(c)
@@ -4038,12 +4092,6 @@ func (t T) StorageDeleteStorageBucket() {
 func (t T) StorageRunBounceTrackingMitigations() {
 	c := &Client{}
 	_, err := proto.StorageRunBounceTrackingMitigations{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageGetRelatedWebsiteSets() {
-	c := &Client{}
-	_, err := proto.StorageGetRelatedWebsiteSets{}.Call(c)
 	t.Nil(err)
 }
 
@@ -4074,6 +4122,11 @@ func (t T) StorageStorageBucketCreatedOrUpdated() {
 
 func (t T) StorageStorageBucketDeleted() {
 	e := proto.StorageStorageBucketDeleted{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) StoragePrivateVerificationTokensUpdated() {
+	e := proto.StoragePrivateVerificationTokensUpdated{}
 	t.Regex("", e.ProtoEvent())
 }
 

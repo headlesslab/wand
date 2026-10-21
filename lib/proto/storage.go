@@ -68,6 +68,39 @@ type StorageTrustTokens struct {
 	Count float64 `json:"count"`
 }
 
+// StoragePrivateVerificationToken (experimental) Details of a stored Private Verification Token.
+type StoragePrivateVerificationToken struct {
+	// ID Unique identifier of the token in the database.
+	ID string `json:"id"`
+
+	// IssuerOrigin Origin of the token issuer.
+	IssuerOrigin string `json:"issuerOrigin"`
+
+	// KeyID Public key ID used to issue the token.
+	KeyID int `json:"keyId"`
+
+	// Expiration timestamp in seconds since the epoch.
+	Expiration TimeSinceEpoch `json:"expiration"`
+
+	// CreationTime Token creation timestamp in seconds since the epoch.
+	CreationTime TimeSinceEpoch `json:"creationTime"`
+
+	// Version Token protocol version.
+	Version int `json:"version"`
+
+	// Token Base64-encoded serialized token.
+	Token string `json:"token"`
+}
+
+// StoragePrivateVerificationTokensIssuerConfig (experimental) Configuration for a Private Verification Tokens issuer.
+type StoragePrivateVerificationTokensIssuerConfig struct {
+	// IssuerOrigin Origin of the token issuer.
+	IssuerOrigin string `json:"issuerOrigin"`
+
+	// RedeemerOrigins Origins authorized to redeem tokens from this issuer.
+	RedeemerOrigins []string `json:"redeemerOrigins"`
+}
+
 // StorageStorageBucketsDurability ...
 type StorageStorageBucketsDurability string
 
@@ -107,18 +140,6 @@ type StorageStorageBucketInfo struct {
 
 	// Durability ...
 	Durability StorageStorageBucketsDurability `json:"durability"`
-}
-
-// StorageRelatedWebsiteSet (experimental) A single Related Website Set object.
-type StorageRelatedWebsiteSet struct {
-	// PrimarySites The primary site of this set, along with the ccTLDs if there is any.
-	PrimarySites []string `json:"primarySites"`
-
-	// AssociatedSites The associated sites of this set, along with the ccTLDs if there is any.
-	AssociatedSites []string `json:"associatedSites"`
-
-	// ServiceSites The service sites of this set, along with the ccTLDs if there is any.
-	ServiceSites []string `json:"serviceSites"`
 }
 
 // StorageGetStorageKeyForFrame (deprecated) Returns a storage key given a frame id.
@@ -475,6 +496,96 @@ type StorageClearTrustTokensResult struct {
 	DidDeleteTokens bool `json:"didDeleteTokens"`
 }
 
+// StorageGetPrivateVerificationTokens (experimental) Returns all stored Private Verification Tokens for the current browsing
+// context.
+type StorageGetPrivateVerificationTokens struct{}
+
+// ProtoReq name.
+func (m StorageGetPrivateVerificationTokens) ProtoReq() string {
+	return "Storage.getPrivateVerificationTokens"
+}
+
+// Call the request.
+func (m StorageGetPrivateVerificationTokens) Call(c Client) (*StorageGetPrivateVerificationTokensResult, error) {
+	var res StorageGetPrivateVerificationTokensResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// StorageGetPrivateVerificationTokensResult (experimental) ...
+type StorageGetPrivateVerificationTokensResult struct {
+	// Tokens ...
+	Tokens []*StoragePrivateVerificationToken `json:"tokens"`
+}
+
+// StorageGetPrivateVerificationTokensIssuerConfigs (experimental) Returns the configured Private Verification Tokens issuers and their redeemer
+// origins.
+type StorageGetPrivateVerificationTokensIssuerConfigs struct{}
+
+// ProtoReq name.
+func (m StorageGetPrivateVerificationTokensIssuerConfigs) ProtoReq() string {
+	return "Storage.getPrivateVerificationTokensIssuerConfigs"
+}
+
+// Call the request.
+func (m StorageGetPrivateVerificationTokensIssuerConfigs) Call(c Client) (*StorageGetPrivateVerificationTokensIssuerConfigsResult, error) {
+	var res StorageGetPrivateVerificationTokensIssuerConfigsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// StorageGetPrivateVerificationTokensIssuerConfigsResult (experimental) ...
+type StorageGetPrivateVerificationTokensIssuerConfigsResult struct {
+	// Configs ...
+	Configs []*StoragePrivateVerificationTokensIssuerConfig `json:"configs"`
+}
+
+// StorageClearPrivateVerificationTokens (experimental) Removes all Private Verification Tokens issued by the provided issuerOrigin.
+type StorageClearPrivateVerificationTokens struct {
+	// IssuerOrigin ...
+	IssuerOrigin string `json:"issuerOrigin"`
+}
+
+// ProtoReq name.
+func (m StorageClearPrivateVerificationTokens) ProtoReq() string {
+	return "Storage.clearPrivateVerificationTokens"
+}
+
+// Call sends the request.
+func (m StorageClearPrivateVerificationTokens) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// StorageDeletePrivateVerificationToken (experimental) Removes a specific Private Verification Token by its ID.
+type StorageDeletePrivateVerificationToken struct {
+	// TokenID ...
+	TokenID string `json:"tokenId"`
+}
+
+// ProtoReq name.
+func (m StorageDeletePrivateVerificationToken) ProtoReq() string {
+	return "Storage.deletePrivateVerificationToken"
+}
+
+// Call sends the request.
+func (m StorageDeletePrivateVerificationToken) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// StorageSetPrivateVerificationTokensTracking (experimental) Set tracking for Private Verification Tokens.
+type StorageSetPrivateVerificationTokensTracking struct {
+	// Enable ...
+	Enable bool `json:"enable"`
+}
+
+// ProtoReq name.
+func (m StorageSetPrivateVerificationTokensTracking) ProtoReq() string {
+	return "Storage.setPrivateVerificationTokensTracking"
+}
+
+// Call sends the request.
+func (m StorageSetPrivateVerificationTokensTracking) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // StorageSetStorageBucketTracking (experimental) Set tracking for a storage key's buckets.
 type StorageSetStorageBucketTracking struct {
 	// StorageKey ...
@@ -524,25 +635,6 @@ func (m StorageRunBounceTrackingMitigations) Call(c Client) (*StorageRunBounceTr
 type StorageRunBounceTrackingMitigationsResult struct {
 	// DeletedSites ...
 	DeletedSites []string `json:"deletedSites"`
-}
-
-// StorageGetRelatedWebsiteSets (experimental) Returns the effective Related Website Sets in use by this profile for the browser
-// session. The effective Related Website Sets will not change during a browser session.
-type StorageGetRelatedWebsiteSets struct{}
-
-// ProtoReq name.
-func (m StorageGetRelatedWebsiteSets) ProtoReq() string { return "Storage.getRelatedWebsiteSets" }
-
-// Call the request.
-func (m StorageGetRelatedWebsiteSets) Call(c Client) (*StorageGetRelatedWebsiteSetsResult, error) {
-	var res StorageGetRelatedWebsiteSetsResult
-	return &res, call(m.ProtoReq(), m, &res, c)
-}
-
-// StorageGetRelatedWebsiteSetsResult (experimental) ...
-type StorageGetRelatedWebsiteSetsResult struct {
-	// Sets ...
-	Sets []*StorageRelatedWebsiteSet `json:"sets"`
 }
 
 // StorageCacheStorageContentUpdated A cache's contents have been modified.
@@ -642,4 +734,12 @@ type StorageStorageBucketDeleted struct {
 // ProtoEvent name.
 func (evt StorageStorageBucketDeleted) ProtoEvent() string {
 	return "Storage.storageBucketDeleted"
+}
+
+// StoragePrivateVerificationTokensUpdated (experimental) Private Verification Tokens have been stored or deleted.
+type StoragePrivateVerificationTokensUpdated struct{}
+
+// ProtoEvent name.
+func (evt StoragePrivateVerificationTokensUpdated) ProtoEvent() string {
+	return "Storage.privateVerificationTokensUpdated"
 }
