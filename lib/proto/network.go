@@ -1052,9 +1052,6 @@ const (
 	// NetworkSetCookieBlockedReasonThirdPartyPhaseout enum const.
 	NetworkSetCookieBlockedReasonThirdPartyPhaseout NetworkSetCookieBlockedReason = "ThirdPartyPhaseout"
 
-	// NetworkSetCookieBlockedReasonThirdPartyBlockedInFirstPartySet enum const.
-	NetworkSetCookieBlockedReasonThirdPartyBlockedInFirstPartySet NetworkSetCookieBlockedReason = "ThirdPartyBlockedInFirstPartySet"
-
 	// NetworkSetCookieBlockedReasonSyntaxError enum const.
 	NetworkSetCookieBlockedReasonSyntaxError NetworkSetCookieBlockedReason = "SyntaxError"
 
@@ -1122,9 +1119,6 @@ const (
 
 	// NetworkCookieBlockedReasonThirdPartyPhaseout enum const.
 	NetworkCookieBlockedReasonThirdPartyPhaseout NetworkCookieBlockedReason = "ThirdPartyPhaseout"
-
-	// NetworkCookieBlockedReasonThirdPartyBlockedInFirstPartySet enum const.
-	NetworkCookieBlockedReasonThirdPartyBlockedInFirstPartySet NetworkCookieBlockedReason = "ThirdPartyBlockedInFirstPartySet"
 
 	// NetworkCookieBlockedReasonUnknownError enum const.
 	NetworkCookieBlockedReasonUnknownError NetworkCookieBlockedReason = "UnknownError"
