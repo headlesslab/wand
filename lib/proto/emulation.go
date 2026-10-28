@@ -567,6 +567,17 @@ const (
 	EmulationSetDeviceMetricsOverrideViewportMetaDefault EmulationSetDeviceMetricsOverrideViewportMeta = "default"
 )
 
+// EmulationSetDeviceMetricsOverrideTextLayoutMode enum.
+type EmulationSetDeviceMetricsOverrideTextLayoutMode string
+
+const (
+	// EmulationSetDeviceMetricsOverrideTextLayoutModeMobile enum const.
+	EmulationSetDeviceMetricsOverrideTextLayoutModeMobile EmulationSetDeviceMetricsOverrideTextLayoutMode = "mobile"
+
+	// EmulationSetDeviceMetricsOverrideTextLayoutModeDefault enum const.
+	EmulationSetDeviceMetricsOverrideTextLayoutModeDefault EmulationSetDeviceMetricsOverrideTextLayoutMode = "default"
+)
+
 // EmulationSetDeviceMetricsOverride Overrides the values of device screen dimensions (window.screen.width, window.screen.height,
 // window.innerWidth, window.innerHeight, and "device-width"/"device-height"-related CSS media
 // query results).
@@ -636,6 +647,10 @@ type EmulationSetDeviceMetricsOverride struct {
 	// ViewportMeta (experimental) (optional) Viewport meta tag behavior. Default: `default`. Note: if `mobile` is `true`,
 	// the viewport meta tag is always enabled.
 	ViewportMeta EmulationSetDeviceMetricsOverrideViewportMeta `json:"viewportMeta,omitempty"`
+
+	// TextLayoutMode (experimental) (optional) Text layout mode. Default: `default`. Note: if `mobile` is `true`,
+	// mobile text layout mode (text autosizing) is always enabled.
+	TextLayoutMode EmulationSetDeviceMetricsOverrideTextLayoutMode `json:"textLayoutMode,omitempty"`
 }
 
 // ProtoReq name.

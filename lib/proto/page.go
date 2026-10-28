@@ -768,6 +768,9 @@ type PageScreencastFrameMetadata struct {
 
 	// Timestamp (optional) Frame swap timestamp.
 	Timestamp TimeSinceEpoch `json:"timestamp,omitempty"`
+
+	// MonotonicTimestamp (optional) Frame swap timestamp as monotonic time.
+	MonotonicTimestamp MonotonicTime `json:"monotonicTimestamp,omitempty"`
 }
 
 // PageDialogType Javascript dialog type.
@@ -1209,6 +1212,21 @@ type PageWebAppManifest struct {
 
 	// ThemeColor (optional) ...
 	ThemeColor string `json:"themeColor,omitempty"`
+}
+
+// PageSubApp ...
+type PageSubApp struct {
+	// Name Display name of the sub-app.
+	Name string `json:"name"`
+
+	// Scope of the sub-app.
+	Scope string `json:"scope"`
+
+	// ManifestID Manifest id of the sub-app.
+	ManifestID string `json:"manifestId"`
+
+	// StartURL Start URL of the sub-app.
+	StartURL string `json:"startUrl"`
 }
 
 // PageNavigationType (experimental) The type of a frameNavigated event.
@@ -2086,7 +2104,7 @@ type PageGetManifestIconsResult struct {
 	PrimaryIcon []byte `json:"primaryIcon,omitempty"`
 }
 
-// PageGetAppID (experimental) Returns the unique (PWA) app id.
+// PageGetAppID (experimental) Returns the unique (PWA) app id, along with IWA bundle ID and parent app info.
 // Only returns values if the feature flag 'WebAppEnableManifestId' is enabled.
 type PageGetAppID struct{}
 
@@ -2106,6 +2124,48 @@ type PageGetAppIDResult struct {
 
 	// RecommendedID (optional) Recommendation for manifest's id attribute to match current id computed from start_url.
 	RecommendedID string `json:"recommendedId,omitempty"`
+
+	// BundleID (optional) The bundle ID for an Isolated Web App (IWA).
+	BundleID string `json:"bundleId,omitempty"`
+
+	// ParentAppName (optional) The name of the parent app if this app is a Sub-App.
+	ParentAppName string `json:"parentAppName,omitempty"`
+}
+
+// PageGetSubApps (experimental) Returns the list of installed child Sub-Apps for the inspected parent app.
+type PageGetSubApps struct{}
+
+// ProtoReq name.
+func (m PageGetSubApps) ProtoReq() string { return "Page.getSubApps" }
+
+// Call the request.
+func (m PageGetSubApps) Call(c Client) (*PageGetSubAppsResult, error) {
+	var res PageGetSubAppsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageGetSubAppsResult (experimental) ...
+type PageGetSubAppsResult struct {
+	// SubApps ...
+	SubApps []*PageSubApp `json:"subApps"`
+}
+
+// PageGetSiblingSubApps (experimental) Returns the list of sibling Sub-Apps sharing the same parent app if the inspected context is a Sub-App.
+type PageGetSiblingSubApps struct{}
+
+// ProtoReq name.
+func (m PageGetSiblingSubApps) ProtoReq() string { return "Page.getSiblingSubApps" }
+
+// Call the request.
+func (m PageGetSiblingSubApps) Call(c Client) (*PageGetSiblingSubAppsResult, error) {
+	var res PageGetSiblingSubAppsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageGetSiblingSubAppsResult (experimental) ...
+type PageGetSiblingSubAppsResult struct {
+	// SubApps ...
+	SubApps []*PageSubApp `json:"subApps"`
 }
 
 // PageGetAdScriptAncestry (experimental) ...
