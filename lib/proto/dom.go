@@ -1692,6 +1692,65 @@ func (m DOMForceShowInterest) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// DOMSetTextMarkerType enum.
+type DOMSetTextMarkerType string
+
+const (
+	// DOMSetTextMarkerTypeSpelling enum const.
+	DOMSetTextMarkerTypeSpelling DOMSetTextMarkerType = "spelling"
+
+	// DOMSetTextMarkerTypeGrammar enum const.
+	DOMSetTextMarkerTypeGrammar DOMSetTextMarkerType = "grammar"
+)
+
+// DOMSetTextMarker (experimental) Sets a spelling or grammar error marker on the given range of text.
+// See https://github.com/Igalia/explainers/blob/main/force-spelling-grammar-markers/README.md
+// Note: exactly one between nodeId, backendNodeId and objectId should be passed
+// to identify the node.
+type DOMSetTextMarker struct {
+	// NodeID (optional) Identifier of the node.
+	NodeID DOMNodeID `json:"nodeId,omitempty"`
+
+	// BackendNodeID (optional) Identifier of the backend node.
+	BackendNodeID DOMBackendNodeID `json:"backendNodeId,omitempty"`
+
+	// ObjectID (optional) JavaScript object id of the node wrapper.
+	ObjectID RuntimeRemoteObjectID `json:"objectId,omitempty"`
+
+	// Type The type of marker to set on the given range of text.
+	Type DOMSetTextMarkerType `json:"type"`
+
+	// Start offset into the element's rendered text in UTF-16 code units.
+	// For a text control, an offset into the control's value.
+	// Offsets count text in DOM order and do not enter shadow trees.
+	// To mark text inside a shadow tree, pass the element inside the shadow tree.
+	Start int `json:"start"`
+
+	// End offset (exclusive) in the same units and space as start.
+	End int `json:"end"`
+}
+
+// ProtoReq name.
+func (m DOMSetTextMarker) ProtoReq() string { return "DOM.setTextMarker" }
+
+// Call sends the request.
+func (m DOMSetTextMarker) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
+// DOMClearTextMarkers (experimental) Clears the spelling and grammar error text markers overlapping the ranges
+// set by setTextMarker in this session. These markers are also removed when
+// the DOM domain is disabled or the session ends.
+type DOMClearTextMarkers struct{}
+
+// ProtoReq name.
+func (m DOMClearTextMarkers) ProtoReq() string { return "DOM.clearTextMarkers" }
+
+// Call sends the request.
+func (m DOMClearTextMarkers) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // DOMAttributeModified Fired when `Element`'s attribute is modified.
 type DOMAttributeModified struct {
 	// NodeID Id of the node that has changed.
