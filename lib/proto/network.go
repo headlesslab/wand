@@ -1052,9 +1052,6 @@ const (
 	// NetworkSetCookieBlockedReasonThirdPartyPhaseout enum const.
 	NetworkSetCookieBlockedReasonThirdPartyPhaseout NetworkSetCookieBlockedReason = "ThirdPartyPhaseout"
 
-	// NetworkSetCookieBlockedReasonThirdPartyBlockedInFirstPartySet enum const.
-	NetworkSetCookieBlockedReasonThirdPartyBlockedInFirstPartySet NetworkSetCookieBlockedReason = "ThirdPartyBlockedInFirstPartySet"
-
 	// NetworkSetCookieBlockedReasonSyntaxError enum const.
 	NetworkSetCookieBlockedReasonSyntaxError NetworkSetCookieBlockedReason = "SyntaxError"
 
@@ -1122,9 +1119,6 @@ const (
 
 	// NetworkCookieBlockedReasonThirdPartyPhaseout enum const.
 	NetworkCookieBlockedReasonThirdPartyPhaseout NetworkCookieBlockedReason = "ThirdPartyPhaseout"
-
-	// NetworkCookieBlockedReasonThirdPartyBlockedInFirstPartySet enum const.
-	NetworkCookieBlockedReasonThirdPartyBlockedInFirstPartySet NetworkCookieBlockedReason = "ThirdPartyBlockedInFirstPartySet"
 
 	// NetworkCookieBlockedReasonUnknownError enum const.
 	NetworkCookieBlockedReasonUnknownError NetworkCookieBlockedReason = "UnknownError"
@@ -3210,6 +3204,10 @@ type NetworkLoadingFinished struct {
 
 	// EncodedDataLength Total number of bytes received for this request.
 	EncodedDataLength float64 `json:"encodedDataLength"`
+
+	// EncodedBodyLength (experimental) (optional) Size of the response body before removing content encodings.
+	// Includes cached bodies, but excludes headers and transfer framing.
+	EncodedBodyLength *float64 `json:"encodedBodyLength,omitempty"`
 }
 
 // ProtoEvent name.

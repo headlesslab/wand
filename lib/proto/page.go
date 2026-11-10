@@ -350,6 +350,9 @@ const (
 	// PagePermissionsPolicyFeaturePublickeyCredentialsGet enum const.
 	PagePermissionsPolicyFeaturePublickeyCredentialsGet PagePermissionsPolicyFeature = "publickey-credentials-get"
 
+	// PagePermissionsPolicyFeaturePublickeyCredentialsRemoteClientDataJSON enum const.
+	PagePermissionsPolicyFeaturePublickeyCredentialsRemoteClientDataJSON PagePermissionsPolicyFeature = "publickey-credentials-remote-client-data-json"
+
 	// PagePermissionsPolicyFeatureRewriter enum const.
 	PagePermissionsPolicyFeatureRewriter PagePermissionsPolicyFeature = "rewriter"
 
@@ -358,12 +361,6 @@ const (
 
 	// PagePermissionsPolicyFeatureSerial enum const.
 	PagePermissionsPolicyFeatureSerial PagePermissionsPolicyFeature = "serial"
-
-	// PagePermissionsPolicyFeatureSharedStorage enum const.
-	PagePermissionsPolicyFeatureSharedStorage PagePermissionsPolicyFeature = "shared-storage"
-
-	// PagePermissionsPolicyFeatureSharedStorageSelectURL enum const.
-	PagePermissionsPolicyFeatureSharedStorageSelectURL PagePermissionsPolicyFeature = "shared-storage-select-url"
 
 	// PagePermissionsPolicyFeatureSmartCard enum const.
 	PagePermissionsPolicyFeatureSmartCard PagePermissionsPolicyFeature = "smart-card"
@@ -768,6 +765,9 @@ type PageScreencastFrameMetadata struct {
 
 	// Timestamp (optional) Frame swap timestamp.
 	Timestamp TimeSinceEpoch `json:"timestamp,omitempty"`
+
+	// MonotonicTimestamp (optional) Frame swap timestamp as monotonic time.
+	MonotonicTimestamp MonotonicTime `json:"monotonicTimestamp,omitempty"`
 }
 
 // PageDialogType Javascript dialog type.
@@ -1209,6 +1209,21 @@ type PageWebAppManifest struct {
 
 	// ThemeColor (optional) ...
 	ThemeColor string `json:"themeColor,omitempty"`
+}
+
+// PageSubApp ...
+type PageSubApp struct {
+	// Name Display name of the sub-app.
+	Name string `json:"name"`
+
+	// Scope of the sub-app.
+	Scope string `json:"scope"`
+
+	// ManifestID Manifest id of the sub-app.
+	ManifestID string `json:"manifestId"`
+
+	// StartURL Start URL of the sub-app.
+	StartURL string `json:"startUrl"`
 }
 
 // PageNavigationType (experimental) The type of a frameNavigated event.
@@ -2086,7 +2101,7 @@ type PageGetManifestIconsResult struct {
 	PrimaryIcon []byte `json:"primaryIcon,omitempty"`
 }
 
-// PageGetAppID (experimental) Returns the unique (PWA) app id.
+// PageGetAppID (experimental) Returns the unique (PWA) app id, along with IWA bundle ID and parent app info.
 // Only returns values if the feature flag 'WebAppEnableManifestId' is enabled.
 type PageGetAppID struct{}
 
@@ -2106,6 +2121,48 @@ type PageGetAppIDResult struct {
 
 	// RecommendedID (optional) Recommendation for manifest's id attribute to match current id computed from start_url.
 	RecommendedID string `json:"recommendedId,omitempty"`
+
+	// BundleID (optional) The bundle ID for an Isolated Web App (IWA).
+	BundleID string `json:"bundleId,omitempty"`
+
+	// ParentAppName (optional) The name of the parent app if this app is a Sub-App.
+	ParentAppName string `json:"parentAppName,omitempty"`
+}
+
+// PageGetSubApps (experimental) Returns the list of installed child Sub-Apps for the inspected parent app.
+type PageGetSubApps struct{}
+
+// ProtoReq name.
+func (m PageGetSubApps) ProtoReq() string { return "Page.getSubApps" }
+
+// Call the request.
+func (m PageGetSubApps) Call(c Client) (*PageGetSubAppsResult, error) {
+	var res PageGetSubAppsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageGetSubAppsResult (experimental) ...
+type PageGetSubAppsResult struct {
+	// SubApps ...
+	SubApps []*PageSubApp `json:"subApps"`
+}
+
+// PageGetSiblingSubApps (experimental) Returns the list of sibling Sub-Apps sharing the same parent app if the inspected context is a Sub-App.
+type PageGetSiblingSubApps struct{}
+
+// ProtoReq name.
+func (m PageGetSiblingSubApps) ProtoReq() string { return "Page.getSiblingSubApps" }
+
+// Call the request.
+func (m PageGetSiblingSubApps) Call(c Client) (*PageGetSiblingSubAppsResult, error) {
+	var res PageGetSiblingSubAppsResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageGetSiblingSubAppsResult (experimental) ...
+type PageGetSiblingSubAppsResult struct {
+	// SubApps ...
+	SubApps []*PageSubApp `json:"subApps"`
 }
 
 // PageGetAdScriptAncestry (experimental) ...
@@ -2131,6 +2188,32 @@ type PageGetAdScriptAncestryResult struct {
 	// stack) to more distant ancestors (that created the immediately preceding
 	// script). Only sent if frame is labelled as an ad and ids are available.
 	AdScriptAncestry *NetworkAdAncestry `json:"adScriptAncestry,omitempty"`
+}
+
+// PageGetSpellCheckCustomDictionary (experimental) Returns the words that the frame's document added to its spell check custom
+// dictionary with `document.spellCheckCustomDictionary.addWords()`, sorted.
+// Page script cannot read the dictionary back; this lets developers inspect
+// it.
+type PageGetSpellCheckCustomDictionary struct {
+	// FrameID ...
+	FrameID PageFrameID `json:"frameId"`
+}
+
+// ProtoReq name.
+func (m PageGetSpellCheckCustomDictionary) ProtoReq() string {
+	return "Page.getSpellCheckCustomDictionary"
+}
+
+// Call the request.
+func (m PageGetSpellCheckCustomDictionary) Call(c Client) (*PageGetSpellCheckCustomDictionaryResult, error) {
+	var res PageGetSpellCheckCustomDictionaryResult
+	return &res, call(m.ProtoReq(), m, &res, c)
+}
+
+// PageGetSpellCheckCustomDictionaryResult (experimental) ...
+type PageGetSpellCheckCustomDictionaryResult struct {
+	// Words ...
+	Words []string `json:"words"`
 }
 
 // PageGetFrameTree Returns present frame tree structure.
@@ -3225,6 +3308,20 @@ type PageGetAnnotatedPageContentResult struct {
 	// The format is defined by the `AnnotatedPageContent` message in
 	// components/optimization_guide/proto/features/common_quality_data.proto (Encoded as a base64 string when passed over JSON).
 	Content []byte `json:"content"`
+}
+
+// PageSetInputVisualization (experimental) Configures input visualization on the page.
+type PageSetInputVisualization struct {
+	// Clicks (optional) Whether to enable click visualization.
+	Clicks bool `json:"clicks,omitempty"`
+}
+
+// ProtoReq name.
+func (m PageSetInputVisualization) ProtoReq() string { return "Page.setInputVisualization" }
+
+// Call sends the request.
+func (m PageSetInputVisualization) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
 }
 
 // PageDomContentEventFired ...
