@@ -103,6 +103,7 @@ type AutofillFilledField struct {
 
 // AutofillTrigger Trigger autofill on a form identified by the fieldId.
 // If the field and related form cannot be autofilled, returns an error.
+// Returns once the values have been applied to the form fields.
 type AutofillTrigger struct {
 	// FieldID Identifies a field that serves as an anchor for autofill.
 	FieldID DOMBackendNodeID `json:"fieldId"`
