@@ -1052,9 +1052,6 @@ const (
 	// NetworkSetCookieBlockedReasonThirdPartyPhaseout enum const.
 	NetworkSetCookieBlockedReasonThirdPartyPhaseout NetworkSetCookieBlockedReason = "ThirdPartyPhaseout"
 
-	// NetworkSetCookieBlockedReasonThirdPartyBlockedInFirstPartySet enum const.
-	NetworkSetCookieBlockedReasonThirdPartyBlockedInFirstPartySet NetworkSetCookieBlockedReason = "ThirdPartyBlockedInFirstPartySet"
-
 	// NetworkSetCookieBlockedReasonSyntaxError enum const.
 	NetworkSetCookieBlockedReasonSyntaxError NetworkSetCookieBlockedReason = "SyntaxError"
 
@@ -1122,9 +1119,6 @@ const (
 
 	// NetworkCookieBlockedReasonThirdPartyPhaseout enum const.
 	NetworkCookieBlockedReasonThirdPartyPhaseout NetworkCookieBlockedReason = "ThirdPartyPhaseout"
-
-	// NetworkCookieBlockedReasonThirdPartyBlockedInFirstPartySet enum const.
-	NetworkCookieBlockedReasonThirdPartyBlockedInFirstPartySet NetworkCookieBlockedReason = "ThirdPartyBlockedInFirstPartySet"
 
 	// NetworkCookieBlockedReasonUnknownError enum const.
 	NetworkCookieBlockedReasonUnknownError NetworkCookieBlockedReason = "UnknownError"
@@ -2167,6 +2161,9 @@ const (
 
 	// NetworkDeviceBoundSessionFetchResultAttestationSigningError enum const.
 	NetworkDeviceBoundSessionFetchResultAttestationSigningError NetworkDeviceBoundSessionFetchResult = "AttestationSigningError"
+
+	// NetworkDeviceBoundSessionFetchResultFederatedRegistrationRedirected enum const.
+	NetworkDeviceBoundSessionFetchResultFederatedRegistrationRedirected NetworkDeviceBoundSessionFetchResult = "FederatedRegistrationRedirected"
 )
 
 // NetworkDeviceBoundSessionFailedRequest (experimental) Details about a failed device bound session network request.
@@ -2230,6 +2227,9 @@ const (
 
 	// NetworkRefreshEventDetailsRefreshResultInScopeRefreshNotYetNeeded enum const.
 	NetworkRefreshEventDetailsRefreshResultInScopeRefreshNotYetNeeded NetworkRefreshEventDetailsRefreshResult = "InScopeRefreshNotYetNeeded"
+
+	// NetworkRefreshEventDetailsRefreshResultCanceled enum const.
+	NetworkRefreshEventDetailsRefreshResultCanceled NetworkRefreshEventDetailsRefreshResult = "Canceled"
 )
 
 // NetworkRefreshEventDetails (experimental) Session event details specific to refresh.
@@ -3210,6 +3210,10 @@ type NetworkLoadingFinished struct {
 
 	// EncodedDataLength Total number of bytes received for this request.
 	EncodedDataLength float64 `json:"encodedDataLength"`
+
+	// EncodedBodyLength (experimental) (optional) Size of the response body before removing content encodings.
+	// Includes cached bodies, but excludes headers and transfer framing.
+	EncodedBodyLength *float64 `json:"encodedBodyLength,omitempty"`
 }
 
 // ProtoEvent name.
@@ -3627,8 +3631,12 @@ type NetworkDirectUDPSocketJoinedMulticastGroup struct {
 	// Identifier ...
 	Identifier NetworkRequestID `json:"identifier"`
 
-	// IPAddress ...
+	// IPAddress Multicast group address.
 	IPAddress string `json:"IPAddress"`
+
+	// SourceAddress (optional) Source address of a source-specific multicast (SSM) membership. Absent
+	// for any-source multicast (ASM) memberships.
+	SourceAddress string `json:"sourceAddress,omitempty"`
 }
 
 // ProtoEvent name.
@@ -3641,8 +3649,12 @@ type NetworkDirectUDPSocketLeftMulticastGroup struct {
 	// Identifier ...
 	Identifier NetworkRequestID `json:"identifier"`
 
-	// IPAddress ...
+	// IPAddress Multicast group address.
 	IPAddress string `json:"IPAddress"`
+
+	// SourceAddress (optional) Source address of a source-specific multicast (SSM) membership. Absent
+	// for any-source multicast (ASM) memberships.
+	SourceAddress string `json:"sourceAddress,omitempty"`
 }
 
 // ProtoEvent name.

@@ -126,6 +126,17 @@ const (
 	DebuggerScopeTypeWasmExpressionStack DebuggerScopeType = "wasm-expression-stack"
 )
 
+// DebuggerScopeEmptyReason enum.
+type DebuggerScopeEmptyReason string
+
+const (
+	// DebuggerScopeEmptyReasonNoVariables enum const.
+	DebuggerScopeEmptyReasonNoVariables DebuggerScopeEmptyReason = "no-variables"
+
+	// DebuggerScopeEmptyReasonAllUnavailable enum const.
+	DebuggerScopeEmptyReasonAllUnavailable DebuggerScopeEmptyReason = "all-unavailable"
+)
+
 // DebuggerScope Scope description.
 type DebuggerScope struct {
 	// Type Scope type.
@@ -145,12 +156,12 @@ type DebuggerScope struct {
 	// EndLocation (optional) Location in the source code where scope ends.
 	EndLocation *DebuggerLocation `json:"endLocation,omitempty"`
 
-	// Empty (experimental) (optional) True if the scope does not declare any variables or have a runtime context.
-	// Only present if true.
+	// EmptyReason (experimental) (optional) Present if the scope has no variable values to show. Absent means that
+	// the scope declares at least one variable with an available value.
 	// Empty scopes are retained in the scope chain because
 	// they can be targeted via `evaluateOnCallFrame` (using `scopeNumber`) or
 	// matched against scopes in source maps.
-	Empty bool `json:"empty,omitempty"`
+	EmptyReason DebuggerScopeEmptyReason `json:"emptyReason,omitempty"`
 }
 
 // DebuggerSearchMatch Search match for resource.
@@ -1094,6 +1105,11 @@ func (m DebuggerStepOut) Call(c Client) error {
 type DebuggerStepOver struct {
 	// SkipList (experimental) (optional) The skipList specifies location ranges that should be skipped on step over.
 	SkipList []*DebuggerLocationRange `json:"skipList,omitempty"`
+
+	// EnterRanges (experimental) (optional) Functions whose source range lies within one of the enterRanges are
+	// entered as if by stepInto, even when they are called (directly or
+	// indirectly) from a call that is stepped over.
+	EnterRanges []*DebuggerLocationRange `json:"enterRanges,omitempty"`
 }
 
 // ProtoReq name.

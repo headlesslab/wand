@@ -643,6 +643,11 @@ type PreloadPrerenderStatusUpdated struct {
 	// Status ...
 	Status PreloadPreloadingStatus `json:"status"`
 
+	// EffectiveAction (optional) The action currently performed by this attempt. This differs from
+	// `key.action` after a prerender-until-script attempt is upgraded in place
+	// to a full prerender.
+	EffectiveAction PreloadSpeculationAction `json:"effectiveAction,omitempty"`
+
 	// PrerenderStatus (optional) ...
 	PrerenderStatus PreloadPrerenderFinalStatus `json:"prerenderStatus,omitempty"`
 

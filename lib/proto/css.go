@@ -1018,6 +1018,24 @@ func (m CSSForceStartingStyle) Call(c Client) error {
 	return call(m.ProtoReq(), m, nil, c)
 }
 
+// CSSForcePositionTryOption Forces a position-try option for the given node.
+type CSSForcePositionTryOption struct {
+	// NodeID The element id for which to force the position-try option.
+	NodeID DOMNodeID `json:"nodeId"`
+
+	// Index (optional) The 1-based index of the position-try fallback option, 0 for base position (no fallback),
+	// or omitted to clear the forced state.
+	Index *int `json:"index,omitempty"`
+}
+
+// ProtoReq name.
+func (m CSSForcePositionTryOption) ProtoReq() string { return "CSS.forcePositionTryOption" }
+
+// Call sends the request.
+func (m CSSForcePositionTryOption) Call(c Client) error {
+	return call(m.ProtoReq(), m, nil, c)
+}
+
 // CSSGetBackgroundColors ...
 type CSSGetBackgroundColors struct {
 	// NodeID Id of the node to get background colors for.

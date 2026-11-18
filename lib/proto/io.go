@@ -62,7 +62,9 @@ type IOReadResult struct {
 	EOF bool `json:"eof"`
 }
 
-// IOResolveBlob Return UUID of Blob object specified by a remote object id.
+// IOResolveBlob (deprecated) Return UUID of Blob object specified by a remote object id.
+//
+// Deprecated: IO.resolveBlob is deprecated in the Chrome DevTools Protocol.
 type IOResolveBlob struct {
 	// ObjectID Object id of a Blob object wrapper.
 	ObjectID RuntimeRemoteObjectID `json:"objectId"`
@@ -77,7 +79,9 @@ func (m IOResolveBlob) Call(c Client) (*IOResolveBlobResult, error) {
 	return &res, call(m.ProtoReq(), m, &res, c)
 }
 
-// IOResolveBlobResult ...
+// IOResolveBlobResult (deprecated) ...
+//
+// Deprecated: IO.resolveBlob is deprecated in the Chrome DevTools Protocol.
 type IOResolveBlobResult struct {
 	// UUID of the specified Blob.
 	UUID string `json:"uuid"`
