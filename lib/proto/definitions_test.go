@@ -537,6 +537,12 @@ func (t T) CSSForceStartingStyle() {
 	t.Nil(err)
 }
 
+func (t T) CSSForcePositionTryOption() {
+	c := &Client{}
+	err := proto.CSSForcePositionTryOption{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) CSSGetBackgroundColors() {
 	c := &Client{}
 	_, err := proto.CSSGetBackgroundColors{}.Call(c)
@@ -1168,6 +1174,18 @@ func (t T) DOMGetImplicitAnchorCandidates() {
 func (t T) DOMForceShowInterest() {
 	c := &Client{}
 	err := proto.DOMForceShowInterest{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) DOMSetTextMarker() {
+	c := &Client{}
+	err := proto.DOMSetTextMarker{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) DOMClearTextMarkers() {
+	c := &Client{}
+	err := proto.DOMClearTextMarkers{}.Call(c)
 	t.Nil(err)
 }
 
@@ -1942,6 +1960,30 @@ func (t T) FetchAuthRequired() {
 func (t T) FileSystemGetDirectory() {
 	c := &Client{}
 	_, err := proto.FileSystemGetDirectory{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FindInPageFindFirst() {
+	c := &Client{}
+	err := proto.FindInPageFindFirst{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FindInPageFindNext() {
+	c := &Client{}
+	err := proto.FindInPageFindNext{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FindInPageFindPrev() {
+	c := &Client{}
+	err := proto.FindInPageFindPrev{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) FindInPageStop() {
+	c := &Client{}
+	err := proto.FindInPageStop{}.Call(c)
 	t.Nil(err)
 }
 
@@ -3131,9 +3173,27 @@ func (t T) PageGetAppID() {
 	t.Nil(err)
 }
 
+func (t T) PageGetSubApps() {
+	c := &Client{}
+	_, err := proto.PageGetSubApps{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PageGetSiblingSubApps() {
+	c := &Client{}
+	_, err := proto.PageGetSiblingSubApps{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) PageGetAdScriptAncestry() {
 	c := &Client{}
 	_, err := proto.PageGetAdScriptAncestry{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PageGetSpellCheckCustomDictionary() {
+	c := &Client{}
+	_, err := proto.PageGetSpellCheckCustomDictionary{}.Call(c)
 	t.Nil(err)
 }
 
@@ -3410,6 +3470,12 @@ func (t T) PageSetPrerenderingAllowed() {
 func (t T) PageGetAnnotatedPageContent() {
 	c := &Client{}
 	_, err := proto.PageGetAnnotatedPageContent{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) PageSetInputVisualization() {
+	c := &Client{}
+	err := proto.PageSetInputVisualization{}.Call(c)
 	t.Nil(err)
 }
 
@@ -4023,6 +4089,36 @@ func (t T) StorageClearTrustTokens() {
 	t.Nil(err)
 }
 
+func (t T) StorageGetPrivateVerificationTokens() {
+	c := &Client{}
+	_, err := proto.StorageGetPrivateVerificationTokens{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageGetPrivateVerificationTokensIssuerConfigs() {
+	c := &Client{}
+	_, err := proto.StorageGetPrivateVerificationTokensIssuerConfigs{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageClearPrivateVerificationTokens() {
+	c := &Client{}
+	err := proto.StorageClearPrivateVerificationTokens{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageDeletePrivateVerificationToken() {
+	c := &Client{}
+	err := proto.StorageDeletePrivateVerificationToken{}.Call(c)
+	t.Nil(err)
+}
+
+func (t T) StorageSetPrivateVerificationTokensTracking() {
+	c := &Client{}
+	err := proto.StorageSetPrivateVerificationTokensTracking{}.Call(c)
+	t.Nil(err)
+}
+
 func (t T) StorageSetStorageBucketTracking() {
 	c := &Client{}
 	err := proto.StorageSetStorageBucketTracking{}.Call(c)
@@ -4038,12 +4134,6 @@ func (t T) StorageDeleteStorageBucket() {
 func (t T) StorageRunBounceTrackingMitigations() {
 	c := &Client{}
 	_, err := proto.StorageRunBounceTrackingMitigations{}.Call(c)
-	t.Nil(err)
-}
-
-func (t T) StorageGetRelatedWebsiteSets() {
-	c := &Client{}
-	_, err := proto.StorageGetRelatedWebsiteSets{}.Call(c)
 	t.Nil(err)
 }
 
@@ -4074,6 +4164,11 @@ func (t T) StorageStorageBucketCreatedOrUpdated() {
 
 func (t T) StorageStorageBucketDeleted() {
 	e := proto.StorageStorageBucketDeleted{}
+	t.Regex("", e.ProtoEvent())
+}
+
+func (t T) StoragePrivateVerificationTokensUpdated() {
+	e := proto.StoragePrivateVerificationTokensUpdated{}
 	t.Regex("", e.ProtoEvent())
 }
 

@@ -239,8 +239,13 @@ type AnimationSeekAnimations struct {
 	// Animations List of animation ids to seek.
 	Animations []string `json:"animations"`
 
-	// CurrentTime Set the current time of each animation.
-	CurrentTime float64 `json:"currentTime"`
+	// CurrentTime (optional) Set each animation to the same time.
+	CurrentTime *float64 `json:"currentTime,omitempty"`
+
+	// CurrentTimes (optional) Set each animation to a different time. If set, should have the same
+	// length as animations. Exactly one of currentTime or currentTimes should
+	// be set.
+	CurrentTimes []float64 `json:"currentTimes,omitempty"`
 }
 
 // ProtoReq name.
